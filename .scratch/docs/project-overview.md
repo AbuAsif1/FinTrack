@@ -1,199 +1,128 @@
 # FinTrack BD — Project Overview
 
-> **Read this first.** This document is the single entry point for any new Claude context working on this project. It tells you what the project is, what has been done, what is in progress, and what every file in the repository is for.
+> **Owns:** current status, the file map, the release plan and open items. Read this first.
+> Everything else is one hop away: the table in `CLAUDE.md` says which doc owns which topic.
 
 ---
 
-## What This Project Is
+## What this project is
 
-**FinTrack BD** is a personal finance tracking web application for a salaried professional in Bangladesh. It replaces three manual Excel spreadsheets with a single, mobile-friendly, always-available system.
-
-The three spreadsheets it replaces:
-
-| Sheet | What it tracked |
-|-------|----------------|
-| `Sheet5` (income/tax) | Monthly salary, profit share, bonuses, TDS deducted, tax slab calculations across fiscal years |
-| `Fixed Spent` | Monthly recurring expenses (DPS, rent, internet, electricity) with per-month deadline checkboxes |
-| `BorrowLoan` | Money lent to or borrowed from named individuals with running balances per person |
-
-Source Excel files:
-- `/Users/abuasif/Downloads/Asif - Finance 2024.xlsx` — income, fixed spending, borrow-loan history
-- `/Users/abuasif/Downloads/Bangladesh-Tax-Calculator-Final.xlsx` — Bangladesh NBR tax calculation logic
+**FinTrack BD** is a personal finance web application for a salaried professional in Bangladesh. It replaces three Excel sheets (income and tax, fixed monthly spending, borrow-loan ledger) with one mobile-first PWA that understands the Bangladesh Fiscal Year, TDS, tax rebate on DPS and Sanchaypatra, and informal loans between friends.
 
 ---
 
-## Current Project Phase
+## Status
 
-**Phase: Requirements & Design** — not yet in development.
+**Phase: documentation complete and ready for development; development not started.**
 
-- [x] Business Requirements Document drafted (`docs/brd.md`)
-- [x] Domain glossary created (`GLOSSARY.md`)
-- [x] Interactive artifact published at https://claude.ai/artifact/7dj3aJthhaLyERWfPS6LU3
-- [x] Excel files analyzed for real data patterns and acceptance criteria
-- [ ] **Grilling session Round 1 open** — 7 design-tree questions unanswered (see below)
-- [ ] ADRs not yet written — awaiting grilling session completion
-- [ ] Architecture not finalized
-- [ ] Development not started
+> **Development hold (set 2026-11-12).** The docs and tickets are ready, but the owner has not yet said to start. Do not scaffold the app, write application code or pick up a ticket until the owner lifts this hold. Editing docs and tickets is fine.
+
+- [x] BRD v1.1, architecture, rules, design and glossary aligned on one stack and one data model
+- [x] Decisions recorded as ADR-0001 to ADR-0011
+- [x] MVP broken into 25 agent tickets and 1 owner ticket
+- [x] Regression test matrix written for every MVP feature; each ticket names its cases
+- [x] Phase 2 backlog and Phase 3 idea captured
+- [ ] Owner confirms the tax parameters (ticket 24)
+- [ ] Owner lifts the development hold
+- [ ] Development
 
 ---
 
-## Repository File Structure
+## Release plan
+
+### MVP (current release)
+
+Tickets are in `.scratch/fintrack-bd-mvp/issues/`. Sprint order:
+
+| Sprint | Focus | Tickets |
+|---|---|---|
+| 1 | Foundation: repo, schema, tax engine, auth, app shell, registration | 01, 02, 12, 25 |
+| 2 | Ledger core: Transactions, savings accounts, loans, category routing; admin user management | 03, 04, 05, 06, 26 |
+| 3 | Income and savings screens | 07, 14 |
+| 4 | Fixed Expenses | 08, 16 |
+| 5 | Budgets and notifications; Transactions and Loans screens | 10, 15, 17 |
+| 6 | Tax API and Tax Dashboard | 09, 18 |
+| 7 | Dashboard, analytics, notifications and settings screens | 11, 13, 19, 20 |
+| 8 | Import, export, PWA polish, UAT and production | 22, 23, 21 |
+
+Ticket 24 is `ready-for-human`: the owner confirms tax parameters against NBR rules. It blocks nothing.
+
+### Phase 2
+
+`.scratch/fintrack-bd-phase-2/spec.md`, status `needs-triage`. Scope summary: `brd.md` §3.
+
+### Phase 3
+
+`.scratch/fintrack-bd-phase-3/spec.md`, status `needs-triage`: a possible subscription feature.
+
+---
+
+## File map
 
 ```
-Self_Finance/
-├── CLAUDE.md                      — agent skill pointers (issue tracker, triage, domain docs)
-├── GLOSSARY.md                    — canonical domain terms (17 definitions)
-├── docs/
-│   ├── project-overview.md        — THIS FILE — start here in every new context
-│   ├── brd.md                     — full Business Requirements Document (11 sections)
-│   ├── adr/                       — Architectural Decision Records (empty — pending grilling)
-│   └── agents/
-│       ├── domain.md              — domain doc conventions
-│       ├── issue-tracker.md       — issue tracking conventions
-│       └── triage-labels.md       — triage label vocabulary
-```
-
----
-
-## Key Domain Concepts
-
-Always read `GLOSSARY.md` before naming a variable, table, or UI label. Critical terms:
-
-**Paisa** — all money stored as integer paisa (1 BDT = 100 paisa). Never use floats for money. Divide by 100 only at the display layer.
-
-**Fiscal Year** — 1 July to 30 June (Bangladesh NBR). Format: "YYYY-YY" (e.g., "2025-26"). Tax calculations use fiscal year. Budgets and spending use calendar month. These are two separate time axes — never mix them.
-
-**In-Hand Income vs. Gross Income** — Gross is what the employer pays. In-Hand is after TDS. Dashboard and budgets use In-Hand. The Tax module uses Gross.
-
-**DPS payment = Transfer, not Spending** — it moves money from cash to a savings account. Does not inflate spending totals. Does count toward tax rebate investment (up to ৳1,20,000/year cap).
-
-**Loan Entry direction is always first-person** — "Given" = money left the user's hands. "Received" = money came to the user. Running Balance sign tells you who owes whom: positive = they owe the user, negative = user owes them.
-
-**Transaction vs. Transfer** — a Transaction is money moving to/from an external party (spending or income). A Transfer is money moving between the user's own accounts (DPS, Sanchaypatra). Transfers do not appear in spending totals.
-
----
-
-## What the BRD Contains
-
-`docs/brd.md` — 11 sections:
-
-1. Product Overview
-2. Problem Statement — pain points vs. desired outcomes
-3. Scope — in scope (MVP + V2) vs. out of scope
-4. Multi-Role Analysis — BA / architect / developer / QA perspectives
-5. Feature Requirements — FR-01 to FR-10 (auth, dashboard, income, spending, fixed expenses, savings/DPS, borrow-loan, history, notifications, budgets)
-6. Tax Module — Bangladesh NBR rules: fiscal year, taxable income formula, slab config (data-driven, not hard-coded), rebate formula, TDS reconciliation
-7. Data Model — 13 DB entities, fields, and 8 business rules enforced at the data layer
-8. Solution Architecture — tech stack, 6 critical engineering decisions, API endpoints, security rules
-9. Gap Analysis — 10 gaps identified from the original idea with risk + solution + insight
-10. Roadmap — feature priority matrix + 8-sprint MVP plan
-11. QA Requirements — acceptance criteria with exact BDT figures from real data, test pyramid, non-functional thresholds
-
----
-
-## Grilling Session — Round 1 (Open, Unanswered)
-
-A design-tree grilling session was started. **7 questions were posed and not yet answered.** Do not finalize architecture or write ADRs until these are settled.
-
-| # | Question | Recommended answer |
-|---|----------|--------------------|
-| Q1 | Platform — PWA or native app? | PWA (mobile-first web, one codebase, installable) |
-| Q2 | Hosting — cloud or self-hosted? | Cloud-hosted (Railway + Vercel) |
-| Q3 | User base — single-user or multi-tenant? | Single-user V1, DB scaffolded for multi-user later |
-| Q4 | DPS modelled as Transfer (not Spending)? | Yes |
-| Q5 | Budget/spending views use calendar month (not fiscal month)? | Yes — fiscal year only in Tax module |
-| Q6 | In-Hand Income as the primary dashboard figure (not Gross)? | Yes |
-| Q7 | Loan entry direction always from user's first-person perspective? | Yes — Given = money out, Received = money in |
-
-When the user answers, record settled decisions as ADRs in `docs/adr/` where appropriate (hard to reverse, surprising without context, result of a real trade-off), then ask Round 2.
-
----
-
-## Tax Calculation Rules (Bangladesh NBR FY2025-26)
-
-Derived from the user's tax calculator Excel. The tax engine must implement these exactly:
-
-```
-Gross Annual   = Σ(all income entries for Jul–Jun)
-Exemption      = MIN(Gross / 3, 500,000)
-Taxable        = Gross − Exemption
-
-Slabs (FY2025-26):
-  0%  on first ৳3,75,000
-  10% on next  ৳3,00,000
-  15% on next  ৳4,00,000
-  20% on next  ৳5,00,000
-  25% on next  ৳20,00,000
-  30% on remaining
-
-Investment rebate caps: DPS ৳1,20,000 · Sanchaypatra ৳5,00,000 · Stocks ৳5,00,000 · Insurance no cap · Others no cap
-
-Rebate = MIN(Taxable × 0.03, TotalEligibleInvestment × 0.10, 1,000,000)
-Net Tax = Gross Tax − Rebate − FirstQuarterDiscount (5% if filed before Sep 30)
-
-Monthly suggested TDS = MAX(0, Net Tax − TDS paid so far) / remaining months in fiscal year
+FinTrack/
+├── CLAUDE.md                          — routing: which doc owns which topic
+├── GLOSSARY.md                        — domain terms
+└── .scratch/
+    ├── docs/
+    │   ├── project-overview.md        — this file
+    │   ├── rules.md                   — constraints for every change
+    │   ├── architecture.md            — stack, schema, API, routing, derived values, testing, deploy
+    │   ├── brd.md                     — scope, feature rules, tax module, acceptance fixtures
+    │   ├── design.md                  — tokens, components, page wireframes
+    │   ├── adr/                       — 0001–0011, one decision each
+    │   └── agents/                    — issue-tracker, triage-label and domain-doc conventions
+    ├── fintrack-bd-mvp/
+    │   ├── spec.md                    — user stories and test seams
+    │   ├── issues/                    — 01–26
+    │   └── test-cases/                — regression test matrix, 19 files of TC-… cases
+    ├── fintrack-bd-phase-2/
+    │   └── spec.md                    — Phase 2 backlog
+    └── fintrack-bd-phase-3/
+        └── spec.md                    — Phase 3 ideas (subscription)
 ```
 
 ---
 
-## Real Data Acceptance Criteria
+## Decisions already made
 
-Exact figures from the user's Excel files — these must pass as QA acceptance tests:
+Read the ADR before reopening any of these.
 
-| Data point | Value |
-|-----------|-------|
-| Mithun loan balance | ৳9,841 (Mithun owes user — green) |
-| Amait loan balance | ৳1,198.50 (Amait owes user — green) |
-| Sohel loan balance | ৳-3,145.42 (user owes Sohel — red) |
-| Total borrow-loan balance | ৳13,894.08 |
-| Current monthly salary | ৳1,53,383 (from Apr 2026) |
-| Previous monthly salary | ৳1,22,700 (Jul 2025 – Mar 2026) |
-| FY2025-26 net tax payable | ৳1,35,225 |
-| FY2025-26 TDS paid | ৳1,32,488 |
-| FY2025-26 remaining tax | ৳2,737 |
-| Monthly fixed commitments | ~৳60,732 (DPS ৳50,000 + rent + internet + electricity + YouTube) |
+| ADR | Decision |
+|---|---|
+| 0001 | One Next.js app on Vercel with Neon PostgreSQL; installable PWA, no native app |
+| 0002 | Superseded by 0010 |
+| 0003 | Money is integer Paisa end to end, as JSON numbers |
+| 0004 | Business dates are calendar dates in Asia/Dhaka |
+| 0005 | Balances and tax totals are derived, never stored |
+| 0006 | Savings deposits are Transfers, not Spending |
+| 0007 | Calendar months for cash, Fiscal Years for tax |
+| 0008 | Tax rules are per-Fiscal-Year data, provisional until confirmed |
+| 0009 | Instances and notifications are generated on read; no scheduler |
+| 0010 | Public registration with email verification in the MVP; every user sees only their own data |
+| 0011 | Admins manage user accounts and never see financial data |
 
----
-
-## Recommended Tech Stack (from BRD, not yet confirmed)
-
-| Layer | Choice |
-|-------|--------|
-| Frontend | React + TypeScript (Vite) |
-| State | React Query |
-| Charts | Recharts |
-| Backend | Node.js + Fastify |
-| Validation | Zod (shared frontend/backend schemas) |
-| Database | PostgreSQL |
-| ORM | Prisma |
-| Auth | JWT (15 min access) + HTTP-only refresh cookie (30 days) |
-| Hosting | Railway (backend + DB) + Vercel (frontend) |
-| PWA | Vite PWA plugin |
+The seven questions of grilling Round 1 are settled by these ADRs and the glossary: PWA (0001), cloud hosting (0001), multiple users each scoped by `user_id` (0010, the owner's choice), DPS as a Transfer (0006), calendar months for budgets (0007), In-Hand Income as the dashboard figure (0007), loan direction from the user's side (`GLOSSARY.md`, Loan Entry). The owner can reopen any of them.
 
 ---
 
-## Sprint Plan (MVP = 8 × 2-week sprints)
+## Open items
 
-| Sprint | Focus |
-|--------|-------|
-| 1 | Foundation — DB schema, auth API, React shell, deployment pipeline |
-| 2 | Transactions Core — CRUD, category routing service, transaction list |
-| 3 | Income & Savings — monthly income entry, savings accounts, DPS flow |
-| 4 | Fixed Expenses — templates, monthly instances, mark-as-paid, dashboard banner |
-| 5 | Borrow-Loan Ledger — per-person CRUD, running balance, Settle Up action |
-| 6 | Tax Dashboard — slab config, tax engine, TDS reconciliation, investment entry |
-| 7 | Dashboard & Notifications — period selector, summary cards, charts, notifications |
-| 8 | Polish & Launch — mobile pass, error/empty/loading states, UAT, production |
+| Item | Where |
+|---|---|
+| Rebate investment rate, tax-free threshold and exemption caps differ between the user's spreadsheet and published summaries | Ticket 24; `brd.md` §6 FR-TAX-03 |
+| The spreadsheet's FY2025-26 net tax (৳1,35,225) is ৳144.20 below the documented formula's result | Ticket 24; `brd.md` §11 AC-TAX-1 |
+| Payment dates are a manual admin log in the MVP; a subscription feature is only an idea for Phase 3 | `brd.md` §5 FR-14; `.scratch/fintrack-bd-phase-3/spec.md` |
+| The suggested Fixed Expenses are the owner's personal ones, and every new user is offered them | `brd.md` §5 FR-05 |
+| The two source spreadsheets are not in the repository | Owner's machine: `Asif - Finance 2024.xlsx`, `Bangladesh-Tax-Calculator-Final.xlsx` |
 
 ---
 
-## Working Instructions for Any New Context
+## Working agreements
 
-1. **Read `GLOSSARY.md` before naming anything.** The domain model is precise and intentional.
-2. **Do not start sprint work** until grilling Round 1 is answered and decisions are recorded as ADRs.
-3. **Money = integer paisa everywhere.** A float for a BDT amount is always a bug.
-4. **Tax calculation must use actual monthly entries**, never annualize a single salary figure.
-5. **Category routing side-effects must be atomic** — one DB transaction, all-or-nothing.
-6. **Soft delete only** for transactions and loan entries — financial history is never destroyed.
-7. **Check `docs/adr/`** before any hard-to-reverse decision — it may already be settled.
-8. **The grilling session drives Round 2** — do not ask the user questions that belong in the grilling tree; check this doc first.
+1. Check the Status section above for a development hold before starting work.
+2. Read `rules.md` for every ticket, then the sections named on the ticket's **Read first** line. Use the matching installed skill for the kind of work (`CLAUDE.md` §Skills).
+3. Work test-first from the ticket's **Test cases** line: one case, one failing test, then the code that passes it.
+4. Use `GLOSSARY.md` terms in code, comments, names and UI text.
+5. When two docs disagree, the owning doc wins; fix the other in the same change and note it under the ticket's `## Comments`.
+6. Record a new hard-to-reverse decision as the next ADR.

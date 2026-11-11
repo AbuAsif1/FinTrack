@@ -1,15 +1,19 @@
-# 20: Notifications & Profile UI
+# 20: Notifications, Profile & Settings UI
 
-**What to build:** The notification drawer showing over-budget alerts and fixed expense reminders, plus a minimal profile/settings screen.
+**What to build:** The notification drawer and the Settings page: profile, password, theme, category management, and the entry points to Tax Year Settings, Import and Export.
 
-**Blocked by:** 10 (Budget & Notifications), 12 (React Frontend Shell)
+**Blocked by:** 10, 12
 
 **Status:** ready-for-agent
 
-- [ ] Notification drawer: slides in from notification bell; lists unread + recent read notifications
-- [ ] Notification types rendered: over-budget alert (shows category, spent vs budget), fixed expense due reminder (shows name, amount, days remaining), loan balance flip (direction change)
-- [ ] Mark individual notification as read; mark all as read
-- [ ] Notification badge count on nav bar bell icon
-- [ ] Profile screen: displays logged-in user info (name/email); logout button
-- [ ] App settings stub: theme toggle (light/dark), currency display (BDT only in MVP)
-- [ ] Empty notification state: "You're all caught up" message
+**Test cases:** `test-cases/17-ui.md` §Notifications and Settings (`TC-UI-160` to `TC-UI-163`)
+
+**Read first:** `design.md` §7.9, §8 · `brd.md` §5 FR-09, FR-13 · `architecture.md` §Generated on read (`refreshNotifications`)
+
+- [ ] Notification drawer opened from the bell: unread first; each notification type rendered with a link to its Fixed Expense, Loan Entry, budget category or tax settings
+- [ ] Mark one as read, mark all as read; unread count badge; "You're all caught up" empty state
+- [ ] Settings page with the sections in `design.md` §7.9: Profile (name, email, change password, sign out), Appearance (Light / Dark / System), Categories (add, rename, recolour, archive), and links to Tax Year Settings, Import and Export
+- [ ] Change password form with the current-password check and its error states
+- [ ] A category's kind is shown as a chip and cannot be edited once the category has been used
+
+## Comments

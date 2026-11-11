@@ -1,152 +1,180 @@
 # Glossary — FinTrack BD
 
-Domain terms for the personal finance tracking system. No implementation details here.
-See `docs/brd.md` for full requirements and `docs/adr/` for architectural decisions.
+Domain terms for the personal finance tracking system. Definitions only: formulas a user would recognise are included, implementation details are not.
+Requirements are in `.scratch/docs/brd.md`; decisions are in `.scratch/docs/adr/`.
 
 ---
 
-## BDT (Bangladeshi Taka)
+## Money
 
-The currency unit used throughout the system. All monetary values are displayed in BDT with the ৳ symbol prefix, two decimal places, and right-aligned tabular numerals.
+### BDT (Bangladeshi Taka)
 
----
+The currency of the system, written with the ৳ prefix, South Asian digit grouping and two decimal places.
 
-## Cheer / Incentive
+### Paisa
 
-An ad hoc cash payment received from a named colleague, distinct from employer salary. Taxable income. Recorded with the payer's name, the period it was earned in, and the month it was actually received (which may differ — e.g., a Q3 payment received in Q4).
-
----
-
-## Discretionary Cash
-
-The portion of a user's In-Hand Income that is not committed to Fixed Expenses in a given calendar month.
-
-```
-Discretionary Cash = In-Hand Income − Σ(active Fixed Expense standard amounts)
-```
-
-Not the same as "savings" — it is the upper bound on what could be spent before exceeding the month's available cash.
+The sub-unit of the Taka: 1 BDT = 100 Paisa. All amounts are held as whole Paisa.
+_Avoid_: paise
 
 ---
 
-## DPS (Deposit Pension Scheme)
+## Income
 
-A recurring monthly savings instrument offered by Bangladeshi banks. The user deposits a fixed installment each month for a fixed term and receives the principal plus interest at maturity.
+### Income Entry
 
-A DPS payment is modelled as a **Transfer**, not as Spending. It reduces Discretionary Cash and increases the linked savings account balance, but does not count toward spending totals or category budgets.
+A record of income received in a given month, with its type, Gross Income and TDS.
 
-The DPS installment amount is eligible for tax rebate (up to ৳1,20,000 per fiscal year).
+### Gross Income
 
----
+Income before tax is deducted. The Tax module starts from Gross Income.
 
-## Fiscal Year
+### In-Hand Income
 
-Bangladesh's National Board of Revenue (NBR) tax year: 1 July to 30 June. Identified in the system as a "YYYY-YY" string (e.g., "2025-26"). All tax calculations use the fiscal year as their time boundary. Budgeting and spending views use the calendar month instead.
+Gross Income minus TDS: the amount that actually reaches the user. The dashboard and budgets use In-Hand Income.
+_Avoid_: net salary, take-home pay
 
----
+### TDS (Tax Deducted at Source)
 
-## Fixed Expense
+Income tax withheld by the employer before paying the user, recorded on each Income Entry.
+_Avoid_: withholding tax
 
-A recurring monthly obligation with a known due day of the month (e.g., DPS on the 14th, rent on the 15th). Each fixed expense has a **template** (the standard amount and due day) and a **monthly instance** (the actual amount paid and when). An instance is either Pending, Paid, or Skipped.
+### Profit Share (PS)
 
----
+A performance-based payment from the employer, usually quarterly, tracked separately from salary.
 
-## Gross Income
+### Cheer / Incentive
 
-The total pre-tax income received from an employer in a given month or fiscal year. Includes salary, profit share, bonuses, festival bonuses, and leave encashment. Used by the Tax Module as the starting point for taxable income calculation.
+An ad hoc payment from a named colleague rather than the employer, recorded with the payer, the period it was earned in and the month it was received.
 
----
+### Holiday Support
 
-## In-Hand Income
-
-Gross Income minus Tax Deducted at Source (TDS). This is the amount that actually reaches the user's bank account. Used as the primary income figure for dashboard, budget, and spending ratio calculations. Not the same as Gross Income.
-
----
-
-## Loan Entry
-
-A record in the Borrow-Loan Ledger representing a single movement of money between the user and a named Loan Person. Always recorded from the user's first-person perspective:
-
-- **Direction: Given** — the user transferred money out to that person.
-- **Direction: Received** — the user received money from that person (whether as a repayment of a prior loan or a new loan taken).
-
-The sign of the Loan Person's Running Balance determines who owes whom, not the direction field alone.
+Pay for working on holidays, calculated from days worked and a per-day rate that changes over time.
 
 ---
 
-## Loan Person
+## Spending and cash
 
-A named individual who appears in the Borrow-Loan Ledger. Each Loan Person has their own section showing all Loan Entries and their Running Balance.
+### Transaction
 
----
+A dated movement of the user's money other than income. Its category makes it Spending, a Transfer, a Loan Entry or a Tax Payment.
 
-## Paisa
+### Spending
 
-The sub-unit of the Bangladeshi Taka used for internal arithmetic. 1 BDT = 100 paisa. All monetary values are stored as integer paisa in the database to avoid floating-point rounding errors. Values are divided by 100 only at the display layer.
+A Transaction that pays an outside party for goods or services. Only Spending counts toward Total Spending and budgets.
 
----
+### Total Spending
 
-## Profit Share (PS)
+The sum of Spending in a period. Transfers, Loan Entries and Tax Payments are excluded.
 
-A performance-based payment from the employer, typically paid quarterly. Distinct from base salary and tracked separately in income records. Taxable income.
+### Transfer
 
----
+A Transaction that moves money between the user's cash and one of their own savings accounts. A Transfer is never Spending.
 
-## Running Balance
+### Net Savings
 
-The net balance on a Loan Person's ledger at any point in time:
+In-Hand Income minus Total Spending minus Tax Payments, for a period.
 
-```
-Running Balance = Σ(Given entries) − Σ(Received entries) for all non-deleted Loan Entries
-```
+### Savings Rate
 
-A positive balance means the Loan Person owes the user. A negative balance means the user owes the Loan Person.
+Net Savings as a percentage of In-Hand Income for a period.
 
----
+### Fixed Expense
 
-## Sanchaypatra
+A recurring monthly obligation with a due day. It has a template (standard amount and due day) and one instance per month, which is Pending, Paid or Skipped.
 
-A government savings instrument (national savings certificate) in Bangladesh. Eligible for tax rebate (up to ৳5,00,000 per fiscal year). Modelled as an Investment Transfer, not as Spending.
+### Fixed Commitments
 
----
+The month's total of Fixed Expense instances: the amount actually paid for Paid instances and the standard amount for Pending ones.
 
-## Tax Rebate
+### Discretionary Cash
 
-A reduction in the gross tax liability based on qualifying investments (DPS, Sanchaypatra, stocks, life insurance, and other NBR-approved sectors). Calculated as the minimum of three values:
+The month's In-Hand Income minus its Fixed Commitments: the planned upper bound on everything else the user can do with the month's money.
 
-- 3% of Taxable Income
-- 10% of Total Eligible Investment
-- Statutory maximum of ৳10,00,000
+### Remaining to Spend
 
----
-
-## Taxable Income
-
-The portion of Gross Income subject to tax slab calculation:
-
-```
-Taxable Income = Gross Annual Income − Exemption
-Exemption      = MIN(Gross Annual Income / 3, 500,000)
-```
+What is left of the current month's money right now: In-Hand Income plus other cash received, minus every Transaction already made and every Fixed Expense still Pending.
+_Avoid_: free to spend, available balance
 
 ---
 
-## TDS (Tax Deducted at Source)
+## Savings
 
-The portion of income tax withheld by the employer each month before paying the employee's salary. Recorded on each income entry. Cumulative TDS for the fiscal year is compared against Net Tax Payable to compute the Remaining Tax.
+### DPS (Deposit Pension Scheme)
+
+A bank savings instrument with a fixed monthly installment and a maturity date. An installment is a Transfer and is eligible for Tax Rebate up to a yearly cap.
+_Avoid_: recurring deposit, RD
+
+### Sanchaypatra
+
+A government savings certificate. A purchase is a Transfer and is eligible for Tax Rebate up to a yearly cap.
+_Avoid_: national savings certificate
+
+### Savings Withdrawal
+
+A Transfer that takes money out of a savings account, including a DPS maturity payout.
+
+### Savings Interest
+
+Interest or profit credited to a savings account. It raises the account balance without any cash changing hands.
 
 ---
 
-## Transfer
+## Borrow-Loan ledger
 
-A movement of money between two of the user's own accounts (e.g., cash → DPS account, cash → Sanchaypatra). Reduces Discretionary Cash and increases the destination account balance, but does not count toward spending totals or category budgets.
+### Loan Person
 
-Distinct from a Transaction (which is a spending or income event involving an external party).
+A named individual the user lends to or borrows from.
+
+### Loan Entry
+
+A single movement of money between the user and a Loan Person, always described from the user's side: **Given** means money left the user, **Received** means money came to the user.
+
+### Running Balance
+
+Total Given minus total Received for a Loan Person. Positive means the person owes the user; negative means the user owes the person.
+
+### Settle Up
+
+Recording the one Loan Entry that brings a Loan Person's Running Balance to zero.
 
 ---
 
-## Transaction
+## Tax
 
-A record of money moving between the user and an external party — either a Spending event (money leaves) or an Income event (money arrives). Stored with a category, payment method, date, and description.
+### Fiscal Year
 
-Not to be confused with a Transfer (which is internal to the user's own accounts).
+The Bangladesh tax year, 1 July to 30 June, written "YYYY-YY" (for example "2025-26"). Tax uses the Fiscal Year; budgets and spending use calendar months.
+_Avoid_: financial year, tax year
+
+### Taxable Income
+
+Taxable Gross Income for the Fiscal Year minus the salary exemption (a fraction of income, up to a cap).
+
+### Tax Rebate
+
+A reduction in tax for qualifying investments: the smallest of a percentage of Taxable Income, a percentage of eligible investment, and a fixed maximum.
+_Avoid_: credit, deduction
+
+### Minimum Tax
+
+The least tax payable once Taxable Income exceeds the tax-free threshold.
+
+### Early Filing Rebate
+
+A percentage reduction in tax, up to a maximum, for filing the return on or before 30 September.
+
+### Net Tax Payable
+
+Tax for the Fiscal Year after the Tax Rebate, the Minimum Tax rule and any Early Filing Rebate.
+
+### Tax Payment
+
+A Transaction that pays income tax directly to the government, assigned to the Fiscal Year it settles.
+
+### Tax Paid
+
+TDS plus Tax Payments for a Fiscal Year.
+
+### Remaining Tax
+
+Net Tax Payable minus Tax Paid. A negative figure means tax has been overpaid.

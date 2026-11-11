@@ -1,16 +1,29 @@
 # 14: Income & Savings UI
 
-**What to build:** Two screens: (1) monthly income entry and history, (2) savings accounts list with per-account balance detail and DPS installment tracking.
+**What to build:** Two screens: Income (monthly entry, year-to-date table, Holiday Support log, salary history) and Savings & DPS (account cards with computed balances, deposits progress, withdrawals and interest).
 
-**Blocked by:** 07 (Income Management), 04 (Savings Accounts), 12 (React Frontend Shell)
+**Blocked by:** 04, 06, 07, 12
 
 **Status:** ready-for-agent
 
-- [ ] Income list screen: grouped by fiscal year, shows gross + TDS + in-hand for each entry; add/edit form
-- [ ] Income add form: type selector (salary/PS/bonus/festival/cheer/leave), gross amount, TDS amount, month picker, earned_period for Cheer
-- [ ] Savings accounts list: each account card shows name, type badge, computed balance with formatBDT()
-- [ ] Savings account detail: balance history chart (Recharts line), list of linked transfer transactions
-- [ ] DPS account card: shows next installment due date and amount, days-until-due countdown
-- [ ] Add savings account form: name, type, opening balance, DPS-specific fields (installment amount, due day)
-- [ ] All monetary inputs accept BDT decimal (e.g. "50000") and convert to paisa before API call
-- [ ] Empty states for no income recorded yet, no savings accounts yet
+**Test cases:** `test-cases/17-ui.md` §Income and Savings (`TC-UI-040` to `TC-UI-046`)
+
+**Read first:** `design.md` §7.2, §7.5 · `brd.md` §5 FR-03, FR-06
+
+**Income**
+
+- [ ] Income page: Fiscal Year selector, year-to-date tiles, monthly table with Entered or Pending, inline expand to edit
+- [ ] Add and Edit Income modal per `design.md` §7.2: month, type, gross, TDS, read-only In-Hand Income, taxable toggle, employer, notes, and the Cheer fields; a Pending row opens it pre-filled from the latest Salary entry
+- [ ] Holiday Support log with the rate pre-filled, and an action that starts a Holiday Support Income Entry from the month's total
+- [ ] Salary history timeline
+
+**Savings**
+
+- [ ] Savings page: summary tiles, the combined DPS rebate progress bar, and account cards per `design.md` §7.5
+- [ ] Add and Edit account form, with the DPS fields shown for DPS accounts
+- [ ] Account detail: Transaction history and, for DPS, projected principal at maturity
+- [ ] Withdraw and Add interest actions that open the Add Transaction form with the category and account pre-selected; Close account when the balance is zero
+- [ ] Empty states for no income and no accounts
+- [ ] Tests: TDS above gross is blocked in the form; the taxable toggle defaults by income type
+
+## Comments

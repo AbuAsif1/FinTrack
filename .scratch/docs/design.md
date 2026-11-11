@@ -1,10 +1,11 @@
 # FinTrack BD — Design Specification
 
-> **When to read:** before writing any React component, layout, color, typography, chart, or mobile interaction. All visual decisions live here.
+> **Owns:** every visual decision — tokens, typography, components, page layouts. Read before writing any React component, layout, chart or mobile interaction.
+> Feature behaviour is in `brd.md`; terms are in `GLOSSARY.md`. Figures in wireframes are illustrative and may be abbreviated; the UI always shows two decimals, and the binding figures are the `AC-…` fixtures in `brd.md` §11.
 
-**Version:** 1.0 Draft  
-**Date:** November 2026  
-**Status:** Under Review  
+**Version:** 1.1  
+**Date:** 12 November 2026  
+**Status:** Baseline for the MVP build  
 **Covers:** Visual language, token system, component patterns, page-by-page layout specs
 
 ---
@@ -26,6 +27,9 @@
    - [7.6 Borrow-Loan Ledger](#76-borrow-loan-ledger)
    - [7.7 Tax Dashboard](#77-tax-dashboard)
    - [7.8 History & Analytics](#78-history--analytics)
+   - [7.9 Settings and Data](#79-settings-and-data)
+   - [7.10 Account Pages](#710-account-pages)
+   - [7.11 Admin: Users](#711-admin-users)
 8. [Navigation Shell](#8-navigation-shell)
 9. [Responsive Behavior](#9-responsive-behavior)
 10. [Motion & Interaction](#10-motion--interaction)
@@ -139,10 +143,7 @@ Body / UI text:    'Inter', system-ui, sans-serif
 Numeric data:      'Inter' with font-variant-numeric: tabular-nums
 ```
 
-Both loaded from Google Fonts:
-```html
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-```
+Both are loaded with `next/font/google` (Inter 400/500/600, Space Grotesk 500/600/700), so they are self-hosted and available offline.
 
 ### Type Scale
 
@@ -279,6 +280,8 @@ Persistent control at the top of Dashboard and Analytics pages.
   Active tab: --accent text, 2px --accent underline
   Inactive: --fg-secondary
 ```
+
+Options: This Month, Last Month, This Tax Year, Last Tax Year, Custom. The wireframes abbreviate the list.
 
 On mobile: collapses to a dropdown `<select>`.
 
@@ -441,8 +444,8 @@ Chart text (labels, ticks, legends) always uses `--fg-secondary`. Grid lines use
 ┌── Cash Flow Chart (8 col) ──────┐  ┌── Tax Snapshot (4 col) ──────┐
 │  Income vs Spending, 6 months   │  │  TAX THIS YEAR               │
 │  Grouped bar chart (Recharts)   │  │  Paid so far  ৳1,32,488      │
-│  Income = --income              │  │  Est. remaining  ৳2,737      │
-│  Spending = --spending          │  │  Suggested TDS  ৳1,369/mo   │
+│  Income = --income              │  │  Est. remaining  ৳2,881.20   │
+│  Spending = --spending          │  │  Suggested TDS  ৳411.60/mo  │
 │  X-axis: Jun Jul Aug Sep Oct Nov│  │                               │
 │  Y-axis: ৳0 to ৳80k, 20k steps │  │  [Go to Tax Dashboard →]      │
 └─────────────────────────────────┘  └───────────────────────────────┘
@@ -462,20 +465,24 @@ Chart text (labels, ticks, legends) always uses `--fg-secondary`. Grid lines use
 │  Donut chart                    │  │  Date   Description   Amount   │
 │  Centre: ৳41,230 Total          │  │  11 Nov  DPS 10k     −৳10,000 │
 │  Legend below, right-aligned ৳  │  │  10 Nov  Groceries    −৳1,240 │
-│                                 │  │  08 Nov  Salary       +৳68,000 │
+│                                 │  │  08 Nov  Mess Rent     −৳8,722 │
 │                                 │  │  06 Nov  Dining         −৳450 │
 │                                 │  │  ...                           │
 │                                 │  │  [View all →]                  │
 └─────────────────────────────────┘  └───────────────────────────────┘
 
-┌── Discretionary Cash Banner ──────────────────────────────────────┐
-│  FREE TO SPEND THIS MONTH                                          │
-│  ৳68,000 − ৳60,882 fixed = ৳7,118 discretionary                   │
+┌── Cash This Month ────────────────────────────────────────────────┐
+│  DISCRETIONARY CASH  ৳7,268    ← ৳68,000 in-hand − ৳60,732 fixed   │
+│  REMAINING TO SPEND  ৳4,118    ← after ৳3,150 spent so far         │
 │  Progress:  [████████████████████████████░░░░░░░░] 89% committed  │
 └───────────────────────────────────────────────────────────────────┘
 
 [Quick action bar: + Add Spending  |  + Add Income  |  ✓ Mark Fixed]
 ```
+
+**Cash This Month panel:** Remaining to Spend is the larger figure (`--t-data`); it turns `--danger` when negative. Both figures carry an `estimated` chip (`--neutral`) until this month's salary is entered. The panel always describes the current calendar month, whatever the period selector shows.
+
+**First run:** with no data, the tiles are replaced by a checklist card: Add this month's income · Add savings accounts · Set up Fixed Expenses · Import history.
 
 #### Mobile stacking order
 
@@ -483,7 +490,7 @@ Chart text (labels, ticks, legends) always uses `--fg-secondary`. Grid lines use
 2. Period selector (dropdown)
 3. Summary tiles (2×2 grid)
 4. Quick actions (3 buttons, full-width stacked)
-5. Discretionary cash banner
+5. Cash This Month panel
 6. Alert + upcoming fixed expenses
 7. Cash flow chart (horizontal scroll if needed, min 320px)
 8. Recent transactions
@@ -506,7 +513,7 @@ Chart text (labels, ticks, legends) always uses `--fg-secondary`. Grid lines use
 
 ┌── YTD Summary (4 tiles) ──────────────────────────────────────────┐
 │  GROSS INCOME YTD    TDS YTD       IN-HAND YTD    MONTHS ENTERED  │
-│  ৳20,06,846          ৳1,32,488     ৳18,74,358     7 / 12          │
+│  ৳11,25,000          ৳1,32,488     ৳9,92,512      7 / 12          │
 └───────────────────────────────────────────────────────────────────┘
 
 ┌── Fiscal Year Selector ──────────────────────────────────────────┐
@@ -538,10 +545,12 @@ Chart text (labels, ticks, legends) always uses `--fg-secondary`. Grid lines use
 
 **Add Income modal fields:**
 - Month (month picker)
-- Income type (dropdown: Salary / Cheer / Profit Share / Bonus / Leave Encashment / Certification / Holiday Support / Other)
+- Income type (dropdown: Salary / Cheer / Profit Share / Eid Festival Bonus / Leave Encashment / Certification Reimbursement / Holiday Support / Other)
 - Gross Amount (৳)
 - TDS Deducted (৳) — validation: 0 ≤ TDS ≤ Gross
 - In-Hand (read-only computed: Gross − TDS)
+- Taxable (toggle; on by default, off for Certification Reimbursement)
+- Employer (optional)
 - Notes
 - For Cheer: additional fields → Payer Name, Earned Period
 
@@ -573,7 +582,7 @@ Chart text (labels, ticks, legends) always uses `--fg-secondary`. Grid lines use
 │  ☐    11 Nov    Upension DPS             💰 DPS/Savings  Bank          −৳10,000.00           │
 │       [routing] → City Bank Upension account                                                 │
 │  ☐    10 Nov    Shajahan Rice & Veg      🛒 Groceries    bKash         −৳1,240.00            │
-│  ☐    08 Nov    Salary — BJIT            💵 Salary       Bank           +৳68,000.00  ←ok    │
+│  ☐    08 Nov    Mess Rent — November     🏠 Rent         Bank           −৳8,722.00          │
 │  ☐    06 Nov    Dhanmondi Chinese        🍽 Dining       Cash           −৳450.00             │
 │  ☐    04 Nov    Mithun — loan            🤝 Loan Given   bKash         −৳500.00              │
 │       [routing] → Mithun ledger +৳500 (they owe me)                                         │
@@ -582,7 +591,9 @@ Chart text (labels, ticks, legends) always uses `--fg-secondary`. Grid lines use
 └─────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Routing indicator row:** Shown below any transaction whose category has a side-effect. Indented 32px, --fg-muted, 12px.
+**Routing indicator row:** Shown below any Transaction that is not plain Spending (savings, loan or tax). Indented 32px, --fg-muted, 12px. Money coming in (Loan Received, Savings Withdrawal) shows `+` in --ok.
+
+**Scope:** this list shows Transactions only. Income is entered and listed on the Income page.
 
 **Budget sidebar** (desktop right panel, 320px):
 
@@ -622,10 +633,10 @@ Chart text (labels, ticks, legends) always uses `--fg-secondary`. Grid lines use
 │  Home Internet        ৳500        Day 16│  ✓   │  ✓   │  ✓   │  ✓   │  ●   │  ○   │     │  ৳2k │
 │  Home Electricity     ৳1,350      Day 27│  ✓   │  ✓   │  ✓   │  ✓   │  ○   │  ○   │     │  ৳5k │
 │  ────────────────────────────────────────────────────────────────────────────────────────────── │
-│  TOTAL COMMITMENTS    ৳60,882           │      │      │      │      │      │      │     │       │
+│  TOTAL COMMITMENTS    ৳60,732           │      │      │      │      │      │      │     │       │
 └─────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-Legend: ✓ = Paid  ⚠ = Due soon  ✕ = Overdue / Missed  ● = Pending  ○ = Future
+Legend: ✓ = Paid  ⚠ = Due soon  ✕ = Overdue / Missed  ● = Pending  ○ = Future  – = Skipped
 
 [Clicking a ● or ⚠ cell → Mark as Paid drawer]
 ```
@@ -639,6 +650,8 @@ Legend: ✓ = Paid  ⚠ = Due soon  ✕ = Overdue / Missed  ● = Pending  ○ =
   Date paid: [ 2026-11-08 ]
   [ Cancel ]   [ Confirm & Create Transaction ]
 ```
+
+The drawer also offers **Skip this month** with an optional note. A Skipped cell can be reopened from the same drawer; a Paid cell links to its Transaction, and deleting that Transaction returns the cell to Pending.
 
 ---
 
@@ -667,9 +680,9 @@ Legend: ✓ = Paid  ⚠ = Due soon  ✕ = Overdue / Missed  ● = Pending  ○ =
 │  │  Opened   Jul 2025           Matures      Jul 2033          │  │
 │  │  Interest  —                 Projected    ৳9,60,000+int    │  │
 │  │                                                             │  │
-│  │  Contribution progress this FY:                             │  │
-│  │  [████████████████████████████████████████████] ৳80k/৳1.2L │  │
-│  │  Tax rebate eligible: ৳80,000 (cap: ৳1,20,000)            │  │
+│  │  Deposited this FY:                                         │  │
+│  │  [████████████████████████████████████████████] ৳80,000    │  │
+│  │  Rebate cap is shared across all DPS accounts.            │  │
 │  │  [View transactions]                                        │  │
 │  └─────────────────────────────────────────────────────────────┘  │
 
@@ -679,6 +692,12 @@ Legend: ✓ = Paid  ⚠ = Due soon  ✕ = Overdue / Missed  ● = Pending  ○ =
 
 └───────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+**DPS rebate progress:** one bar under the summary tiles for all DPS accounts combined, e.g. `DPS deposits this FY  ৳2,00,000 / ৳1,20,000 cap · cap reached`.
+
+**Card actions:** View transactions · Withdraw · Add interest · Close account (only when the balance is ৳0.00). Withdraw and Add interest open the Add Transaction form with the matching category and this account pre-selected.
 
 ---
 
@@ -725,6 +744,17 @@ Legend: ✓ = Paid  ⚠ = Due soon  ✕ = Overdue / Missed  ● = Pending  ○ =
 
 **Purpose:** Annual tax calculation, TDS reconciliation, investment tracking.
 
+**Notices on the Overview tab**
+
+| Notice | When | Style |
+|---|---|---|
+| `Tax settings for FY2026-27 are provisional. [Review settings →]` | The year's settings are not confirmed | `--warn-bg`, links to Tax Year Settings (§7.9) |
+| `File by 30 Sep to save ৳6,768.46` | From 1 July to the deadline, while the return is not marked filed | `--accent` tint |
+| `Overpaid ৳X` in place of Remaining Tax | Tax Paid exceeds Net Tax Payable | `--ok` |
+| `Filed on 15 Sep 2026 · figures locked` | The year is filed | `--neutral-bg` |
+
+**Other tabs.** Forecast shows the same tiles and reconciliation for the projected full year, each labelled `Projected`. Compare Years shows three columns: this year under its own settings, this year's income under last year's settings, and last year's actual result. The Investments table's rebate column header shows the year's investment rate from its settings.
+
 #### Desktop layout
 
 ```
@@ -748,22 +778,22 @@ Legend: ✓ = Paid  ⚠ = Due soon  ✕ = Overdue / Missed  ● = Pending  ○ =
 │  = Taxable Income       ৳15,06,846       │  │  0%  First ৳3,75,000       ৳0          │
 │                                          │  │  10% Next  ৳3,00,000      ৳30,000      │
 │  Source breakdown:                       │  │  15% Next  ৳4,00,000      ৳60,000      │
-│  Salary     ৳16,80,000                   │  │  20% Next  ৳4,06,846      ৳81,369      │
-│  Profit Share ৳2,10,000                  │  │  25% —                    —            │
-│  Cheer        ৳16,846                    │  │  Gross Tax               ৳1,71,369     │
+│  Salary     ৳15,64,449                   │  │  20% Next  ৳4,31,846      ৳86,369.20   │
+│  Profit Share ৳4,25,551                  │  │  25% —                    —            │
+│  Cheer        ৳16,846                    │  │  Gross Tax               ৳1,76,369.20  │
 └──────────────────────────────────────────┘  └────────────────────────────────────────┘
 
 ┌── TDS Reconciliation ─────────────────────────────────────────────┐
 │  TAX SITUATION                                                      │
 │                                                                     │
-│  Net Tax Payable     ৳1,35,369                                      │
-│  TDS Paid to Date    ৳1,32,488  [████████████████████████████░] 97% │
-│  Remaining Tax        ৳2,737  ← --warn color (small but owed)       │
+│  Net Tax Payable     ৳1,35,369.20                                   │
+│  TDS Paid to Date    ৳1,32,488  [████████████████████████████░] 98% │
+│  Remaining Tax        ৳2,881.20  ← --warn color (small but owed)    │
 │                                                                      │
-│  Months remaining in FY: 7                                          │
-│  Suggested monthly TDS: ৳391/mo                                      │
+│  Salary months remaining: 7                                         │
+│  Suggested monthly TDS: ৳411.60/mo                                   │
 │                                                                      │
-│  [+ Record TDS Payment]                                             │
+│  [+ Record Tax Payment]                                             │
 └───────────────────────────────────────────────────────────────────┘
 
 ── Investments Tab ─────────────────────────────────────────────────
@@ -777,7 +807,7 @@ Legend: ✓ = Paid  ⚠ = Due soon  ✕ = Overdue / Missed  ● = Pending  ○ =
 │  Total Eligible     ৳4,10,000               ৳4,10,000  ৳41,000    │
 │  Rebate applied: MIN(৳45,205 · 3%, ৳41,000 · 10%, ৳10L) = ৳41,000│
 │                                                                     │
-│  REQUIRED FOR MAX REBATE: Need ৳3,33,333 more investment          │
+│  REQUIRED FOR MAX REBATE: Need ৳42,053.80 more investment         │
 └───────────────────────────────────────────────────────────────────┘
 ```
 
@@ -826,6 +856,124 @@ Legend: ✓ = Paid  ⚠ = Due soon  ✕ = Overdue / Missed  ● = Pending  ○ =
 
 ---
 
+### 7.9 Settings and Data
+
+**Purpose:** Profile, appearance, categories, tax year settings, import and export.
+
+Settings is one page of sections; Tax Year Settings, Import and Export each open their own page.
+
+| Section | Contents |
+|---|---|
+| Profile | Name, email (read-only), Change password, Sign out |
+| Appearance | Theme: Light / Dark / System |
+| Categories | List with colour swatch and kind chip (Spending, Savings, Loan, Tax); add, rename, recolour, archive |
+| Tax Year Settings | Fiscal Year dropdown and a status chip: `Provisional` (--warn) or `Confirmed` (--ok). Editable fields: slab table (width, rate), exemption fraction and cap, rebate rates and maximum, investment caps, Minimum Tax, Early Filing Rebate. Actions: Save · Confirm settings · Mark return filed / Reopen. A filed year is read-only. |
+| Import | Three cards (Income, Transactions, Loan history), each with Download template and Upload CSV; below them, past imports with date, file name, row count and Undo |
+| Export | Download all data (JSON); CSV exports, each with its period picker |
+
+**Import preview** (shown after upload, before anything is saved):
+
+```
+┌── Import Transactions — expenses-2025.csv ────────────────────────┐
+│  412 rows · 409 valid · 3 with errors · total ৳6,02,340.00         │
+│                                                                    │
+│  Row   Date        Description        Amount       Problem         │
+│  17    2025-13-02  Groceries          ৳1,240.00    Invalid date    │
+│  88    2025-09-14  DPS installment    ৳10,000.00   Unknown account │
+│  ...                                                               │
+│                                                                    │
+│                          [ Cancel ]   [ Import 412 rows ]          │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+- Rows with errors are listed first on `--danger-bg`, each with its reason.
+- The Import button is disabled while any row has an error.
+- Rows already imported from an earlier upload are counted separately as `already imported`.
+
+---
+
+### 7.10 Account Pages
+
+**Purpose:** Registration, email verification, sign-in and password recovery. These are the only pages shown without a session.
+
+All five use one layout: a centred card (max-width 420px) on `--bg-base`, the FinTrack BD wordmark above it, no navigation shell.
+
+| Page | Contents |
+|---|---|
+| Sign in (`/login`) | Email, password, Sign in button; links: Forgot password? · Create an account |
+| Create account (`/register`) | Name, email, password (at least 10 characters, with a show/hide control), Create account button; link: Already have an account? |
+| Check your email (after registering) | "We sent a link to *email*. Open it to verify your account." Resend link button, disabled for 60 seconds after each send |
+| Verify email (`/verify-email`) | Success: "Email verified" with a Sign in button. Expired or used link: explanation with a Resend link button |
+| Forgot password (`/forgot-password`) | Email, Send reset link; afterwards always the same message: "If that email has an account, a reset link is on its way." |
+| Reset password (`/reset-password`) | New password, confirm, Save; expired link: explanation with a link back to Forgot password |
+
+- Field errors appear under the field in `--danger`; a failed sign-in shows one message that does not say whether the email or the password was wrong.
+- Signing in with an unverified email shows "Verify your email first" with a Resend link button.
+- When sign-up is closed, Create account shows "Registration is currently closed" and no form.
+- After the first sign-in the user lands on the dashboard's first-run checklist (§7.1).
+- Signing in to a deactivated account shows "This account is deactivated until 30 Nov 2026" or "This account is deactivated. Contact the site admin."
+
+---
+
+### 7.11 Admin: Users
+
+**Purpose:** User account management for admins. No financial data appears anywhere in this area.
+
+Shown as "Users" under an ADMIN heading in the sidebar, and in the mobile More drawer, only when the signed-in user is an admin.
+
+#### User list (`/admin/users`)
+
+```
+┌── Page title + actions ───────────────────────────────────────────┐
+│  Users                                          [ + Create user ]  │
+└───────────────────────────────────────────────────────────────────┘
+
+┌── Filter Bar ─────────────────────────────────────────────────────┐
+│  [🔍 Search name or email...]  [Status ▾]  [Role ▾]               │
+└───────────────────────────────────────────────────────────────────┘
+
+┌── Users Table ──────────────────────────────────────────────────────────────────────────────┐
+│  Name / Email            Role    Status                  Registered   Last sign-in  Paid until │
+│  Abu Asif                Admin   ● Active                11 Nov 2026  12 Nov 2026   —          │
+│  asif@example.com                                                                              │
+│  Mithun Roy              User    ● Active                14 Nov 2026  20 Nov 2026   31 Dec 2026│
+│  Sohel Ahmed             User    ⚠ Deactivated until     15 Nov 2026  18 Nov 2026   30 Nov 2026│
+│                                    30 Nov 2026                                      (lapsed)   │
+│  New Person              User    ○ Unverified            21 Nov 2026  —             —          │
+│                                                               Showing 1–20 of 34  [ < 1 2 > ] │
+└───────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+| Status | Badge |
+|---|---|
+| Active | `--ok` |
+| Unverified | `--neutral` |
+| Deactivated until a date | `--warn` |
+| Deactivated until reactivated | `--danger` |
+
+A "Paid until" date that has passed is shown in `--danger` with `(lapsed)`. On mobile each user is a stacked card: name, email, status badge, paid-until.
+
+#### User detail (`/admin/users/[id]`)
+
+| Section | Contents |
+|---|---|
+| Account | Name, email, Save; Make admin (with confirmation). Read-only: role, registered date, last sign-in, email verified date |
+| Access | Status badge. Actions: Deactivate, Reactivate, Resend verification email, Send password-reset email |
+| Payments | Table: date paid, amount, covers until, note; Add payment; edit and delete per row |
+| History | Admin actions on this user: date, admin, action, detail |
+| Danger zone | Delete user |
+
+**Create user modal:** name, email, role. Helper text: "The user will get an email link to set their password."
+
+**Deactivate modal:** choice of "Until a date" (date picker) or "Until I reactivate"; optional reason; Confirm.
+
+**Delete confirmation:** explains that the account and all of its data are removed permanently; the admin types the user's email; the Delete button stays disabled until it matches.
+
+- An admin account, your own included, opens read-only: every field and action is disabled, with the note "Admin accounts cannot be changed here." There is no Danger zone on an admin account.
+- The Make admin confirmation says that an admin cannot be demoted or removed from inside the app.
+
+---
+
 ## 8. Navigation Shell
 
 ### Desktop — Left sidebar (240px fixed)
@@ -865,7 +1013,7 @@ Legend: ✓ = Paid  ⚠ = Due soon  ✕ = Overdue / Missed  ● = Pending  ○ =
 ```
 
 - 5 tabs; "Add" is a 48px FAB button at center, elevated, `--accent` bg
-- "More" opens a bottom drawer with the remaining navigation items
+- "More" opens a bottom drawer with the remaining navigation items: Income, Savings & DPS, Loans, Tax Dashboard, History, Budgets, Settings
 - Badge: red dot on Fixed tab when any item is overdue
 
 ### Top bar (mobile only)
@@ -989,14 +1137,14 @@ bKash uses its signature magenta (#E2136E) as an icon color accent. No external 
 
 | Internal key | Display label |
 |---|---|
-| `salary` | Salary |
-| `cheer` | Cheer / Incentive |
-| `profit_share` | Profit Share (PS) |
-| `eid_bonus` | Eid Festival Bonus |
-| `leave_encashment` | Leave Encashment |
-| `certification` | Certification Reimbursement |
-| `holiday_support` | Holiday Support |
-| `other` | Other |
+| `SALARY` | Salary |
+| `CHEER` | Cheer / Incentive |
+| `PROFIT_SHARE` | Profit Share (PS) |
+| `EID_BONUS` | Eid Festival Bonus |
+| `LEAVE_ENCASHMENT` | Leave Encashment |
+| `CERTIFICATION` | Certification Reimbursement |
+| `HOLIDAY_SUPPORT` | Holiday Support |
+| `OTHER` | Other |
 
 ### NBR Tax vocabulary
 
@@ -1013,4 +1161,4 @@ Always use the exact terms from the BRD:
 
 ---
 
-*End of design specification. See `docs/brd.md` for feature requirements, `GLOSSARY.md` for domain terms, and `docs/adr/` for architectural decisions.*
+*End of design specification. See `.scratch/docs/brd.md` for feature requirements, `GLOSSARY.md` for domain terms, and `.scratch/docs/adr/` for decisions.*

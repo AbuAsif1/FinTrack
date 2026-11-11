@@ -1,16 +1,23 @@
 # 19: History & Analytics UI
 
-**What to build:** The history and analytics screen showing spending trends over time, category breakdowns, and year-over-year comparisons.
+**What to build:** The History & Analytics screen: a monthly summary table and trend charts for income, spending by category and Savings Rate.
 
-**Blocked by:** 11 (Dashboard Aggregates API), 12 (React Frontend Shell)
+**Blocked by:** 11, 12
 
 **Status:** ready-for-agent
 
-- [ ] Spending trend chart: Recharts line/bar chart for last 12 months, toggleable by category
-- [ ] Category breakdown: donut or bar chart showing spending distribution for a selected period
-- [ ] Month-over-month comparison: current month vs same month last year
-- [ ] Period selector: custom date range picker (calendar month resolution)
-- [ ] Income vs spending overlay: dual-axis chart showing in-hand income and total spending per month
-- [ ] Loan history: net loan balance trend over time (how much is owed in total, month by month)
-- [ ] All chart labels and tooltips use formatBDT() with South Asian grouping
-- [ ] Export note: no PDF/CSV export in MVP (out of scope); placeholder text only
+**Test cases:** `test-cases/17-ui.md` §History (`TC-UI-140` to `TC-UI-142`)
+
+**Read first:** `design.md` §6.4, §7.8 · `brd.md` §5 FR-08
+
+- [ ] Period selector and four tabs: Monthly Summary, Income Trends, Spending Trends, Savings Rate
+- [ ] Monthly Summary table per `design.md` §7.8, with a totals row and Fixed Expense compliance
+- [ ] Income Trends: stacked bars by income type per month
+- [ ] Spending Trends: grouped bars for the top five categories over 12 months, with tooltips
+- [ ] Savings Rate: line chart with the 20% reference line and an endpoint label
+- [ ] Every chart has a table or text fallback; labels and tooltips use `formatBDT`
+- [ ] Empty states for periods with no data
+
+The Export CSV button on this page is added by ticket 23.
+
+## Comments

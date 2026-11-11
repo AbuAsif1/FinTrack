@@ -1,17 +1,22 @@
 # 16: Fixed Expenses UI
 
-**What to build:** The fixed expenses screen showing this month's checklist of recurring obligations, with quick mark-as-paid action. Overdue items surface prominently.
+**What to build:** The Fixed Expenses screen: the monthly grid, this month's checklist, the Mark as Paid drawer with skip and reopen, and template management with the suggested defaults.
 
-**Blocked by:** 08 (Fixed Expenses), 12 (React Frontend Shell)
+**Blocked by:** 08, 12
 
 **Status:** ready-for-agent
 
-- [ ] Fixed expenses list: checklist layout showing each obligation with due date, amount, status (pending/paid/skipped)
-- [ ] Overdue items (past due day, still pending) shown at top with warning color
-- [ ] Quick-pay action: tap "Mark Paid" → confirms actual amount (pre-filled with standard amount) + date
-- [ ] Skip action: marks instance as skipped with optional note
-- [ ] Month navigation: view past months' checklists
-- [ ] Manage templates: add/edit/deactivate recurring expense templates
-- [ ] DPS entry in list links to savings account balance for context
-- [ ] Monthly total: sum of standard amounts for active templates; paid vs pending breakdown
-- [ ] Dashboard banner integration: pending fixed expenses count shown on dashboard (this UI provides the template, ticket 13 uses it)
+**Test cases:** `test-cases/17-ui.md` §Fixed Expenses (`TC-UI-080` to `TC-UI-084`)
+
+**Read first:** `design.md` §5.6, §7.4 · `brd.md` §5 FR-05
+
+- [ ] Monthly grid per `design.md` §7.4: templates as rows, months as columns, a status cell for each, and totals; it scrolls horizontally inside its own container
+- [ ] On mobile, this month's checklist comes first with overdue items at the top, and the grid sits behind a "Year view" toggle
+- [ ] Mark as Paid drawer: actual amount (pre-filled with the standard amount), date, Confirm; Skip with an optional note; Reopen for a Skipped item
+- [ ] A Paid cell links to its Transaction
+- [ ] Manage templates: add, edit, deactivate; a DPS template requires a savings account
+- [ ] Setup: `SUGGESTED_FIXED_EXPENSES` offered with checkboxes; the DPS ones ask for the account
+- [ ] Month totals: Fixed Commitments, paid and pending
+- [ ] Alert banners for due-soon and overdue items, using the component shared with ticket 13
+
+## Comments

@@ -1,17 +1,24 @@
 # 13: Dashboard UI
 
-**What to build:** The main dashboard screen: summary cards, spending chart, quick stats for loans and tax, and unread notification badge. Uses formatBDT() and South Asian grouping throughout.
+**What to build:** The dashboard: period tiles, the Cash This Month panel, alert banners, charts, and snapshots of Fixed Expenses, recent Transactions, tax and loans, all from one API call.
 
-**Blocked by:** 11 (Dashboard Aggregates API), 12 (React Frontend Shell)
+**Blocked by:** 11, 12
 
 **Status:** ready-for-agent
 
-- [ ] Summary cards: In-Hand Income, Total Spending, Discretionary Cash, Savings Balance (all using formatBDT() with South Asian grouping)
-- [ ] Spending trend bar chart (Recharts): last 6 months, BDT labels on Y-axis
-- [ ] Fixed expenses mini-panel: count of pending vs paid for the current month; overdue items highlighted
-- [ ] Loan summary row: total net balance with color coding (green = owed to user, red = user owes)
-- [ ] Tax progress strip: fiscal year progress, TDS paid vs net tax, remaining amount
-- [ ] Period selector: switch between calendar months; updates all cards
-- [ ] Notification bell badge: count of unread; tapping opens notification drawer
-- [ ] Empty states for first-time use (no income yet, no transactions yet)
-- [ ] Mobile-first layout matching the wireframe in docs/design.md §8 Dashboard page
+**Test cases:** `test-cases/17-ui.md` §Dashboard (`TC-UI-020` to `TC-UI-026`)
+
+**Read first:** `design.md` §5, §6, §7.1 · `brd.md` §5 FR-02 · `GLOSSARY.md` (Discretionary Cash, Remaining to Spend, Net Savings, Savings Rate)
+
+- [ ] Period selector with the five options and a custom range picker; a dropdown on mobile
+- [ ] Summary tiles: In-Hand Income, Total Spending, Net Savings, Savings Rate, with change indicators
+- [ ] Cash This Month panel: Discretionary Cash and Remaining to Spend, the `estimated` chip, and the danger colour when Remaining to Spend is negative
+- [ ] Alert banners for due-soon and overdue Fixed Expenses with a Mark Paid action
+- [ ] Cash flow bar chart for six months and spending-by-category donut, each with a text fallback
+- [ ] Fixed Expenses panel, Recent Transactions, Tax snapshot card with the provisional notice, Borrow-Loan summary
+- [ ] Quick actions: Add Spending, Add Income, Mark Fixed Paid
+- [ ] First-run checklist card when there is no data
+- [ ] Loading skeletons and empty states
+- [ ] Desktop layout and mobile stacking order as in `design.md` §7.1
+
+## Comments

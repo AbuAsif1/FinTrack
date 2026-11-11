@@ -1,162 +1,190 @@
 # FinTrack BD — Coding Rules
 
-**These are non-negotiable constraints every agent must follow. Violating any of these is a bug, not a style preference.**
+> **Owns:** the constraints every change must obey. Read this for every ticket.
+> Mechanics, schema and endpoints live in `architecture.md`. Reasons live in `adr/`. Breaking a rule here is a bug, not a style choice.
 
 ---
 
-## Money — The Cardinal Rule
+## 1. Money
 
-> **All BDT amounts are stored and transported as `BIGINT` Paisa (1 BDT = 100 Paisa). Division by 100 happens only at the display layer.**
+**Every amount is integer Paisa (1 BDT = 100 Paisa) in the database, in JSON and in TypeScript.** (ADR-0003)
 
-| Rule | Correct | Wrong |
+| Where | Rule |
+|---|---|
+| DB column | `BIGINT`, name ends in `_paisa` |
+| JSON | integer number, field name ends in `_paisa` (`"amount_paisa": 10000` is ৳100.00) |
+| TypeScript | `number`; convert Prisma `bigint` with `toPaisa()` at the data-access boundary |
+| Zod | `paisaSchema` (integer, safe-integer range) |
+| Arithmetic | integers only; aggregate in SQL with `SUM(amount_paisa)` |
+| User input → Paisa | `parseBDT(text)`: exact decimal-string parsing |
+| Paisa → screen | `formatBDT(paisa)` on every amount shown |
+| Paisa → CSV export | `toDecimalString(paisa)` (`"1198.50"`, no grouping) |
+| Rates | integer basis points (`rate_bps`: 1000 is 10%) |
+| Rounding | `roundHalfUp()` to the nearest Paisa |
+
+All helpers come from `@fintrack/shared`.
+
+```ts
+formatBDT(200684600) // "৳20,06,846.00"  South Asian grouping, always two decimals, ৳ included
+formatBDT(-314542)   // "−৳3,145.42"     U+2212 minus, before the ৳
+parseBDT("1198.50")  // 119850
+```
+
+- `amount_paisa` on a Transaction is always positive. The Transaction's `type` gives the direction.
+- `Intl.NumberFormat` and `toLocaleString()` cannot produce lakh/crore grouping, so `formatBDT()` is the only formatter.
+- A float, a `DECIMAL` column, `parseFloat(x) * 100` or a bare `paisa / 100` anywhere in money code is a bug.
+
+---
+
+## 2. Dates and the two time axes
+
+**Business dates are calendar dates in Asia/Dhaka.** (ADR-0004)
+
+| Value | DB type | JSON |
 |---|---|---|
-| DB column type | `BIGINT` | `DECIMAL`, `FLOAT`, `NUMERIC` |
-| API request/response | integer `10000` (= ৳100.00) | float `100.0` or string `"100.00"` |
-| JSON field naming | `amount_paisa` | `amount`, `amount_bdt` |
-| SQL aggregation | `SUM(amount_paisa)` in integer | any float math |
-| Display only | `formatBDT(paisa)` | `paisa / 100` bare |
-
----
-
-## `formatBDT(paisa: number): string`
-
-JavaScript's `Intl.NumberFormat` does **not** support South Asian (lakh/crore) grouping. You must use the custom utility from `packages/shared`:
+| Transaction date, due date, paid date | `DATE` | `"YYYY-MM-DD"` |
+| Month (income month, budget month, instance month) | `DATE` on the 1st of the month | `"YYYY-MM"` |
+| Fiscal Year | `TEXT` | `"YYYY-YY"`, e.g. `"2025-26"` |
+| Audit timestamps (`created_at`, `updated_at`, `deleted_at`) | `TIMESTAMPTZ` | ISO 8601 UTC |
 
 ```ts
-import { formatBDT } from '@fintrack/shared';
-// formatBDT(200684600) === "৳20,06,846.00"
-// formatBDT(913500)    === "৳9,135.00"
+import { fiscalYear, fiscalYearRange, todayInDhaka } from '@fintrack/shared';
+fiscalYear("2025-07-01")   // "2025-26"
+fiscalYear("2025-06-30")   // "2024-25"
+fiscalYearRange("2025-26") // { from: "2025-07-01", to: "2026-06-30" }
+todayInDhaka()             // "2026-11-12"
 ```
 
-- **Use `formatBDT()` on every monetary value shown in the UI.** No exceptions.
-- Never use `toLocaleString()`, `Intl.NumberFormat`, or manual string formatting for BDT amounts.
-- The ৳ prefix is included by the function — do not add it separately.
+- Get "today" from `todayInDhaka()`. Get a Fiscal Year from `fiscalYear(dateString)`. These are the only places that know the timezone and the July boundary.
+- Pass date strings between layers. Construct a `Date` object only inside `@fintrack/shared`.
+
+**Two time axes, kept apart.** (ADR-0007)
+
+| Axis | Used for | Income figure |
+|---|---|---|
+| Calendar month | Spending, budgets, Fixed Expenses, dashboard | In-Hand Income |
+| Fiscal Year (1 Jul to 30 Jun) | Tax module, annual income totals | Gross Income |
+
+One query aggregates on one axis. A fiscal-year preset on the dashboard is just a date range over calendar data.
 
 ---
 
-## Fiscal Year
+## 3. Soft delete
 
-```ts
-import { fiscalYear } from '@fintrack/shared';
-```
-
-- Never compute fiscal year inline. Never write `date.getFullYear()` logic in feature code.
-- `fiscalYear(date)` returns `"YYYY-YY"` (e.g. `"2025-26"`).
-- 1 July 2025 → `"2025-26"`. 30 June 2025 → `"2024-25"`.
+- `transactions` and `income_entries` are soft-deleted: set `is_deleted = TRUE` and `deleted_at`.
+- A Loan Entry is deleted by soft-deleting its paired Transaction.
+- Every read and every aggregate over these tables filters `is_deleted = FALSE`.
+- These tables never receive a SQL `DELETE`, including from import undo. The one exception is an admin deleting a whole account, which removes every row that user owns (ADR-0011).
 
 ---
 
-## Soft Delete
+## 4. Derived values
 
-- **Never** `DELETE FROM transactions` or `DELETE FROM loan_entries`.
-- Set `is_deleted = TRUE`.
-- Every query that reads transactions or loan entries must filter `WHERE is_deleted = FALSE`.
-- Prisma: always `where: { isDeleted: false }` on transaction/loanEntry queries.
+**Balances and totals are computed from rows, never stored.** (ADR-0005)
 
----
+The definitions in `architecture.md` §Derived values are the only definitions. This covers savings account balance, Loan Person Running Balance, rebate-eligible DPS and Sanchaypatra totals, Tax Paid, Total Spending, Fixed Commitments, Discretionary Cash and Remaining to Spend.
 
-## Computed Savings Balance
-
-- `savings_accounts` has **no `balance` column**.
-- Never store a balance. Never update a balance field.
-- Balance = `opening_balance_paisa + SUM(linked transaction amounts WHERE is_deleted = FALSE)`.
-- Compute this in SQL, not in application code.
+- Compute them in SQL.
+- Tables carry no balance or running-total column.
 
 ---
 
-## Category Routing
+## 5. Category routing and atomic writes
 
-- All routing side-effects execute inside a single `prisma.$transaction([...])` call.
-- Never apply partial side-effects. Never commit a transaction and then run a side-effect separately.
-- If any side-effect fails, the whole operation rolls back. The user sees one atomic error.
-- DPS payment without a `linked_account_id` → validation error, nothing written.
+- A Transaction's `type` is copied from its category's `routing_type` when it is created, and it never changes afterwards.
+- Every write that touches more than one row runs in a single `prisma.$transaction(...)`: creating a loan Transaction with its Loan Entry, marking a Fixed Expense instance Paid, Settle Up, committing or undoing an import.
+- If any part fails, nothing is written and the client receives one error.
+- A category with a savings routing type requires `savings_account_id`. A loan routing type requires a Loan Person. A missing link is a `422` and nothing is written.
 
----
-
-## Idempotency
-
-- Every `POST /api/v1/transactions` must include an `idempotency_key` (UUID, client-generated).
-- Backend stores it with a UNIQUE constraint.
-- Duplicate key → `409` response with the existing record. No retry logic needed on the client.
-- Never skip idempotency for "simple" endpoints — it protects against double-taps on slow connections.
+Routing types, their required links and their effects: `architecture.md` §Category routing.
 
 ---
 
-## Tax Engine
+## 6. Idempotency
 
-- Never call the database inside `calculateTax(...)`.
-- Slabs must be fetched from `tax_years` before calling the function and passed as arguments.
-- The function signature is: `calculateTax(slabs, incomeEntries, investments) → TaxResult`.
-- Use the same function on the frontend for live preview (no extra round-trip needed).
+- Every request that creates a money-moving record carries a client-generated `idempotency_key` (UUID) in the body: Transactions, Income Entries, Loan Entries, Settle Up.
+- The key is stored with a unique constraint per user. A repeated key returns `409` with `code: "DUPLICATE"` and the existing record; the client treats that as success.
+- State-changing actions are guarded by state: marking a Paid instance Paid again returns `409` with the existing Transaction.
+
+---
+
+## 7. Tax engine
+
+- `packages/tax-engine` is pure: no I/O, no database, no clock, no constants. Signature: `calculateTax(input: TaxInput): TaxResult`.
+- Every tax parameter comes from `tax_years.config_json`, loaded by the caller and passed in. Tax rates, caps and thresholds never appear in application code. (ADR-0008)
+- The frontend imports the same function for live preview.
 - 100% branch coverage on `packages/tax-engine` is a CI gate.
 
----
-
-## Two Time Axes — Never Mix
-
-| Axis | Used for | How to get it |
-|---|---|---|
-| Calendar month | Spending, budgets, fixed expenses | `DATE_TRUNC('month', date)` |
-| Fiscal year | Tax module, annual income | `fiscalYear(date)` |
-
-Never join a calendar-month aggregate with a fiscal-year aggregate in a single query.
+Formulas and parameters: `brd.md` §6. Types: `architecture.md` §Tax engine.
 
 ---
 
-## API Contracts
+## 8. API contracts
 
-- Money fields in JSON: integers (`amount_paisa: 10000`), **never floats**.
-- Fiscal year in JSON: `"2025-26"` string format.
-- Timestamps: ISO 8601 UTC (`"2025-11-01T00:00:00Z"`).
-- Error body: `{ error: string, code: string }`.
-- Auth missing/invalid: `401`.
-- Validation failure: `422` with `fields` map.
-- Idempotency conflict: `409`.
+- Base path `/api/v1/`. Route files live at `app/api/v1/<resource>/route.ts`.
+- Request and response bodies are validated with Zod schemas imported from `@fintrack/shared`.
+- Enum values are `UPPER_SNAKE_CASE` in the database, in JSON and in code.
+- Error body: `{ "error": string, "code": string }`. Validation errors add `"fields": { name: message }`.
 
----
-
-## Frontend Rules
-
-- **Mark interactive components `'use client'`.** Any component using hooks, React Query, or browser APIs needs this directive.
-- **No `useState` for server data.** Use React Query in Client Components.
-- **No duplicate Zod schemas.** Import from `packages/shared`.
-- **No hardcoded BDT strings.** Always `formatBDT(paisa)`.
-- **No hardcoded fiscal year logic.** Always `fiscalYear(date)`.
-- **Tap targets ≥ 44px** on all interactive elements (PWA mobile-first).
-- All amounts right-aligned with `font-variant-numeric: tabular-nums`.
-- **Never instantiate `PrismaClient` in a component or route handler.** Import the singleton from `lib/prisma`.
-
----
-
-## Bangladesh-Specific Vocabulary
-
-| Use this | Never use this |
+| Status | When |
 |---|---|
-| TDS (Tax Deducted at Source) | Withholding tax |
-| Fiscal Year / FY | Financial year, tax year |
-| bKash | Mobile banking, mobile payment (use the brand name) |
-| Sanchaypatra | National savings certificate |
-| DPS (Deposit Pension Scheme) | Recurring deposit, RD |
-| In-Hand Income | Net salary, take-home pay |
-| Paisa | Paise (wrong spelling for Bangladesh) |
+| `401` | missing, invalid or expired access token |
+| `403` | the email is not verified yet, sign-up is closed, the account is deactivated, or an admin route is called by a non-admin |
+| `404` | the record does not exist or belongs to another user |
+| `409` | duplicate idempotency key, action already applied, or the Fiscal Year is locked |
+| `422` | validation failure |
+| `429` | login rate limit reached |
 
 ---
 
-## Security
+## 9. Auth and security
 
-- Every Prisma query on user-scoped data includes `where: { userId: ctx.user.id }`.
-- Never log response bodies containing financial data.
-- Store only the last 4 digits of bank account numbers. Never store or log the full number.
-- Never hardcode secrets. All secrets come from environment variables.
+- Every route except `/api/v1/auth/*` and `/api/v1/health` starts with `getAuthUser(req)` from `lib/auth.ts`.
+- Every query on user data includes `userId: user.id`. A record owned by another user is reported as `404`.
+- Import the Prisma client from `lib/prisma`; that file is the only place it is constructed, and only route handlers and server-side services use it.
+- Every `/api/v1/admin/*` route starts with `getAdminUser(req)` and reads account tables only (`users`, `user_payments`, `admin_actions`, token tables). Admin code never queries a financial table, and an admin's own finances go through the normal user routes. (ADR-0011)
+- An admin write is refused when its target is the acting admin or any other admin account. Only `USER` accounts can be updated, deactivated or deleted through admin routes.
+- Registration and recovery endpoints give the same response whether or not the email is registered.
+- A new account receives starter categories and tax settings only; no financial record is ever created for a user automatically.
+- Store only the last four digits of a bank account number.
+- Logs carry request ids, routes and status codes, and never amounts, descriptions or request bodies.
+- Secrets come from environment variables listed in `.env.example`.
 
 ---
 
-## What NOT to Do
+## 10. Frontend
 
-- Do not add a `balance` column to `savings_accounts`.
-- Do not use `DECIMAL` or `FLOAT` for money columns.
-- Do not hard-delete transactions or loan entries.
-- Do not compute fiscal year inline — use the shared function.
-- Do not format currency with `Intl.NumberFormat` — use `formatBDT()`.
-- Do not apply category routing side-effects outside a DB transaction.
-- Do not write tax slab rates in application code — they live in the `tax_years` table.
+- All authenticated data reaches the UI through `/api/v1` with TanStack Query in Client Components (`'use client'`). Server Components render the static shell only.
+- Server data lives in the TanStack Query cache, not in `useState`.
+- Forms use React Hook Form with the shared Zod schemas.
+- Every amount is rendered with `formatBDT()`, right-aligned, with `font-variant-numeric: tabular-nums`.
+- Every Fiscal Year label comes from `fiscalYear()`.
+- Interactive targets are at least 44×44 px.
+- Colours, type and layouts come from `design.md`.
+
+---
+
+## 11. Vocabulary
+
+Use the `GLOSSARY.md` term in code, comments, names and UI text.
+
+| Use | Not |
+|---|---|
+| TDS (Tax Deducted at Source) | withholding tax |
+| Fiscal Year / FY | financial year, tax year |
+| bKash | mobile banking, mobile payment |
+| Sanchaypatra | national savings certificate |
+| DPS (Deposit Pension Scheme) | recurring deposit, RD |
+| In-Hand Income | net salary, take-home pay |
+| Paisa | paise |
+| Rebate | credit, deduction |
+
+---
+
+## 12. Tests
+
+- **Work test-first.** Take one case from the ticket's file in `.scratch/fintrack-bd-mvp/test-cases/`, write its test, watch it fail, then write just enough code to pass it. Repeat. Writing a batch of tests before any implementation is the wrong order.
+- Start each test title with its case id (`TC-TXN-004 …`). A new behaviour gets a new case in the matrix in the same change.
+- Test through the seams in `architecture.md` §Testing: the tax engine as a pure function, route handlers against a real PostgreSQL 16 database, and Playwright smoke flows.
+- Acceptance fixtures are identified by `AC-…` ids in `brd.md` §11. Assert the exact Paisa values given there.
+- Assert observable behaviour (HTTP responses, rendered text), not which internal function was called.
