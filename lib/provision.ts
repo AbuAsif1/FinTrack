@@ -26,7 +26,7 @@ export async function provisionNewUser(
     await db.taxYear.upsert({
       where: { userId_fiscalYear: { userId, fiscalYear: fy } },
       update: {},
-      create: { userId, fiscalYear: fy, configJson: config as Prisma.JsonObject },
+      create: { userId, fiscalYear: fy, configJson: config as unknown as Prisma.InputJsonValue },
     });
   }
 }

@@ -11,7 +11,8 @@ function createPrismaClient() {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const ws = require('ws');
     neonConfig.webSocketConstructor = ws;
-    return new PrismaClient({ adapter: new PrismaNeon(new Pool({ connectionString: url })) });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return new PrismaClient({ adapter: new PrismaNeon(new Pool({ connectionString: url })) } as any);
   }
   return new PrismaClient();
 }
