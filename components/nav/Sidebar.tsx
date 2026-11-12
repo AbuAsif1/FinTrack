@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import api from '@/lib/api';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: '🏠' },
@@ -20,6 +22,11 @@ const bottomItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: me } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => api.get<{ id: string; role: string }>('/api/v1/me').then((r) => r.data),
+    staleTime: 5 * 60 * 1000,
+  });
 
   function isActive(href: string) {
     if (href === '/') return pathname === '/';
@@ -70,6 +77,28 @@ export function Sidebar() {
         ))}
       </ul>
       <ul style={{ listStyle: 'none', margin: 0, padding: '8px 0 0', borderTop: '1px solid var(--border)' }}>
+        {me?.role === 'ADMIN' && (
+          <li>
+            <Link
+              href="/admin/users"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '10px 20px',
+                color: isActive('/admin') ? 'var(--accent)' : 'var(--fg-secondary)',
+                background: isActive('/admin') ? 'var(--bg-raised)' : 'transparent',
+                borderLeft: isActive('/admin') ? '3px solid var(--accent)' : '3px solid transparent',
+                textDecoration: 'none',
+                font: 'var(--t-body)',
+                minHeight: 44,
+              }}
+            >
+              <span>👥</span>
+              <span>Users</span>
+            </Link>
+          </li>
+        )}
         {bottomItems.map((item) => (
           <li key={item.href}>
             <Link
