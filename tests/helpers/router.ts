@@ -4,7 +4,8 @@
  * No HTTP server is needed.
  */
 
-type Handler = (req: Request) => Promise<Response>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Handler = (req: Request, ctx?: any) => Promise<Response>;
 type RouteEntry = { pattern: RegExp; params: string[]; handlers: Partial<Record<string, Handler>> };
 
 const routes: RouteEntry[] = [];
@@ -31,6 +32,11 @@ export async function buildRouter() {
     resendMod,
     pwResetRequestMod,
     pwResetConfirmMod,
+    categoriesMod,
+    categoryIdMod,
+    transactionsMod,
+    transactionBulkDeleteMod,
+    transactionIdMod,
   ] = await Promise.all([
     import('../../app/api/v1/health/route'),
     import('../../app/api/v1/auth/login/route'),
@@ -43,6 +49,11 @@ export async function buildRouter() {
     import('../../app/api/v1/auth/resend-verification/route'),
     import('../../app/api/v1/auth/password-reset/request/route'),
     import('../../app/api/v1/auth/password-reset/confirm/route'),
+    import('../../app/api/v1/categories/route'),
+    import('../../app/api/v1/categories/[id]/route'),
+    import('../../app/api/v1/transactions/route'),
+    import('../../app/api/v1/transactions/bulk-delete/route'),
+    import('../../app/api/v1/transactions/[id]/route'),
   ]);
 
   routes.length = 0;
@@ -58,14 +69,28 @@ export async function buildRouter() {
   addRoute('/api/v1/auth/resend-verification', { POST: resendMod.POST });
   addRoute('/api/v1/auth/password-reset/request', { POST: pwResetRequestMod.POST });
   addRoute('/api/v1/auth/password-reset/confirm', { POST: pwResetConfirmMod.POST });
+
+  // Categories
+  addRoute('/api/v1/categories', { GET: categoriesMod.GET, POST: categoriesMod.POST });
+  addRoute('/api/v1/categories/:id', { PATCH: categoryIdMod.PATCH });
+
+  // Transactions — bulk-delete before :id so it matches first
+  addRoute('/api/v1/transactions', { GET: transactionsMod.GET, POST: transactionsMod.POST });
+  addRoute('/api/v1/transactions/bulk-delete', { POST: transactionBulkDeleteMod.POST });
+  addRoute('/api/v1/transactions/:id', {
+    GET: transactionIdMod.GET,
+    PATCH: transactionIdMod.PATCH,
+    DELETE: transactionIdMod.DELETE,
+  });
 }
 
 export function routeRequest(req: Request): Response | Promise<Response> {
   const url = new URL(req.url);
   const pathname = url.pathname;
 
-  for (const { pattern, handlers } of routes) {
-    if (pattern.test(pathname)) {
+  for (const { pattern, params: paramNames, handlers } of routes) {
+    const match = pattern.exec(pathname);
+    if (match) {
       const handler = handlers[req.method];
       if (!handler) {
         return new Response(JSON.stringify({ error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' }), {
@@ -73,7 +98,11 @@ export function routeRequest(req: Request): Response | Promise<Response> {
           headers: { 'Content-Type': 'application/json' },
         });
       }
-      return handler(req);
+      const params: Record<string, string> = {};
+      paramNames.forEach((name, i) => {
+        params[name] = match[i + 1];
+      });
+      return handler(req, { params });
     }
   }
 

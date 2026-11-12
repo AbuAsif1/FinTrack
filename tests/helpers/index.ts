@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 import { buildRouter, routeRequest } from './router';
+import { provisionNewUser } from '../../lib/provision';
 
 // Use the test database URL
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? '';
@@ -52,7 +53,7 @@ export type TestUser = {
 
 export type TestContext = {
   db: PrismaClient;
-  createUser: (opts?: { role?: 'USER' | 'ADMIN'; emailVerified?: boolean }) => Promise<TestUser>;
+  createUser: (opts?: { role?: 'USER' | 'ADMIN'; emailVerified?: boolean; provision?: boolean }) => Promise<TestUser>;
   authHeader: (user: TestUser) => Promise<{ Authorization: string }>;
   makeRequest: (method: string, path: string, opts?: { body?: unknown; headers?: Record<string, string> }) => Promise<Response>;
 };
@@ -67,8 +68,8 @@ export async function createTestContext(): Promise<TestContext> {
     process.env.JWT_SECRET ?? 'test-jwt-secret-at-least-32-chars-long'
   );
 
-  async function createUser(opts: { role?: 'USER' | 'ADMIN'; emailVerified?: boolean } = {}): Promise<TestUser> {
-    const { role = 'USER', emailVerified = true } = opts;
+  async function createUser(opts: { role?: 'USER' | 'ADMIN'; emailVerified?: boolean; provision?: boolean } = {}): Promise<TestUser> {
+    const { role = 'USER', emailVerified = true, provision = false } = opts;
     const password = `testpassword-${Date.now()}`;
     const email = `test-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
     const hash = await bcrypt.hash(password, 4); // low cost for tests
@@ -81,6 +82,9 @@ export async function createTestContext(): Promise<TestContext> {
         emailVerifiedAt: emailVerified ? new Date() : null,
       },
     });
+    if (provision) {
+      await provisionNewUser(user.id);
+    }
     return { id: user.id, email: user.email, password, role: user.role as 'USER' | 'ADMIN' };
   }
 
