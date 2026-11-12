@@ -101,9 +101,43 @@
 }
 
 * { box-sizing: border-box; }
+html { overflow-x: hidden; }
 body {
   background: var(--bg-base);
   color: var(--fg-primary);
   font: var(--t-body);
   margin: 0;
+  overflow-x: hidden;
+}
+
+/* Ensure buttons / links meet 44px tap target on mobile */
+button, [role="button"], a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Nav items are inline — reset to auto height on desktop */
+@media (min-width: 768px) {
+  button, [role="button"], a {
+    min-height: unset;
+  }
+}
+
+/* Sidebar: shown on desktop, hidden on mobile */
+.sidebar-desktop {
+  display: contents;
+}
+/* Bottom nav: hidden on desktop, shown on mobile */
+.bottom-nav-mobile {
+  display: none;
+}
+@media (max-width: 767px) {
+  .sidebar-desktop {
+    display: none;
+  }
+  .bottom-nav-mobile {
+    display: block;
+  }
 }

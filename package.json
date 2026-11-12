@@ -17,6 +17,7 @@
     "test:coverage": "vitest run --coverage",
     "test:tax": "vitest run --project tax-engine",
     "test:matrix": "tsx scripts/test-matrix.ts",
+    "test:e2e": "playwright test",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
