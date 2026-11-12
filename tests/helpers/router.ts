@@ -57,6 +57,11 @@ export async function buildRouter() {
     fixedInstancePayMod,
     fixedInstanceSkipMod,
     fixedInstanceReopenMod,
+    budgetsMod,
+    budgetCategoryIdMod,
+    notificationsMod,
+    notificationReadMod,
+    notificationReadAllMod,
     adminUsersMod,
     adminUserIdMod,
     adminDeactivateMod,
@@ -103,6 +108,11 @@ export async function buildRouter() {
     import('../../app/api/v1/fixed-expense-instances/[id]/pay/route'),
     import('../../app/api/v1/fixed-expense-instances/[id]/skip/route'),
     import('../../app/api/v1/fixed-expense-instances/[id]/reopen/route'),
+    import('../../app/api/v1/budgets/route'),
+    import('../../app/api/v1/budgets/[categoryId]/route'),
+    import('../../app/api/v1/notifications/route'),
+    import('../../app/api/v1/notifications/[id]/read/route'),
+    import('../../app/api/v1/notifications/read-all/route'),
     import('../../app/api/v1/admin/users/route'),
     import('../../app/api/v1/admin/users/[id]/route'),
     import('../../app/api/v1/admin/users/[id]/deactivate/route'),
@@ -173,6 +183,15 @@ export async function buildRouter() {
   addRoute('/api/v1/fixed-expense-instances/:id/pay', { POST: fixedInstancePayMod.POST });
   addRoute('/api/v1/fixed-expense-instances/:id/skip', { POST: fixedInstanceSkipMod.POST });
   addRoute('/api/v1/fixed-expense-instances/:id/reopen', { POST: fixedInstanceReopenMod.POST });
+
+  // Budgets
+  addRoute('/api/v1/budgets', { GET: budgetsMod.GET });
+  addRoute('/api/v1/budgets/:categoryId', { PUT: budgetCategoryIdMod.PUT, DELETE: budgetCategoryIdMod.DELETE });
+
+  // Notifications — read-all before :id/read to avoid id matching
+  addRoute('/api/v1/notifications/read-all', { POST: notificationReadAllMod.POST });
+  addRoute('/api/v1/notifications/:id/read', { POST: notificationReadMod.POST });
+  addRoute('/api/v1/notifications', { GET: notificationsMod.GET });
 
   // Admin — specific sub-routes before :id
   addRoute('/api/v1/admin/users', { GET: adminUsersMod.GET, POST: adminUsersMod.POST });
