@@ -1,8 +1,8 @@
-/**
- * TC-TXN-001 to TC-TXN-020 — Transactions and categories
+﻿/**
+ * TC-TXN-001 to TC-TXN-020 â€” Transactions and categories
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestContext } from '../helpers/index';
 
 type Ctx = Awaited<ReturnType<typeof createTestContext>>;
@@ -11,6 +11,10 @@ let ctx: Ctx;
 
 beforeEach(async () => {
   ctx = await createTestContext();
+});
+
+afterEach(async () => {
+  await ctx?.cleanup();
 });
 
 // ---------------------------------------------------------------------------

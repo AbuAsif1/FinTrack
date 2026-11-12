@@ -1,8 +1,8 @@
-/**
- * TC-BUD-001 to TC-BUD-010 — Budgets & Notifications
+﻿/**
+ * TC-BUD-001 to TC-BUD-010 â€” Budgets & Notifications
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestContext } from '../helpers/index';
 
 type Ctx = Awaited<ReturnType<typeof createTestContext>>;
@@ -14,7 +14,11 @@ beforeEach(async () => {
   ctx = await createTestContext();
 });
 
-async function createSpendingCategory(ctx: Ctx, user: TestUser, name = 'Groceries') {
+afterEach(async () => {
+  await ctx?.cleanup();
+});
+
+async function createSpendingCategory(ctx: Ctx, user: TestUser, name = 'BudgetCat') {
   const headers = await ctx.authHeader(user);
   const res = await ctx.makeRequest('POST', '/api/v1/categories', {
     headers,
@@ -102,7 +106,7 @@ describe('TC-BUD-003: budget GET includes spent and state', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-BUD-004: Different limit history — this month vs last month
+// TC-BUD-004: Different limit history â€” this month vs last month
 // ---------------------------------------------------------------------------
 
 describe('TC-BUD-004: changing limit this month leaves last month unchanged', () => {
@@ -158,7 +162,7 @@ describe('TC-BUD-005: delete budget', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-BUD-006: Notifications — budget alerts fire at 80% and 100%
+// TC-BUD-006: Notifications â€” budget alerts fire at 80% and 100%
 // ---------------------------------------------------------------------------
 
 describe('TC-BUD-006: budget alerts', () => {

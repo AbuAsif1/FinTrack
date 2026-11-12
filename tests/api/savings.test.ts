@@ -1,8 +1,8 @@
-/**
- * TC-SAV-001 to TC-SAV-012 — Savings accounts
+﻿/**
+ * TC-SAV-001 to TC-SAV-012 â€” Savings accounts
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestContext } from '../helpers/index';
 import type { PrismaClient } from '@prisma/client';
 import { toDbDate } from '@fintrack/shared';
@@ -13,6 +13,10 @@ let ctx: Ctx;
 
 beforeEach(async () => {
   ctx = await createTestContext();
+});
+
+afterEach(async () => {
+  await ctx?.cleanup();
 });
 
 // ---------------------------------------------------------------------------
@@ -38,7 +42,7 @@ async function createAccount(
   });
 }
 
-/** Insert a savings transaction directly via DB (fixture — until ticket 06) */
+/** Insert a savings transaction directly via DB (fixture â€” until ticket 06) */
 async function insertSavingsTx(
   db: PrismaClient,
   userId: string,
@@ -119,10 +123,10 @@ describe('TC-SAV-002: last_four validation', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-SAV-003: Account with no transactions — balance equals opening balance
+// TC-SAV-003: Account with no transactions â€” balance equals opening balance
 // ---------------------------------------------------------------------------
 
-describe('TC-SAV-003: no transactions — balance equals opening balance', () => {
+describe('TC-SAV-003: no transactions â€” balance equals opening balance', () => {
   it('returns balance_paisa equal to opening_balance_paisa', async () => {
     const user = await ctx.createUser({ provision: true });
 
@@ -143,22 +147,22 @@ describe('TC-SAV-003: no transactions — balance equals opening balance', () =>
 // ---------------------------------------------------------------------------
 
 describe('TC-SAV-004 / AC-SAV-1: balance computation', () => {
-  it('opening 50000 + 2×10000 deposits + interest 1250 − withdrawal 5000 = 66250 BDT', async () => {
+  it('opening 50000 + 2Ã—10000 deposits + interest 1250 âˆ’ withdrawal 5000 = 66250 BDT', async () => {
     const user = await ctx.createUser({ provision: true });
 
-    const res = await createAccount(ctx, user, { opening_balance_paisa: 5000000 }); // ৳50,000
+    const res = await createAccount(ctx, user, { opening_balance_paisa: 5000000 }); // à§³50,000
     const acct = await res.json();
 
-    await insertSavingsTx(ctx.db, user.id, acct.id, 'SAVINGS_DEPOSIT', 1000000); // ৳10,000
-    await insertSavingsTx(ctx.db, user.id, acct.id, 'SAVINGS_DEPOSIT', 1000000); // ৳10,000
-    await insertSavingsTx(ctx.db, user.id, acct.id, 'SAVINGS_INTEREST', 125000);  // ৳1,250
-    await insertSavingsTx(ctx.db, user.id, acct.id, 'SAVINGS_WITHDRAWAL', 500000); // ৳5,000
+    await insertSavingsTx(ctx.db, user.id, acct.id, 'SAVINGS_DEPOSIT', 1000000); // à§³10,000
+    await insertSavingsTx(ctx.db, user.id, acct.id, 'SAVINGS_DEPOSIT', 1000000); // à§³10,000
+    await insertSavingsTx(ctx.db, user.id, acct.id, 'SAVINGS_INTEREST', 125000);  // à§³1,250
+    await insertSavingsTx(ctx.db, user.id, acct.id, 'SAVINGS_WITHDRAWAL', 500000); // à§³5,000
 
     const headers = await ctx.authHeader(user);
     const detail = await ctx.makeRequest('GET', `/api/v1/savings-accounts/${acct.id}`, { headers });
     expect(detail.status).toBe(200);
     const body = await detail.json();
-    expect(body.balance_paisa).toBe(6625000); // ৳66,250
+    expect(body.balance_paisa).toBe(6625000); // à§³66,250
   });
 });
 
@@ -178,7 +182,7 @@ describe('TC-SAV-005: soft-deleted deposit does not count', () => {
     // Confirm balance before delete
     const before = await ctx.makeRequest('GET', `/api/v1/savings-accounts/${acct.id}`, { headers });
     const beforeBody = await before.json();
-    expect(beforeBody.balance_paisa).toBe(6000000); // ৳60,000
+    expect(beforeBody.balance_paisa).toBe(6000000); // à§³60,000
 
     // Soft-delete via DELETE /transactions/:id
     const del = await ctx.makeRequest('DELETE', `/api/v1/transactions/${tx.id}`, { headers });
@@ -187,7 +191,7 @@ describe('TC-SAV-005: soft-deleted deposit does not count', () => {
     // Balance should drop back to opening balance
     const after = await ctx.makeRequest('GET', `/api/v1/savings-accounts/${acct.id}`, { headers });
     const afterBody = await after.json();
-    expect(afterBody.balance_paisa).toBe(5000000); // ৳50,000
+    expect(afterBody.balance_paisa).toBe(5000000); // à§³50,000
   });
 });
 
@@ -254,7 +258,7 @@ describe('TC-SAV-007: combined DPS cap progress', () => {
 // ---------------------------------------------------------------------------
 
 describe('TC-SAV-008: DPS projected principal at maturity', () => {
-  it('balance 80000 + installment 10000 × 88 months = 960000 BDT', async () => {
+  it('balance 80000 + installment 10000 Ã— 88 months = 960000 BDT', async () => {
     const user = await ctx.createUser({ provision: true });
 
     // Create a DPS account with 88 installments remaining from next month
@@ -264,9 +268,9 @@ describe('TC-SAV-008: DPS projected principal at maturity', () => {
 
     const res = await createAccount(ctx, user, {
       name: 'DPS Account', type: 'DPS',
-      monthly_installment_paisa: 1000000, // ৳10,000
+      monthly_installment_paisa: 1000000, // à§³10,000
       maturity_date: maturityStr,
-      opening_balance_paisa: 8000000, // ৳80,000 (no additional transactions)
+      opening_balance_paisa: 8000000, // à§³80,000 (no additional transactions)
     });
     const acct = await res.json();
 
@@ -274,8 +278,8 @@ describe('TC-SAV-008: DPS projected principal at maturity', () => {
     const detail = await ctx.makeRequest('GET', `/api/v1/savings-accounts/${acct.id}`, { headers });
     expect(detail.status).toBe(200);
     const body = await detail.json();
-    expect(body.balance_paisa).toBe(8000000); // ৳80,000
-    // projected = 80000 + 10000 × 88 = ৳9,60,000
+    expect(body.balance_paisa).toBe(8000000); // à§³80,000
+    // projected = 80000 + 10000 Ã— 88 = à§³9,60,000
     expect(body.projected_principal_paisa).toBe(96000000);
   });
 });
@@ -330,7 +334,7 @@ describe('TC-SAV-010: account transaction history', () => {
     // Insert into our account
     await insertSavingsTx(ctx.db, user.id, acct.id, 'SAVINGS_DEPOSIT', 100000, '2026-11-01');
     await insertSavingsTx(ctx.db, user.id, acct.id, 'SAVINGS_DEPOSIT', 200000, '2026-11-10');
-    // Insert into other account — should not appear
+    // Insert into other account â€” should not appear
     await insertSavingsTx(ctx.db, user.id, other.id, 'SAVINGS_DEPOSIT', 500000, '2026-11-05');
 
     const headers = await ctx.authHeader(user);
@@ -387,17 +391,17 @@ describe('TC-SAV-012: Sanchaypatra account balance', () => {
     const user = await ctx.createUser({ provision: true });
     const res = await createAccount(ctx, user, {
       name: 'Sanchaypatra', type: 'SANCHAYPATRA',
-      opening_balance_paisa: 2000000, // ৳20,000
+      opening_balance_paisa: 2000000, // à§³20,000
     });
     const acct = await res.json();
 
     // One purchase = a SAVINGS_DEPOSIT
-    await insertSavingsTx(ctx.db, user.id, acct.id, 'SAVINGS_DEPOSIT', 1000000); // ৳10,000
+    await insertSavingsTx(ctx.db, user.id, acct.id, 'SAVINGS_DEPOSIT', 1000000); // à§³10,000
 
     const headers = await ctx.authHeader(user);
     const detail = await ctx.makeRequest('GET', `/api/v1/savings-accounts/${acct.id}`, { headers });
     expect(detail.status).toBe(200);
     const body = await detail.json();
-    expect(body.balance_paisa).toBe(3000000); // ৳30,000
+    expect(body.balance_paisa).toBe(3000000); // à§³30,000
   });
 });

@@ -1,8 +1,8 @@
-/**
- * TC-TAX-001 to TC-TAX-017 — Tax API
+﻿/**
+ * TC-TAX-001 to TC-TAX-017 â€” Tax API
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestContext } from '../helpers/index';
 
 type Ctx = Awaited<ReturnType<typeof createTestContext>>;
@@ -12,6 +12,10 @@ let ctx: Ctx;
 
 beforeEach(async () => {
   ctx = await createTestContext();
+});
+
+afterEach(async () => {
+  await ctx?.cleanup();
 });
 
 // FY2025-26 seeded config
@@ -46,7 +50,7 @@ async function seedTaxYear(ctx: Ctx, user: TestUser, fy: string, config: object)
 }
 
 async function seedIncomeEntries(ctx: Ctx, user: TestUser) {
-  // Salary ৳1,22,700 for July 2025 – March 2026 (9 months) + ৳1,53,383 April – June 2026 (3 months)
+  // Salary à§³1,22,700 for July 2025 â€“ March 2026 (9 months) + à§³1,53,383 April â€“ June 2026 (3 months)
   const months9 = ['2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03'];
   const months3 = ['2026-04', '2026-05', '2026-06'];
 
@@ -97,18 +101,20 @@ describe('TC-TAX-001: AC-TAX-1 full year summary', () => {
     await seedTaxYear(ctx, user, '2025-26', SEEDED_CONFIG_2526);
     await seedIncomeEntries(ctx, user);
 
-    // DPS deposits: ৳8,00,000 total → need a DPS account and deposit transactions
+    // DPS deposits: à§³8,00,000 total â†’ need a DPS account and deposit transactions
     const dpsCat = await ctx.db.category.findFirst({ where: { userId: user.id, routingType: 'SAVINGS_DEPOSIT' } });
     const dpsAccount = await ctx.db.savingsAccount.create({
       data: { userId: user.id, name: 'Upension DPS', type: 'DPS', bankName: 'Upension', openingDate: new Date('2025-07-01'), openingBalancePaisa: BigInt(0) },
     });
     if (dpsCat) {
       for (let i = 0; i < 8; i++) {
+        const d = new Date('2025-07-08T00:00:00Z');
+        d.setUTCMonth(d.getUTCMonth() + i);
         await ctx.db.transaction.create({
           data: {
             userId: user.id,
             amountPaisa: BigInt(10000000),
-            date: new Date(`2025-${String(7 + i).padStart(2, '0')}-08`),
+            date: d,
             description: 'DPS',
             categoryId: dpsCat.id,
             type: 'SAVINGS_DEPOSIT',
@@ -120,7 +126,7 @@ describe('TC-TAX-001: AC-TAX-1 full year summary', () => {
       }
     }
 
-    // Sanchaypatra: ৳1,00,000
+    // Sanchaypatra: à§³1,00,000
     const sanchAccount = await ctx.db.savingsAccount.create({
       data: { userId: user.id, name: 'Sanchaypatra', type: 'SANCHAYPATRA', bankName: 'Sonali', openingDate: new Date('2025-07-01'), openingBalancePaisa: BigInt(0) },
     });
@@ -140,7 +146,7 @@ describe('TC-TAX-001: AC-TAX-1 full year summary', () => {
       });
     }
 
-    // Others: ৳1,90,000
+    // Others: à§³1,90,000
     await ctx.db.taxInvestment.upsert({
       where: { userId_fiscalYear: { userId: user.id, fiscalYear: '2025-26' } },
       create: { userId: user.id, fiscalYear: '2025-26', othersPaisa: BigInt(19000000) },
@@ -156,7 +162,7 @@ describe('TC-TAX-001: AC-TAX-1 full year summary', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-TAX-002: Unconfirmed year → is_provisional = true
+// TC-TAX-002: Unconfirmed year â†’ is_provisional = true
 // ---------------------------------------------------------------------------
 
 describe('TC-TAX-002: unconfirmed year is provisional', () => {
@@ -168,7 +174,7 @@ describe('TC-TAX-002: unconfirmed year is provisional', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-TAX-003: Confirm year → is_provisional = false
+// TC-TAX-003: Confirm year â†’ is_provisional = false
 // ---------------------------------------------------------------------------
 
 describe('TC-TAX-003: confirm year', () => {
@@ -186,7 +192,7 @@ describe('TC-TAX-003: confirm year', () => {
 // TC-TAX-004: Changing settings marks year provisional again
 // ---------------------------------------------------------------------------
 
-describe('TC-TAX-004: edit settings → provisional again', () => {
+describe('TC-TAX-004: edit settings â†’ provisional again', () => {
   it('is_provisional goes true again after a settings change', async () => {
     const user = await ctx.createUser({ provision: true });
     const headers = await ctx.authHeader(user);
@@ -205,7 +211,7 @@ describe('TC-TAX-004: edit settings → provisional again', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-TAX-005: Invalid config (no remainder slab) → 422
+// TC-TAX-005: Invalid config (no remainder slab) â†’ 422
 // ---------------------------------------------------------------------------
 
 describe('TC-TAX-005: invalid config rejected', () => {
@@ -254,16 +260,16 @@ describe('TC-TAX-007: forecast is_projection', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-TAX-009: File the return → AC-TAX-6 (filed on 2026-09-15 → early filing rebate)
+// TC-TAX-009: File the return â†’ AC-TAX-6 (filed on 2026-09-15 â†’ early filing rebate)
 // ---------------------------------------------------------------------------
 
-describe('TC-TAX-009: file return → AC-TAX-6', () => {
+describe('TC-TAX-009: file return â†’ AC-TAX-6', () => {
   it('early filing rebate applies; year is locked', async () => {
     const user = await ctx.createUser({ provision: true });
     await seedTaxYear(ctx, user, '2025-26', SEEDED_CONFIG_2526);
     await seedIncomeEntries(ctx, user);
 
-    // Others ৳1,90,000, TDS via income entries already set
+    // Others à§³1,90,000, TDS via income entries already set
     await ctx.db.taxInvestment.upsert({
       where: { userId_fiscalYear: { userId: user.id, fiscalYear: '2025-26' } },
       create: { userId: user.id, fiscalYear: '2025-26', othersPaisa: BigInt(19000000) },
@@ -286,7 +292,7 @@ describe('TC-TAX-009: file return → AC-TAX-6', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-TAX-010: Writes to locked year → 409 TAX_YEAR_LOCKED
+// TC-TAX-010: Writes to locked year â†’ 409 TAX_YEAR_LOCKED
 // ---------------------------------------------------------------------------
 
 describe('TC-TAX-010: locked year rejects writes', () => {
@@ -305,7 +311,7 @@ describe('TC-TAX-010: locked year rejects writes', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-TAX-012: Reopen locked year → unlocks, new entry accepted
+// TC-TAX-012: Reopen locked year â†’ unlocks, new entry accepted
 // ---------------------------------------------------------------------------
 
 describe('TC-TAX-012: reopen filed year', () => {
@@ -349,7 +355,7 @@ describe('TC-TAX-013: save tax investments', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-TAX-015: Tax payment assigned to FY → counted in that FY's Tax Paid
+// TC-TAX-015: Tax payment assigned to FY â†’ counted in that FY's Tax Paid
 // ---------------------------------------------------------------------------
 
 describe('TC-TAX-015: tax payment fiscal year assignment', () => {

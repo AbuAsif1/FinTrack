@@ -1,8 +1,8 @@
-/**
- * TC-LOAN-001 to TC-LOAN-014 — Borrow-Loan Ledger
+﻿/**
+ * TC-LOAN-001 to TC-LOAN-014 â€” Borrow-Loan Ledger
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestContext } from '../helpers/index';
 
 type Ctx = Awaited<ReturnType<typeof createTestContext>>;
@@ -11,6 +11,10 @@ let ctx: Ctx;
 
 beforeEach(async () => {
   ctx = await createTestContext();
+});
+
+afterEach(async () => {
+  await ctx?.cleanup();
 });
 
 // ---------------------------------------------------------------------------
@@ -61,7 +65,7 @@ describe('TC-LOAN-001: create a Loan Person, case-insensitive duplicate check', 
     const p1 = await r1.json();
     expect(p1.name).toBe('Mithun');
 
-    // Different case — should conflict
+    // Different case â€” should conflict
     const r2 = await createPerson(ctx, user, 'MITHUN');
     expect(r2.status).toBe(422);
   });
@@ -120,11 +124,11 @@ describe('TC-LOAN-003: add a Received entry', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-LOAN-004 / TC-LOAN-005: AC-LOAN-1 — Seed entries, verify balances and summary
+// TC-LOAN-004 / TC-LOAN-005: AC-LOAN-1 â€” Seed entries, verify balances and summary
 // ---------------------------------------------------------------------------
 
 describe('TC-LOAN-004 / TC-LOAN-005: AC-LOAN-1 running balances and summary', () => {
-  it('Mithun +9841, Amait +1198.50, Sohel −3145.42, net +7894.08', async () => {
+  it('Mithun +9841, Amait +1198.50, Sohel âˆ’3145.42, net +7894.08', async () => {
     const user = await ctx.createUser({ provision: true });
 
     // Create persons
@@ -140,7 +144,7 @@ describe('TC-LOAN-004 / TC-LOAN-005: AC-LOAN-1 running balances and summary', ()
     await createEntry(ctx, user, mithun.id, { direction: 'RECEIVED', amount_paisa: 455900, description: 'M3' });
     // 15000 + 8000 - 4559 = 18441 ... let me just set exact values
     // Actually let me use exact paisa for AC-LOAN-1: Mithun 984100
-    // Clear and use correct values: 984100 paisa = ৳9,841
+    // Clear and use correct values: 984100 paisa = à§³9,841
     // net = given - received = 984100
     // Let's just do one entry each to keep it simple
     void anapo;
@@ -226,7 +230,7 @@ describe('TC-LOAN-007: change an entry amount', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-LOAN-008: Delete an entry — recalculates balance
+// TC-LOAN-008: Delete an entry â€” recalculates balance
 // ---------------------------------------------------------------------------
 
 describe('TC-LOAN-008: delete an entry', () => {
@@ -300,14 +304,14 @@ describe('TC-LOAN-010: settle up from negative balance', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-LOAN-011: Settle Up at zero balance — 409
+// TC-LOAN-011: Settle Up at zero balance â€” 409
 // ---------------------------------------------------------------------------
 
 describe('TC-LOAN-011: settle up at zero balance', () => {
   it('returns 409 BALANCE_ZERO; nothing is created', async () => {
     const user = await ctx.createUser({ provision: true });
     const person = await (await createPerson(ctx, user, 'Test')).json();
-    // No entries — balance is 0
+    // No entries â€” balance is 0
 
     const headers = await ctx.authHeader(user);
     const settle = await ctx.makeRequest('POST', `/api/v1/loan-persons/${person.id}/settle`, {
@@ -347,7 +351,7 @@ describe('TC-LOAN-012: duplicate idempotency key', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-LOAN-013: Atomicity — LoanEntry failure leaves no Transaction
+// TC-LOAN-013: Atomicity â€” LoanEntry failure leaves no Transaction
 // ---------------------------------------------------------------------------
 
 describe('TC-LOAN-013: atomicity on write failure', () => {
@@ -370,7 +374,7 @@ describe('TC-LOAN-013: atomicity on write failure', () => {
     });
     expect(res.status).toBe(404);
 
-    // Count transactions — should be zero
+    // Count transactions â€” should be zero
     const txCount = await ctx.db.transaction.count({ where: { userId: user.id } });
     expect(txCount).toBe(0);
   });

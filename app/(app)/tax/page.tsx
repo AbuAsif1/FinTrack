@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import api from '@/lib/api';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -121,15 +122,11 @@ function OverviewTab({
   async function saveInvestments() {
     if (!invEdit) return;
     setSaving(true);
-    await fetch(`/api/v1/tax-investments/${fy}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        stocks_paisa: Math.round(parseFloat(invEdit.stocks || '0') * 100),
-        insurance_paisa: Math.round(parseFloat(invEdit.insurance || '0') * 100),
-        others_paisa: Math.round(parseFloat(invEdit.others || '0') * 100),
-      }),
-    });
+    await api.put(`/tax-investments/${fy}`, {
+      stocks_paisa: Math.round(parseFloat(invEdit.stocks || '0') * 100),
+      insurance_paisa: Math.round(parseFloat(invEdit.insurance || '0') * 100),
+      others_paisa: Math.round(parseFloat(invEdit.others || '0') * 100),
+    }).catch(() => {});
     setSaving(false);
     setInvEdit(null);
     onInvestmentsChange();
@@ -314,9 +311,9 @@ function ForecastTab({ fy }: { fy: string }) {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/v1/tax/forecast?fiscal_year=${fy}`)
-      .then((r) => r.json())
-      .then(setForecast)
+    api.get(`/tax/forecast?fiscal_year=${fy}`)
+      .then(({ data }) => setForecast(data))
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [fy]);
 
@@ -357,9 +354,9 @@ function CompareTab({ fy }: { fy: string }) {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/v1/tax/compare?fiscal_year=${fy}`)
-      .then((r) => r.json())
-      .then(setCompare)
+    api.get(`/tax/compare?fiscal_year=${fy}`)
+      .then(({ data }) => setCompare(data))
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [fy]);
 
@@ -406,11 +403,11 @@ export default function TaxPage() {
   const load = useCallback(async () => {
     setLoading(true);
     const [sumRes, invRes] = await Promise.all([
-      fetch(`/api/v1/tax/summary?fiscal_year=${fy}`),
-      fetch(`/api/v1/tax-investments/${fy}`),
+      api.get(`/tax/summary?fiscal_year=${fy}`).catch(() => null),
+      api.get(`/tax-investments/${fy}`).catch(() => null),
     ]);
-    if (sumRes.ok) setResult(await sumRes.json());
-    if (invRes.ok) setInvestments(await invRes.json());
+    if (sumRes) setResult(sumRes.data);
+    if (invRes) setInvestments(invRes.data);
     setLoading(false);
   }, [fy]);
 
@@ -418,7 +415,7 @@ export default function TaxPage() {
 
   async function confirm() {
     setConfirming(true);
-    await fetch(`/api/v1/tax-years/${fy}/confirm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    await api.post(`/tax-years/${fy}/confirm`, {}).catch(() => {});
     setConfirming(false);
     load();
   }
@@ -426,18 +423,14 @@ export default function TaxPage() {
   async function fileReturn() {
     setFiling(true);
     const today = new Date().toISOString().slice(0, 10);
-    await fetch(`/api/v1/tax-years/${fy}/file`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filed_on: today }),
-    });
+    await api.post(`/tax-years/${fy}/file`, { filed_on: today }).catch(() => {});
     setFiling(false);
     load();
   }
 
   async function reopen() {
     setReopening(true);
-    await fetch(`/api/v1/tax-years/${fy}/reopen`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    await api.post(`/tax-years/${fy}/reopen`, {}).catch(() => {});
     setReopening(false);
     load();
   }

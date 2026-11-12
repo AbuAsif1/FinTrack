@@ -1,8 +1,8 @@
-/**
- * TC-FIX-001 to TC-FIX-018 — Fixed Expenses
+﻿/**
+ * TC-FIX-001 to TC-FIX-018 â€” Fixed Expenses
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestContext } from '../helpers/index';
 import { SUGGESTED_FIXED_EXPENSES, SUGGESTED_TOTAL_PAISA } from '@fintrack/shared';
 
@@ -13,6 +13,10 @@ let ctx: Ctx;
 
 beforeEach(async () => {
   ctx = await createTestContext();
+});
+
+afterEach(async () => {
+  await ctx?.cleanup();
 });
 
 // ---------------------------------------------------------------------------
@@ -71,7 +75,7 @@ describe('TC-FIX-001: create template', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-FIX-002: DPS template without savings account — 422
+// TC-FIX-002: DPS template without savings account â€” 422
 // ---------------------------------------------------------------------------
 
 describe('TC-FIX-002: DPS template requires savings account', () => {
@@ -88,32 +92,34 @@ describe('TC-FIX-002: DPS template requires savings account', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-FIX-003: SUGGESTED_FIXED_EXPENSES total = ৳60,732.00
+// TC-FIX-003: SUGGESTED_FIXED_EXPENSES total = à§³60,732.00
 // ---------------------------------------------------------------------------
 
 describe('TC-FIX-003: SUGGESTED_FIXED_EXPENSES total', () => {
-  it('total is 6073200 paisa (৳60,732.00) across seven items', () => {
+  it('total is 6073200 paisa (à§³60,732.00) across seven items', () => {
     expect(SUGGESTED_FIXED_EXPENSES).toHaveLength(7);
     expect(SUGGESTED_TOTAL_PAISA).toBe(6073200);
   });
 });
 
 // ---------------------------------------------------------------------------
-// TC-FIX-004 & 005: View current month — idempotent
+// TC-FIX-004 & 005: View current month â€” idempotent
 // ---------------------------------------------------------------------------
 
-describe('TC-FIX-004–005: view current month instances — idempotent', () => {
+describe('TC-FIX-004â€“005: view current month instances â€” idempotent', () => {
   it('creates three instances on first view; second view returns same three', async () => {
     const user = await ctx.createUser({ provision: true });
 
-    // Create three templates with due_day on or after today (safe: day 1)
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    // Pass start_month explicitly so the template is active for the current month
+    // regardless of which day of the month the test runs on.
     for (let i = 0; i < 3; i++) {
-      await createTemplate(ctx, user, { name: `Template ${i}`, due_day: 1 });
+      await createTemplate(ctx, user, { name: `Template ${i}`, due_day: 1, start_month: month });
     }
 
     const headers = await ctx.authHeader(user);
-    const now = new Date();
-    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     const list1 = await (await ctx.makeRequest('GET', `/api/v1/fixed-expense-instances?from=${month}&to=${month}`, { headers })).json();
     expect(list1.length).toBe(3);
@@ -167,12 +173,12 @@ describe('TC-FIX-006: due day 31 clamped to month end', () => {
 describe('TC-FIX-009: mark paid with actual amount', () => {
   it('creates transaction and marks instance paid', async () => {
     const user = await ctx.createUser({ provision: true });
-    const tmpl = await (await createTemplate(ctx, user, { due_day: 1 })).json();
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const tmpl = await (await createTemplate(ctx, user, { due_day: 1, start_month: month })).json();
 
     // Ensure instance for current month
     const headers = await ctx.authHeader(user);
-    const now = new Date();
-    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const instances = await (await ctx.makeRequest('GET', `/api/v1/fixed-expense-instances?from=${month}&to=${month}`, { headers })).json();
     const inst = instances.find((i: { fixed_expense_id: string }) => i.fixed_expense_id === tmpl.id);
 
@@ -195,11 +201,11 @@ describe('TC-FIX-009: mark paid with actual amount', () => {
 describe('TC-FIX-010: paying twice returns 409', () => {
   it('second pay returns 409 ALREADY_PAID', async () => {
     const user = await ctx.createUser({ provision: true });
-    await createTemplate(ctx, user, { due_day: 1 });
-
-    const headers = await ctx.authHeader(user);
     const now = new Date();
     const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    await createTemplate(ctx, user, { due_day: 1, start_month: month });
+
+    const headers = await ctx.authHeader(user);
     const instances = await (await ctx.makeRequest('GET', `/api/v1/fixed-expense-instances?from=${month}&to=${month}`, { headers })).json();
     const inst = instances[0];
 
@@ -224,11 +230,11 @@ describe('TC-FIX-010: paying twice returns 409', () => {
 describe('TC-FIX-012: skip and reopen', () => {
   it('skipped with note, then reopened to pending', async () => {
     const user = await ctx.createUser({ provision: true });
-    await createTemplate(ctx, user, { due_day: 1 });
-
-    const headers = await ctx.authHeader(user);
     const now = new Date();
     const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    await createTemplate(ctx, user, { due_day: 1, start_month: month });
+
+    const headers = await ctx.authHeader(user);
     const instances = await (await ctx.makeRequest('GET', `/api/v1/fixed-expense-instances?from=${month}&to=${month}`, { headers })).json();
     const inst = instances[0];
 
@@ -253,7 +259,9 @@ describe('TC-FIX-012: skip and reopen', () => {
 describe('TC-FIX-016: deactivate template stops future instances', () => {
   it('after deactivation, next month has no instance for this template', async () => {
     const user = await ctx.createUser({ provision: true });
-    const tmpl = await (await createTemplate(ctx, user, { due_day: 1 })).json();
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const tmpl = await (await createTemplate(ctx, user, { due_day: 1, start_month: month })).json();
 
     const headers = await ctx.authHeader(user);
     const patch = await ctx.makeRequest('PATCH', `/api/v1/fixed-expenses/${tmpl.id}`, {
@@ -271,11 +279,11 @@ describe('TC-FIX-016: deactivate template stops future instances', () => {
 describe('TC-FIX-014: amount change updates pending current instance', () => {
   it('pending instance shows new amount after template update', async () => {
     const user = await ctx.createUser({ provision: true });
-    const tmpl = await (await createTemplate(ctx, user, { due_day: 1, standard_amount_paisa: 1000000 })).json();
-
-    const headers = await ctx.authHeader(user);
     const now = new Date();
     const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const tmpl = await (await createTemplate(ctx, user, { due_day: 1, standard_amount_paisa: 1000000, start_month: month })).json();
+
+    const headers = await ctx.authHeader(user);
 
     // Trigger instance creation
     await ctx.makeRequest('GET', `/api/v1/fixed-expense-instances?from=${month}&to=${month}`, { headers });

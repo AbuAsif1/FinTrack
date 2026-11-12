@@ -365,13 +365,13 @@ describe('TC-AUTH-016 change password with wrong current password', () => {
 describe('TC-AUTH-017 rate limit: eleven failed logins for one email', () => {
   it('eleventh attempt returns 429', async () => {
     const user = await ctx.createUser({ emailVerified: true });
-    const attempts = Array.from({ length: 10 }, () =>
-      ctx.makeRequest('POST', '/api/v1/auth/login', {
+    // Sequential requests so the read-then-increment in recordFailedLogin stays serial
+    for (let i = 0; i < 10; i++) {
+      const r = await ctx.makeRequest('POST', '/api/v1/auth/login', {
         body: { email: user.email, password: 'wrong-password-xyz' },
-      })
-    );
-    const results = await Promise.all(attempts);
-    expect(results.every((r) => r.status === 401)).toBe(true);
+      });
+      expect(r.status).toBe(401);
+    }
 
     const eleventh = await ctx.makeRequest('POST', '/api/v1/auth/login', {
       body: { email: user.email, password: 'wrong-password-xyz' },

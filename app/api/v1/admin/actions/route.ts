@@ -1,8 +1,13 @@
 import { prisma } from '@/lib/prisma';
-import { getAdminUser } from '@/lib/auth';
+import { getAdminUser, AuthError } from '@/lib/auth';
 
 export async function GET(req: Request) {
-  await getAdminUser(req);
+  try {
+    await getAdminUser(req);
+  } catch (err) {
+    if (err instanceof AuthError) return Response.json({ error: err.message, code: err.code }, { status: err.status });
+    throw err;
+  }
   const url = new URL(req.url);
   const user_id = url.searchParams.get('user_id');
 

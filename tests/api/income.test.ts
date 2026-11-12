@@ -1,8 +1,8 @@
-/**
- * TC-INC-001 to TC-INC-019 — Income Management and Holiday Support
+﻿/**
+ * TC-INC-001 to TC-INC-019 â€” Income Management and Holiday Support
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestContext } from '../helpers/index';
 
 type Ctx = Awaited<ReturnType<typeof createTestContext>>;
@@ -12,6 +12,10 @@ let ctx: Ctx;
 
 beforeEach(async () => {
   ctx = await createTestContext();
+});
+
+afterEach(async () => {
+  await ctx?.cleanup();
 });
 
 // ---------------------------------------------------------------------------
@@ -34,7 +38,7 @@ async function createEntry(ctx: Ctx, user: TestUser, overrides: Record<string, u
 }
 
 // ---------------------------------------------------------------------------
-// TC-INC-001: Create salary entry — in_hand_paisa computed
+// TC-INC-001: Create salary entry â€” in_hand_paisa computed
 // ---------------------------------------------------------------------------
 
 describe('TC-INC-001: create salary entry', () => {
@@ -49,7 +53,7 @@ describe('TC-INC-001: create salary entry', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-INC-002: TDS greater than gross and negative TDS — 422
+// TC-INC-002: TDS greater than gross and negative TDS â€” 422
 // ---------------------------------------------------------------------------
 
 describe('TC-INC-002: TDS validation', () => {
@@ -69,7 +73,7 @@ describe('TC-INC-002: TDS validation', () => {
 // ---------------------------------------------------------------------------
 
 describe('TC-INC-003: fiscal year assigned from month', () => {
-  it('June 2026 → 2025-26; July 2026 → 2026-27', async () => {
+  it('June 2026 â†’ 2025-26; July 2026 â†’ 2026-27', async () => {
     const user = await ctx.createUser({ provision: true });
 
     const june = await createEntry(ctx, user, { month: '2026-06' });
@@ -109,7 +113,7 @@ describe('TC-INC-004: default taxable flag per income type', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-INC-005: Salary flagged not taxable — flag is kept
+// TC-INC-005: Salary flagged not taxable â€” flag is kept
 // ---------------------------------------------------------------------------
 
 describe('TC-INC-005: not taxable flag kept', () => {
@@ -140,7 +144,7 @@ describe('TC-INC-006: Cheer entry with payer and earned_period', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-INC-007: Salary and Profit Share same month — in_hand is sum
+// TC-INC-007: Salary and Profit Share same month â€” in_hand is sum
 // ---------------------------------------------------------------------------
 
 describe('TC-INC-007: two entries in same month', () => {
@@ -203,7 +207,7 @@ describe('TC-INC-009: update and delete', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-INC-010: Write to locked Fiscal Year — 409 TAX_YEAR_LOCKED
+// TC-INC-010: Write to locked Fiscal Year â€” 409 TAX_YEAR_LOCKED
 // ---------------------------------------------------------------------------
 
 describe('TC-INC-010: locked fiscal year rejects writes', () => {
@@ -237,7 +241,7 @@ describe('TC-INC-010: locked fiscal year rejects writes', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-INC-011: Summary — 12 rows, 7 entered
+// TC-INC-011: Summary â€” 12 rows, 7 entered
 // ---------------------------------------------------------------------------
 
 describe('TC-INC-011: summary has 12 rows with correct entered/pending', () => {
@@ -261,7 +265,7 @@ describe('TC-INC-011: summary has 12 rows with correct entered/pending', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-INC-012: AC-TAX-2 — salary total ৳15,64,449
+// TC-INC-012: AC-TAX-2 â€” salary total à§³15,64,449
 // ---------------------------------------------------------------------------
 
 describe('TC-INC-012: AC-TAX-2 salary total', () => {
@@ -282,13 +286,13 @@ describe('TC-INC-012: AC-TAX-2 salary total', () => {
 
     const headers = await ctx.authHeader(user);
     const summary = await (await ctx.makeRequest('GET', '/api/v1/income-entries/summary?fiscal_year=2025-26', { headers })).json();
-    // 9 × 12270000 + 3 × 15338300 = 110430000 + 46014900 = 156444900
+    // 9 Ã— 12270000 + 3 Ã— 15338300 = 110430000 + 46014900 = 156444900
     expect(summary.totals.gross_paisa).toBe(156444900);
   });
 });
 
 // ---------------------------------------------------------------------------
-// TC-INC-015: Duplicate idempotency key — 409 DUPLICATE
+// TC-INC-015: Duplicate idempotency key â€” 409 DUPLICATE
 // ---------------------------------------------------------------------------
 
 describe('TC-INC-015: duplicate idempotency key', () => {
@@ -308,11 +312,11 @@ describe('TC-INC-015: duplicate idempotency key', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-INC-016: Holiday Support entry — 2 days × ৳3,200 = ৳6,400
+// TC-INC-016: Holiday Support entry â€” 2 days Ã— à§³3,200 = à§³6,400
 // ---------------------------------------------------------------------------
 
-describe('TC-INC-016: holiday support — days × rate', () => {
-  it('amount = 2 × 320000 = 640000 paisa', async () => {
+describe('TC-INC-016: holiday support â€” days Ã— rate', () => {
+  it('amount = 2 Ã— 320000 = 640000 paisa', async () => {
     const user = await ctx.createUser({ provision: true });
     const headers = await ctx.authHeader(user);
     const res = await ctx.makeRequest('POST', '/api/v1/holiday-support-entries', {
@@ -341,7 +345,7 @@ describe('TC-INC-017: holiday support rate pre-fill', () => {
       body: { date: '2026-11-01', days: 1, rate_type: 'DAILY', rate_paisa: 320000 },
     });
 
-    // Second entry without rate — should use 320000
+    // Second entry without rate â€” should use 320000
     const res = await ctx.makeRequest('POST', '/api/v1/holiday-support-entries', {
       headers,
       body: { date: '2026-11-02', days: 3, rate_type: 'DAILY' }, // no rate_paisa
@@ -349,12 +353,12 @@ describe('TC-INC-017: holiday support rate pre-fill', () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.rate_paisa).toBe(320000);
-    expect(body.amount_paisa).toBe(960000); // 3 × 320000
+    expect(body.amount_paisa).toBe(960000); // 3 Ã— 320000
   });
 });
 
 // ---------------------------------------------------------------------------
-// TC-INC-018: Later entry at higher rate — earlier unchanged
+// TC-INC-018: Later entry at higher rate â€” earlier unchanged
 // ---------------------------------------------------------------------------
 
 describe('TC-INC-018: later higher rate does not change earlier entries', () => {
@@ -400,6 +404,6 @@ describe('TC-INC-019: month total', () => {
     });
 
     const list = await (await ctx.makeRequest('GET', '/api/v1/holiday-support-entries?month=2026-11', { headers })).json();
-    expect(list.month_total_paisa).toBe(960000); // (2 + 1) × 320000
+    expect(list.month_total_paisa).toBe(960000); // (2 + 1) Ã— 320000
   });
 });

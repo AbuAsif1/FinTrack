@@ -143,34 +143,24 @@ function TransactionModal({
     if (isSavings && form.savings_account_id) body.savings_account_id = form.savings_account_id;
     if (isLoan) {
       body.loan_person_name = form.loan_person_name;
-      body.loan_direction = form.loan_direction;
-      if (form.loan_reason) body.loan_reason = form.loan_reason;
-      if (form.loan_return_due_date) body.loan_return_due_date = form.loan_return_due_date;
+      if (form.loan_reason) body.reason = form.loan_reason;
+      if (form.loan_return_due_date) body.return_due_date = form.loan_return_due_date;
     }
 
-    const url = isEdit ? `/api/v1/transactions/${editing!.id}` : '/api/v1/transactions';
-    const method = isEdit ? 'PATCH' : 'POST';
-
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-
-    if (res.status === 409) {
-      // Duplicate idempotency key → treat as success
+    try {
+      if (isEdit) {
+        await api.patch(`/transactions/${editing!.id}`, body);
+      } else {
+        await api.post('/transactions', body);
+      }
       onSaved();
-      return;
-    }
-
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      setError(j.message ?? j.error ?? 'Failed to save transaction.');
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 409) { onSaved(); return; }
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to save transaction.';
+      setError(msg);
       setSaving(false);
-      return;
     }
-
-    onSaved();
   }
 
   return (
@@ -528,7 +518,7 @@ export default function TransactionsPage() {
       api.get('/loan-persons').then(({ data }) => data),
     ]).then(([cats, accs, persons]) => {
       setCategories(Array.isArray(cats) ? cats : []);
-      setSavingsAccounts(Array.isArray(accs) ? accs : []);
+      setSavingsAccounts(Array.isArray(accs) ? accs : (accs?.accounts ?? []));
       setLoanPersons(Array.isArray(persons) ? persons : []);
     }).catch(() => {});
   }, []);
@@ -787,18 +777,14 @@ function BudgetsPage({ onBack }: { onBack: () => void }) {
     setSaving(true);
     const paisa = Math.round(parseFloat(limitInput) * 100);
     if (isNaN(paisa) || paisa <= 0) { setSaving(false); return; }
-    await fetch(`/api/v1/budgets/${editing.categoryId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ monthly_limit_paisa: paisa }),
-    });
+    await api.put(`/budgets/${editing.categoryId}`, { monthly_limit_paisa: paisa }).catch(() => {});
     setSaving(false);
     setEditing(null);
     load();
   }
 
   async function removeBudget(categoryId: string) {
-    await fetch(`/api/v1/budgets/${categoryId}`, { method: 'DELETE' });
+    await api.delete(`/budgets/${categoryId}`).catch(() => {});
     load();
   }
 

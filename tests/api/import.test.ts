@@ -1,8 +1,8 @@
-/**
- * TC-IMP-001 to TC-IMP-015 — Data import
+﻿/**
+ * TC-IMP-001 to TC-IMP-015 â€” Data import
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestContext } from '../helpers/index';
 import { routeRequest } from '../helpers/router';
 
@@ -14,7 +14,11 @@ beforeEach(async () => {
   ctx = await createTestContext();
 });
 
-// ── Helpers ───────────────────────────────────────────────────────────────
+afterEach(async () => {
+  await ctx?.cleanup();
+});
+
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function getAuthHeaders(ctx: Ctx, user: Ctx['createUser'] extends (...args: unknown[]) => Promise<infer T> ? T : never) {
   return ctx.authHeader(user);
@@ -48,11 +52,11 @@ function csvFile(content: string, name = 'test.csv') {
   return new File([content], name, { type: 'text/csv' });
 }
 
-// ── TC-IMP-001: Templates ─────────────────────────────────────────────────
+// â”€â”€ TC-IMP-001: Templates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-IMP-001: download templates', () => {
   it('returns CSV with correct headers for INCOME', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const headers = await ctx.authHeader(user);
     const res = await ctx.makeRequest('GET', '/api/v1/imports/templates/INCOME', { headers });
     expect(res.status).toBe(200);
@@ -63,7 +67,7 @@ describe('TC-IMP-001: download templates', () => {
   });
 
   it('returns CSV for TRANSACTIONS', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const headers = await ctx.authHeader(user);
     const res = await ctx.makeRequest('GET', '/api/v1/imports/templates/TRANSACTIONS', { headers });
     expect(res.status).toBe(200);
@@ -74,7 +78,7 @@ describe('TC-IMP-001: download templates', () => {
   });
 
   it('returns CSV for LOAN_ENTRIES', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const headers = await ctx.authHeader(user);
     const res = await ctx.makeRequest('GET', '/api/v1/imports/templates/LOAN_ENTRIES', { headers });
     expect(res.status).toBe(200);
@@ -84,18 +88,18 @@ describe('TC-IMP-001: download templates', () => {
   });
 
   it('returns 400 for unknown dataset', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const headers = await ctx.authHeader(user);
     const res = await ctx.makeRequest('GET', '/api/v1/imports/templates/BOGUS', { headers });
     expect(res.status).toBe(400);
   });
 });
 
-// ── TC-IMP-002: Preview valid transactions file ───────────────────────────
+// â”€â”€ TC-IMP-002: Preview valid transactions file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-IMP-002: preview valid transactions file', () => {
   it('reports row count and nothing is saved yet', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const token = await login(ctx, user);
 
     // Find the NONE category
@@ -121,16 +125,16 @@ describe('TC-IMP-002: preview valid transactions file', () => {
 
     // Nothing committed yet
     const txRes = await ctx.makeRequest('GET', '/api/v1/transactions', { headers: { Authorization: `Bearer ${token}` } });
-    const txs = await txRes.json() as unknown[];
-    expect(txs).toHaveLength(0);
+    const txs = await txRes.json() as { total: number };
+    expect(txs.total).toBe(0);
   });
 });
 
-// ── TC-IMP-003: Preview with errors ──────────────────────────────────────
+// â”€â”€ TC-IMP-003: Preview with errors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-IMP-003: preview with bad rows', () => {
   it('lists each bad row with its reason', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const token = await login(ctx, user);
 
     const csv = makeCSV(
@@ -152,11 +156,11 @@ describe('TC-IMP-003: preview with bad rows', () => {
   });
 });
 
-// ── TC-IMP-004: TDS exceeds gross ────────────────────────────────────────
+// â”€â”€ TC-IMP-004: TDS exceeds gross â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-IMP-004: TDS exceeds gross in income file', () => {
   it('flags that row in preview', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const token = await login(ctx, user);
 
     const csv = makeCSV(
@@ -175,11 +179,11 @@ describe('TC-IMP-004: TDS exceeds gross in income file', () => {
   });
 });
 
-// ── TC-IMP-005: Commit valid preview ─────────────────────────────────────
+// â”€â”€ TC-IMP-005: Commit valid preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-IMP-005: commit a valid preview', () => {
   it('every row exists after commit; totals match', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const token = await login(ctx, user);
 
     const catRes = await ctx.makeRequest('GET', '/api/v1/categories', { headers: { Authorization: `Bearer ${token}` } });
@@ -203,16 +207,16 @@ describe('TC-IMP-005: commit a valid preview', () => {
     expect(commitData.committed).toBe(1);
 
     const txRes = await ctx.makeRequest('GET', '/api/v1/transactions', { headers: { Authorization: `Bearer ${token}` } });
-    const txs = await txRes.json() as Array<{ amount_paisa: number }>;
-    expect(txs.some((t) => t.amount_paisa === 119850)).toBe(true);
+    const txs = await txRes.json() as { data: Array<{ amount_paisa: number }> };
+    expect(txs.data.some((t) => t.amount_paisa === 119850)).toBe(true);
   });
 });
 
-// ── TC-IMP-006: Commit preview with errors → 422, nothing saved ──────────
+// â”€â”€ TC-IMP-006: Commit preview with errors â†’ 422, nothing saved â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-IMP-006: commit preview with errors is 422', () => {
   it('returns 422 and nothing is saved', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const token = await login(ctx, user);
 
     const csv = makeCSV(
@@ -230,16 +234,16 @@ describe('TC-IMP-006: commit preview with errors is 422', () => {
     expect(commitRes.status).toBe(422);
 
     const txRes = await ctx.makeRequest('GET', '/api/v1/transactions', { headers: { Authorization: `Bearer ${token}` } });
-    const txs = await txRes.json() as unknown[];
-    expect(txs).toHaveLength(0);
+    const txs = await txRes.json() as { total: number };
+    expect(txs.total).toBe(0);
   });
 });
 
-// ── TC-IMP-007: Re-import same file adds nothing ─────────────────────────
+// â”€â”€ TC-IMP-007: Re-import same file adds nothing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-IMP-007: importing same file twice adds nothing', () => {
   it('already_imported = row count on second preview', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const token = await login(ctx, user);
 
     const catRes = await ctx.makeRequest('GET', '/api/v1/categories', { headers: { Authorization: `Bearer ${token}` } });
@@ -269,16 +273,16 @@ describe('TC-IMP-007: importing same file twice adds nothing', () => {
 
     // Transactions count still 1
     const txRes = await ctx.makeRequest('GET', '/api/v1/transactions', { headers: { Authorization: `Bearer ${token}` } });
-    const txs = await txRes.json() as unknown[];
-    expect(txs).toHaveLength(1);
+    const txs = await txRes.json() as { total: number };
+    expect(txs.total).toBe(1);
   });
 });
 
-// ── TC-IMP-008: Two identical rows in same file ───────────────────────────
+// â”€â”€ TC-IMP-008: Two identical rows in same file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-IMP-008: two identical rows both imported', () => {
   it('commits both rows with different idempotency keys', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const token = await login(ctx, user);
 
     const catRes = await ctx.makeRequest('GET', '/api/v1/categories', { headers: { Authorization: `Bearer ${token}` } });
@@ -301,16 +305,16 @@ describe('TC-IMP-008: two identical rows both imported', () => {
     await ctx.makeRequest('POST', `/api/v1/imports/${preview.batch_id}/commit`, { headers: { Authorization: `Bearer ${token}` } });
 
     const txRes = await ctx.makeRequest('GET', '/api/v1/transactions', { headers: { Authorization: `Bearer ${token}` } });
-    const txs = await txRes.json() as unknown[];
-    expect(txs).toHaveLength(2);
+    const txs = await txRes.json() as { total: number };
+    expect(txs.total).toBe(2);
   });
 });
 
-// ── TC-IMP-009: Undo ─────────────────────────────────────────────────────
+// â”€â”€ TC-IMP-009: Undo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-IMP-009: undo removes rows', () => {
   it('transactions leave the list after undo', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const token = await login(ctx, user);
 
     const catRes = await ctx.makeRequest('GET', '/api/v1/categories', { headers: { Authorization: `Bearer ${token}` } });
@@ -331,7 +335,7 @@ describe('TC-IMP-009: undo removes rows', () => {
 
     // Confirm it's there
     const before = await ctx.makeRequest('GET', '/api/v1/transactions', { headers: { Authorization: `Bearer ${token}` } });
-    expect(((await before.json()) as unknown[]).length).toBe(1);
+    expect(((await before.json()) as { total: number }).total).toBe(1);
 
     // Undo
     const undoRes = await ctx.makeRequest('POST', `/api/v1/imports/${preview.batch_id}/undo`, { headers: { Authorization: `Bearer ${token}` } });
@@ -339,15 +343,15 @@ describe('TC-IMP-009: undo removes rows', () => {
 
     // Gone
     const after = await ctx.makeRequest('GET', '/api/v1/transactions', { headers: { Authorization: `Bearer ${token}` } });
-    expect(((await after.json()) as unknown[]).length).toBe(0);
+    expect(((await after.json()) as { total: number }).total).toBe(0);
   });
 });
 
-// ── TC-IMP-011: Decimal precision ────────────────────────────────────────
+// â”€â”€ TC-IMP-011: Decimal precision â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-IMP-011: amount 1198.50 stored as exactly 119850 paisa', () => {
   it('commits to the right paisa value', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const token = await login(ctx, user);
 
     const catRes = await ctx.makeRequest('GET', '/api/v1/categories', { headers: { Authorization: `Bearer ${token}` } });
@@ -367,16 +371,16 @@ describe('TC-IMP-011: amount 1198.50 stored as exactly 119850 paisa', () => {
     await ctx.makeRequest('POST', `/api/v1/imports/${preview.batch_id}/commit`, { headers: { Authorization: `Bearer ${token}` } });
 
     const txRes = await ctx.makeRequest('GET', '/api/v1/transactions', { headers: { Authorization: `Bearer ${token}` } });
-    const txs = await txRes.json() as Array<{ amount_paisa: number }>;
-    expect(txs[0].amount_paisa).toBe(119850);
+    const txs = await txRes.json() as { data: Array<{ amount_paisa: number }> };
+    expect(txs.data[0].amount_paisa).toBe(119850);
   });
 });
 
-// ── TC-IMP-014: File too large / too many rows ────────────────────────────
+// â”€â”€ TC-IMP-014: File too large / too many rows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-IMP-014: file over 2 MB is rejected', () => {
   it('returns 422 with clear message', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const token = await login(ctx, user);
 
     // Create a file just over 2 MB
@@ -393,11 +397,11 @@ describe('TC-IMP-014: file over 2 MB is rejected', () => {
   });
 });
 
-// ── TC-IMP-016: List past imports ────────────────────────────────────────
+// â”€â”€ TC-IMP-016: List past imports â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-IMP-016: list past imports', () => {
   it('returns created batch with filename, row count and status', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const token = await login(ctx, user);
 
     const catRes = await ctx.makeRequest('GET', '/api/v1/categories', { headers: { Authorization: `Bearer ${token}` } });

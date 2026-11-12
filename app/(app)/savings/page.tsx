@@ -16,9 +16,9 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 interface SavingsAccount {
   id: string;
   name: string;
-  account_type: string;
+  type: string;
   bank_name?: string | null;
-  account_last_four?: string | null;
+  last_four?: string | null;
   opening_date: string;
   opening_balance_paisa: number;
   balance_paisa: number;
@@ -26,8 +26,7 @@ interface SavingsAccount {
   // DPS fields
   monthly_installment_paisa?: number | null;
   maturity_date?: string | null;
-  interest_rate_pct?: number | null;
-  projected_principal_paisa?: number | null;
+  interest_rate_bps?: number | null;
 }
 
 interface AccountsSummary {
@@ -82,14 +81,14 @@ function AccountModal({ open, onClose, onSaved, editAccount }: AccountModalProps
     if (!open) return;
     if (editAccount) {
       setName(editAccount.name);
-      setAccountType(editAccount.account_type);
+      setAccountType(editAccount.type);
       setBankName(editAccount.bank_name ?? '');
-      setLastFour(editAccount.account_last_four ?? '');
+      setLastFour(editAccount.last_four ?? '');
       setOpeningDate(editAccount.opening_date.slice(0, 10));
       setOpeningBalancePaisa(editAccount.opening_balance_paisa);
       setMonthlyInstallmentPaisa(editAccount.monthly_installment_paisa ?? null);
       setMaturityDate(editAccount.maturity_date?.slice(0, 10) ?? '');
-      setInterestRatePct(editAccount.interest_rate_pct != null ? String(editAccount.interest_rate_pct) : '');
+      setInterestRatePct(editAccount.interest_rate_bps != null ? String(editAccount.interest_rate_bps / 100) : '');
     } else {
       setName('');
       setAccountType('SAVINGS');
@@ -114,14 +113,14 @@ function AccountModal({ open, onClose, onSaved, editAccount }: AccountModalProps
     try {
       const payload: Record<string, unknown> = {
         name,
-        account_type: accountType,
+        type: accountType,
         bank_name: bankName || null,
-        account_last_four: lastFour || null,
+        last_four: lastFour || null,
         opening_date: openingDate,
         opening_balance_paisa: openingBalancePaisa ?? 0,
         monthly_installment_paisa: monthlyInstallmentPaisa,
         maturity_date: maturityDate || null,
-        interest_rate_pct: interestRatePct ? Number(interestRatePct) : null,
+        interest_rate_bps: interestRatePct ? Math.round(Number(interestRatePct) * 100) : null,
       };
       if (editAccount) {
         await api.patch(`/savings-accounts/${editAccount.id}`, payload);
@@ -296,10 +295,10 @@ function AccountDetail({ account, onClose, onEdit }: AccountDetailProps) {
           <div style={{ font: 'var(--t-data)' }}><Amount paisa={account.balance_paisa} /></div>
         </div>
 
-        {account.account_type === 'DPS' && account.projected_principal_paisa != null && (
+        {account.type === 'DPS' && account.monthly_installment_paisa != null && (
           <div style={{ marginBottom: 12, padding: '10px 12px', background: 'var(--bg-sunken)', borderRadius: 8 }}>
-            <span style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>PROJECTED AT MATURITY</span>
-            <div style={{ font: 'var(--t-body)', fontWeight: 600 }}><Amount paisa={account.projected_principal_paisa} /></div>
+            <span style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>INSTALLMENT</span>
+            <div style={{ font: 'var(--t-body)', fontWeight: 600 }}><Amount paisa={account.monthly_installment_paisa} />/mo</div>
           </div>
         )}
 
@@ -445,7 +444,7 @@ interface AccountCardProps {
 }
 
 function AccountCard({ account, dpsCap, dpsThisFY, onViewDetails, onEdit, onWithdraw, onAddInterest, onClose }: AccountCardProps) {
-  const isDps = account.account_type === 'DPS';
+  const isDps = account.type === 'DPS';
 
   return (
     <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
@@ -453,7 +452,7 @@ function AccountCard({ account, dpsCap, dpsThisFY, onViewDetails, onEdit, onWith
         <div>
           <div style={{ font: 'var(--t-section)', marginBottom: 2 }}>{account.name}</div>
           <div style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>
-            {account.account_type}{account.bank_name ? ` · ${account.bank_name}` : ''}{account.account_last_four ? ` · **** ${account.account_last_four}` : ''}
+            {account.type}{account.bank_name ? ` · ${account.bank_name}` : ''}{account.last_four ? ` · **** ${account.last_four}` : ''}
           </div>
         </div>
         <button
@@ -570,8 +569,16 @@ export default function SavingsPage() {
   const loadAccounts = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: res } = await api.get<AccountsSummary>('/savings-accounts');
-      setData(res);
+      const { data: res } = await api.get<{ accounts: SavingsAccount[]; totals: { total_saved_paisa: number; this_fy_deposits_paisa: number; dps_this_fy_paisa: number; dps_cap_paisa: number } }>('/savings-accounts');
+      const totals = res.totals ?? {};
+      setData({
+        accounts: res.accounts ?? [],
+        total_saved_paisa: totals.total_saved_paisa ?? 0,
+        this_fy_deposits_paisa: totals.this_fy_deposits_paisa ?? 0,
+        dps_this_fy_paisa: totals.dps_this_fy_paisa ?? 0,
+        dps_cap_paisa: totals.dps_cap_paisa ?? 0,
+        active_dps_count: (res.accounts ?? []).filter((a) => a.type === 'DPS' && !a.closed_on).length,
+      });
     } finally {
       setLoading(false);
     }
@@ -597,7 +604,7 @@ export default function SavingsPage() {
     setQuickActionOpen(true);
   }
 
-  const activeDps = data?.accounts.filter((a) => a.account_type === 'DPS' && !a.closed_on) ?? [];
+  const activeDps = data?.accounts.filter((a) => a.type === 'DPS' && !a.closed_on) ?? [];
 
   return (
     <div>

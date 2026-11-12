@@ -7,6 +7,9 @@ import { provisionNewUser } from '../../lib/provision';
 // Use the test database URL
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? '';
 
+// Emails that must never be deleted by test cleanup (seed/admin accounts)
+const SEED_EMAILS = (process.env.SEED_USER_EMAIL ? [process.env.SEED_USER_EMAIL] : []).concat(['owner@example.com']);
+
 let prisma: PrismaClient;
 
 function getTestDb(): PrismaClient {
@@ -16,32 +19,11 @@ function getTestDb(): PrismaClient {
   return prisma;
 }
 
-async function truncateAll(db: PrismaClient) {
-  // Truncate in dependency order to avoid FK violations
-  await db.$executeRawUnsafe(`
-    TRUNCATE TABLE
-      import_batches,
-      notifications,
-      budgets,
-      tax_investments,
-      tax_years,
-      fixed_expense_instances,
-      fixed_expenses,
-      holiday_support_entries,
-      income_entries,
-      loan_entries,
-      loan_persons,
-      savings_accounts,
-      transactions,
-      categories,
-      auth_rate_limits,
-      admin_actions,
-      user_payments,
-      email_tokens,
-      refresh_tokens,
-      users
-    RESTART IDENTITY CASCADE
-  `);
+async function cleanupTestData(db: PrismaClient) {
+  // Delete all non-seed users; onDelete:Cascade removes all their related data
+  await db.user.deleteMany({ where: { email: { notIn: SEED_EMAILS } } });
+  // Rate limits have no user FK — delete them separately
+  await db.authRateLimit.deleteMany({});
 }
 
 export type TestUser = {
@@ -56,12 +38,14 @@ export type TestContext = {
   createUser: (opts?: { role?: 'USER' | 'ADMIN'; emailVerified?: boolean; provision?: boolean }) => Promise<TestUser>;
   authHeader: (user: TestUser) => Promise<{ Authorization: string }>;
   makeRequest: (method: string, path: string, opts?: { body?: unknown; headers?: Record<string, string> }) => Promise<Response>;
+  cleanup: () => Promise<void>;
 };
 
 export async function createTestContext(): Promise<TestContext> {
   const db = getTestDb();
 
-  await truncateAll(db);
+  // Clean up any test data left from a previous test (crash recovery)
+  await cleanupTestData(db);
   await buildRouter();
 
   const jwtSecret = new TextEncoder().encode(
@@ -116,5 +100,9 @@ export async function createTestContext(): Promise<TestContext> {
     return routeRequest(req);
   }
 
-  return { db, createUser, authHeader, makeRequest };
+  async function cleanup() {
+    await cleanupTestData(db);
+  }
+
+  return { db, createUser, authHeader, makeRequest, cleanup };
 }

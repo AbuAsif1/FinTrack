@@ -190,7 +190,7 @@ function CategoriesSection() {
     if (!newName.trim()) return;
     setError('');
     try {
-      const { data } = await api.post<Category>('/categories', { name: newName.trim(), colorHex: newColor, routing_type: 'NONE' });
+      const { data } = await api.post<Category>('/categories', { name: newName.trim(), color_hex: newColor, routing_type: 'NONE' });
       setCategories((prev) => [...prev, data]);
       setNewName('');
       setAdding(false);
@@ -202,7 +202,7 @@ function CategoriesSection() {
   async function saveEdit(cat: Category) {
     setError('');
     try {
-      await api.patch(`/categories/${cat.id}`, { name: editName, colorHex: editColor });
+      await api.patch(`/categories/${cat.id}`, { name: editName, color_hex: editColor });
       setCategories((prev) => prev.map((c) => c.id === cat.id ? { ...c, name: editName, colorHex: editColor } : c));
       setEditId(null);
     } catch {

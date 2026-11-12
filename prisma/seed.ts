@@ -1,4 +1,6 @@
-import 'dotenv/config';
+import { config } from 'dotenv';
+config({ path: '.env' });
+config({ path: '.env.local', override: true });
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { starterCategories } from './defaults/categories';

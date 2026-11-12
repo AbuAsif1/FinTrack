@@ -24,7 +24,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const { data: me } = useQuery({
     queryKey: ['me'],
-    queryFn: () => api.get<{ id: string; role: string }>('/api/v1/me').then((r) => r.data),
+    queryFn: () => api.get<{ id: string; role: string }>('/me').then((r) => r.data),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -50,7 +50,7 @@ export function Sidebar() {
       }}
     >
       <div style={{ padding: '0 20px 20px', font: 'var(--t-section)', color: 'var(--fg-primary)' }}>
-        FinTrack BD
+        FinTrack
       </div>
       <ul style={{ listStyle: 'none', margin: 0, padding: 0, flex: 1 }}>
         {navItems.map((item) => (

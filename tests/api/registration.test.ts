@@ -2,7 +2,7 @@
  * TC-REG-001 to TC-REG-015 — Registration, verification, password reset
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestContext } from '../helpers/index';
 import { clearTestInbox, getTestInbox } from '../../lib/email';
 import type { PrismaClient } from '@prisma/client';
@@ -13,6 +13,10 @@ let ctx: Ctx;
 
 beforeEach(async () => {
   ctx = await createTestContext();
+});
+
+afterEach(async () => {
+  await ctx?.cleanup();
   clearTestInbox();
 });
 
@@ -249,7 +253,8 @@ describe('TC-REG-009: signup closed', () => {
       expect(res.status).toBe(403);
       const body = await res.json();
       expect(body.code).toBe('SIGNUP_CLOSED');
-      expect(await ctx.db.user.count()).toBe(0);
+      // Only count non-seed users — seed account is preserved across test runs
+      expect(await ctx.db.user.count({ where: { email: { not: 'owner@example.com' } } })).toBe(0);
     } finally {
       process.env.SIGNUP_MODE = original;
     }
@@ -335,6 +340,12 @@ describe('TC-REG-012: confirm password reset', () => {
     });
     expect(confirmRes.status).toBe(200);
 
+    // All prior sessions revoked (check before new login creates a new session)
+    const activeSessions = await ctx.db.refreshToken.count({
+      where: { userId: user.id, revokedAt: null },
+    });
+    expect(activeSessions).toBe(0);
+
     // Old password no longer works
     const oldLoginRes = await ctx.makeRequest('POST', '/api/v1/auth/login', {
       body: { email: user.email, password: user.password },
@@ -346,12 +357,6 @@ describe('TC-REG-012: confirm password reset', () => {
       body: { email: user.email, password: newPassword },
     });
     expect(newLoginRes.status).toBe(200);
-
-    // All sessions revoked
-    const activeSessions = await ctx.db.refreshToken.count({
-      where: { userId: user.id, revokedAt: null },
-    });
-    expect(activeSessions).toBe(0);
   });
 });
 

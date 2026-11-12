@@ -1,13 +1,18 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { getAdminUser, generateRawToken, hashToken } from '@/lib/auth';
+import { getAdminUser, generateRawToken, hashToken, AuthError } from '@/lib/auth';
 import { provisionNewUser } from '@/lib/provision';
 import { getEmailTransport, passwordResetEmailHtml } from '@/lib/email';
 import { logAdminAction, userToJson } from '@/lib/admin-helpers';
 
 export async function GET(req: Request) {
-  const admin = await getAdminUser(req);
-  void admin; // used for auth check
+  try {
+    const admin = await getAdminUser(req);
+    void admin; // used for auth check
+  } catch (err) {
+    if (err instanceof AuthError) return Response.json({ error: err.message, code: err.code }, { status: err.status });
+    throw err;
+  }
 
   const url = new URL(req.url);
   const q = url.searchParams.get('q');
@@ -49,7 +54,13 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const admin = await getAdminUser(req);
+  let admin;
+  try {
+    admin = await getAdminUser(req);
+  } catch (err) {
+    if (err instanceof AuthError) return Response.json({ error: err.message, code: err.code }, { status: err.status });
+    throw err;
+  }
   const body = await req.json().catch(() => null);
   const r = z
     .object({

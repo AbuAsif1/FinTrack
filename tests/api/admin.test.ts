@@ -2,7 +2,7 @@
  * TC-ADM-001 to TC-ADM-027 — Admin user management API
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestContext } from '../helpers/index';
 import { clearTestInbox, getTestInbox } from '../../lib/email';
 
@@ -12,6 +12,10 @@ let ctx: Ctx;
 
 beforeEach(async () => {
   ctx = await createTestContext();
+});
+
+afterEach(async () => {
+  await ctx?.cleanup();
   clearTestInbox();
 });
 

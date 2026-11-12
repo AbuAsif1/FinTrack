@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
-import { generateRawToken, hashToken, checkRegRateLimit, recordRegAttempt } from '@/lib/auth';
+import { generateRawToken, hashToken, checkRegRateLimit, recordRegAttempt, AuthError } from '@/lib/auth';
 import { provisionNewUser } from '@/lib/provision';
 import { getEmailTransport, verificationEmailHtml } from '@/lib/email';
 import type { Prisma } from '@prisma/client';
@@ -22,7 +22,12 @@ export async function POST(req: Request) {
   }
 
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown';
-  await checkRegRateLimit(`reg:ip:${ip}`);
+  try {
+    await checkRegRateLimit(`reg:ip:${ip}`);
+  } catch (err) {
+    if (err instanceof AuthError) return Response.json({ error: 'Too many requests', code: err.code }, { status: err.status });
+    throw err;
+  }
 
   const body = await req.json().catch(() => null);
   const result = registerSchema.safeParse(body);
@@ -35,7 +40,12 @@ export async function POST(req: Request) {
 
   const { name, email, password } = result.data;
 
-  await checkRegRateLimit(`reg:email:${email.toLowerCase()}`);
+  try {
+    await checkRegRateLimit(`reg:email:${email.toLowerCase()}`);
+  } catch (err) {
+    if (err instanceof AuthError) return Response.json({ error: 'Too many requests', code: err.code }, { status: err.status });
+    throw err;
+  }
   await recordRegAttempt(`reg:ip:${ip}`);
   await recordRegAttempt(`reg:email:${email.toLowerCase()}`);
 

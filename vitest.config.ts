@@ -14,6 +14,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // DB-backed API tests all call truncateAll() in beforeEach against a shared Neon DB.
+    // Running files concurrently causes workers to truncate each other's data mid-test.
+    fileParallelism: false,
+    // Remote Neon DB round-trips take longer than the 5s default.
+    testTimeout: 30000,
+    hookTimeout: 30000,
     environmentMatchGlobs: [
       ['components/**/*.test.tsx', 'jsdom'],
     ],

@@ -57,8 +57,10 @@ export async function GET(req: Request) {
   if (fy) where.fiscalYear = fy;
   if (month) {
     const monthStart = toDbDate(`${month}-01`);
-    const monthEnd = toDbDate(`${month}-31`); // Prisma handles this fine for lte
-    where.month = { gte: monthStart, lte: monthEnd };
+    const [my, mm] = month.split('-').map(Number);
+    // Use lt: first day of NEXT month to avoid day-31 overflow wrapping into next month
+    const nextMonthStart = new Date(Date.UTC(my, mm, 1));
+    where.month = { gte: monthStart, lt: nextMonthStart };
   }
 
   const entries = await prisma.incomeEntry.findMany({

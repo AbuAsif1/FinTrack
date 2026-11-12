@@ -61,7 +61,7 @@ export async function POST(req: Request) {
   if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
 
   const body = await req.json();
-  const { name, standard_amount_paisa, due_day, category_id, savings_account_id } = body;
+  const { name, standard_amount_paisa, due_day, category_id, savings_account_id, start_month } = body;
 
   if (!name || standard_amount_paisa == null || !due_day || !category_id) {
     return Response.json({ error: 'Missing required fields', code: 'VALIDATION_ERROR' }, { status: 422 });
@@ -88,7 +88,9 @@ export async function POST(req: Request) {
   }
 
   const today = todayInDhaka();
-  const startMonth = computeStartMonth(due_day, today);
+  const startMonth = (typeof start_month === 'string' && /^\d{4}-\d{2}$/.test(start_month))
+    ? start_month
+    : computeStartMonth(due_day, today);
 
   const template = await prisma.fixedExpense.create({
     data: {

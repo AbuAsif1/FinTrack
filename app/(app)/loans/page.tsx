@@ -138,18 +138,13 @@ function AddEntryModal({
     if (form.reason) body.reason = form.reason;
     if (form.return_due_date) body.return_due_date = form.return_due_date;
 
-    const res = await fetch(`/api/v1/loan-persons/${loanPersonId}/entries`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      setError(j.message ?? j.error ?? 'Failed to save entry.');
+    const entryRes = await api.post(`/loan-persons/${loanPersonId}/entries`, body).catch((err) => {
+      const msg = err?.response?.data?.error ?? 'Failed to save entry.';
+      setError(msg);
       setSaving(false);
-      return;
-    }
+      return null;
+    });
+    if (!entryRes) return;
     onSaved();
   }
 

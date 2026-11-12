@@ -1,8 +1,8 @@
-/**
- * TC-EXP-001 to TC-EXP-009, TC-EXP-011 — Data export
+﻿/**
+ * TC-EXP-001 to TC-EXP-009, TC-EXP-011 â€” Data export
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestContext } from '../helpers/index';
 
 type Ctx = Awaited<ReturnType<typeof createTestContext>>;
@@ -11,6 +11,10 @@ let ctx: Ctx;
 
 beforeEach(async () => {
   ctx = await createTestContext();
+});
+
+afterEach(async () => {
+  await ctx?.cleanup();
 });
 
 async function login(ctx: Ctx, user: { email: string; password: string }) {
@@ -24,11 +28,11 @@ async function getCategories(ctx: Ctx, token: string) {
   return res.json() as Promise<Array<{ id: string; name: string; routing_type: string }>>;
 }
 
-// ── TC-EXP-001: Full export contains all records ──────────────────────────
+// â”€â”€ TC-EXP-001: Full export contains all records â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-EXP-001: full export contains all records', () => {
   it('JSON file has schema_version, exported_at and records', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const token = await login(ctx, user);
     const cats = await getCategories(ctx, token);
     const none = cats.find((c) => c.routing_type === 'NONE')!;
@@ -49,7 +53,7 @@ describe('TC-EXP-001: full export contains all records', () => {
   });
 });
 
-// ── TC-EXP-003: Password hashes and tokens absent ─────────────────────────
+// â”€â”€ TC-EXP-003: Password hashes and tokens absent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-EXP-003: secrets not in full export', () => {
   it('no passwordHash or token fields in the export', async () => {
@@ -64,12 +68,12 @@ describe('TC-EXP-003: secrets not in full export', () => {
   });
 });
 
-// ── TC-EXP-004: Cross-user isolation ─────────────────────────────────────
+// â”€â”€ TC-EXP-004: Cross-user isolation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-EXP-004: second user data not in export', () => {
   it("user A cannot see user B's transactions", async () => {
-    const userA = await ctx.createUser();
-    const userB = await ctx.createUser();
+    const userA = await ctx.createUser({ provision: true });
+    const userB = await ctx.createUser({ provision: true });
     const tokenA = await login(ctx, userA);
     const tokenB = await login(ctx, userB);
 
@@ -89,11 +93,11 @@ describe('TC-EXP-004: second user data not in export', () => {
   });
 });
 
-// ── TC-EXP-005: Transactions CSV ─────────────────────────────────────────
+// â”€â”€ TC-EXP-005: Transactions CSV â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-EXP-005: transactions CSV for date range', () => {
   it('returns CSV with correct columns', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const token = await login(ctx, user);
     const cats = await getCategories(ctx, token);
     const none = cats.find((c) => c.routing_type === 'NONE')!;
@@ -115,7 +119,7 @@ describe('TC-EXP-005: transactions CSV for date range', () => {
   });
 });
 
-// ── TC-EXP-006: Income CSV ───────────────────────────────────────────────
+// â”€â”€ TC-EXP-006: Income CSV â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-EXP-006: income CSV for fiscal year', () => {
   it('returns CSV with income entries', async () => {
@@ -136,11 +140,11 @@ describe('TC-EXP-006: income CSV for fiscal year', () => {
   });
 });
 
-// ── TC-EXP-009: Amount formatting ────────────────────────────────────────
+// â”€â”€ TC-EXP-009: Amount formatting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-EXP-009: amounts formatted as decimals without grouping', () => {
   it('1198.50 appears without comma grouping', async () => {
-    const user = await ctx.createUser();
+    const user = await ctx.createUser({ provision: true });
     const token = await login(ctx, user);
     const cats = await getCategories(ctx, token);
     const none = cats.find((c) => c.routing_type === 'NONE')!;

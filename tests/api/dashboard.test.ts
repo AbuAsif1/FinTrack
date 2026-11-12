@@ -2,7 +2,7 @@
  * TC-DASH-001 to TC-DASH-022 — Dashboard & Analytics API
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createTestContext } from '../helpers/index';
 import { todayInDhaka } from '@fintrack/shared';
 
@@ -13,6 +13,10 @@ let ctx: Ctx;
 
 beforeEach(async () => {
   ctx = await createTestContext();
+});
+
+afterEach(async () => {
+  await ctx?.cleanup();
 });
 
 async function authHeader(ctx: Ctx, user: TestUser) {
@@ -41,24 +45,38 @@ async function setupAcCash1(ctx: Ctx, user: TestUser) {
     },
   });
 
-  // Create the NONE-routing category for Groceries
-  const groceriesCat = await ctx.db.category.create({
-    data: { userId: user.id, name: 'Groceries', colorHex: '#00FF00', routingType: 'NONE' },
+  // Create the NONE-routing category for Groceries (upsert: starter categories with same name may already exist)
+  const groceriesCat = await ctx.db.category.upsert({
+    where: { userId_name: { userId: user.id, name: 'Groceries' } },
+    update: {},
+    create: { userId: user.id, name: 'Groceries', colorHex: '#00FF00', routingType: 'NONE' },
   });
 
   // Seven default fixed expenses totaling ৳60,732
   // YouTube Premium: ৳160
-  const ytCat = await ctx.db.category.create({ data: { userId: user.id, name: 'Subscriptions', colorHex: '#FF0000', routingType: 'NONE' } });
+  const ytCat = await ctx.db.category.upsert({
+    where: { userId_name: { userId: user.id, name: 'Subscriptions' } },
+    update: {},
+    create: { userId: user.id, name: 'Subscriptions', colorHex: '#FF0000', routingType: 'NONE' },
+  });
   const ytExp = await ctx.db.fixedExpense.create({
     data: { userId: user.id, name: 'YouTube Premium', categoryId: ytCat.id, standardAmountPaisa: BigInt(16000), dueDay: 5, startMonth: new Date('2026-11-01') },
   });
   // DPS: ৳10,000
-  const dpsCat = await ctx.db.category.create({ data: { userId: user.id, name: 'DPS', colorHex: '#0000FF', routingType: 'SAVINGS_DEPOSIT' } });
+  const dpsCat = await ctx.db.category.upsert({
+    where: { userId_name: { userId: user.id, name: 'DPS Test' } },
+    update: {},
+    create: { userId: user.id, name: 'DPS Test', colorHex: '#0000FF', routingType: 'SAVINGS_DEPOSIT' },
+  });
   const dpsExp = await ctx.db.fixedExpense.create({
     data: { userId: user.id, name: 'Upension DPS', categoryId: dpsCat.id, standardAmountPaisa: BigInt(1000000), dueDay: 10, startMonth: new Date('2026-11-01') },
   });
   // Remaining five to reach ৳60,732: ৳60,732 - 160 - 10,000 = ৳50,572 split across five
-  const otherCat = await ctx.db.category.create({ data: { userId: user.id, name: 'Other', colorHex: '#AAAAAA', routingType: 'NONE' } });
+  const otherCat = await ctx.db.category.upsert({
+    where: { userId_name: { userId: user.id, name: 'Other' } },
+    update: {},
+    create: { userId: user.id, name: 'Other', colorHex: '#AAAAAA', routingType: 'NONE' },
+  });
   // Five more fixed expenses totaling ৳50,572: amounts in paisa
   // ৳50,572 = 5057200 paisa; split: 1200000 + 1000000 + 1000000 + 1000000 + 857200
   const otherAmounts = [1200000n, 1000000n, 1000000n, 1000000n, 857200n];

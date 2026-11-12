@@ -1,8 +1,8 @@
-/**
- * TC-ROUTE-001 to TC-ROUTE-023 — Category routing through /transactions
+﻿/**
+ * TC-ROUTE-001 to TC-ROUTE-023 â€” Category routing through /transactions
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestContext } from '../helpers/index';
 import { toDbDate } from '@fintrack/shared';
 
@@ -13,6 +13,10 @@ let ctx: Ctx;
 
 beforeEach(async () => {
   ctx = await createTestContext();
+});
+
+afterEach(async () => {
+  await ctx?.cleanup();
 });
 
 // ---------------------------------------------------------------------------
@@ -52,7 +56,7 @@ async function getCategoryByType(ctx: Ctx, user: TestUser, routingType: string) 
 }
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-001: SAVINGS_DEPOSIT with no savings_account_id — 422
+// TC-ROUTE-001: SAVINGS_DEPOSIT with no savings_account_id â€” 422
 // ---------------------------------------------------------------------------
 
 describe('TC-ROUTE-001: savings deposit with no savings_account_id', () => {
@@ -76,10 +80,10 @@ describe('TC-ROUTE-001: savings deposit with no savings_account_id', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-002: Create a deposit — balance rises
+// TC-ROUTE-002: Create a deposit â€” balance rises
 // ---------------------------------------------------------------------------
 
-describe('TC-ROUTE-002: savings deposit — balance rises', () => {
+describe('TC-ROUTE-002: savings deposit â€” balance rises', () => {
   it('account balance increases by deposit amount', async () => {
     const user = await ctx.createUser({ provision: true });
     const acct = await createSavingsAccount(ctx, user, { opening_balance_paisa: 5000000 });
@@ -101,7 +105,7 @@ describe('TC-ROUTE-002: savings deposit — balance rises', () => {
 // ---------------------------------------------------------------------------
 
 describe('TC-ROUTE-003: deposit does not change spending', () => {
-  it('type is SAVINGS_DEPOSIT — excluded from spending', async () => {
+  it('type is SAVINGS_DEPOSIT â€” excluded from spending', async () => {
     const user = await ctx.createUser({ provision: true });
     const acct = await createSavingsAccount(ctx, user);
     const depositCat = await getCategoryByType(ctx, user, 'SAVINGS_DEPOSIT');
@@ -117,10 +121,10 @@ describe('TC-ROUTE-003: deposit does not change spending', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-004: Savings withdrawal — balance falls
+// TC-ROUTE-004: Savings withdrawal â€” balance falls
 // ---------------------------------------------------------------------------
 
-describe('TC-ROUTE-004: savings withdrawal — balance falls', () => {
+describe('TC-ROUTE-004: savings withdrawal â€” balance falls', () => {
   it('account balance decreases by withdrawal amount', async () => {
     const user = await ctx.createUser({ provision: true });
     const acct = await createSavingsAccount(ctx, user, { opening_balance_paisa: 5000000 });
@@ -138,13 +142,13 @@ describe('TC-ROUTE-004: savings withdrawal — balance falls', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-005: Withdrawal above balance — 422
+// TC-ROUTE-005: Withdrawal above balance â€” 422
 // ---------------------------------------------------------------------------
 
-describe('TC-ROUTE-005: withdrawal above balance — 422', () => {
+describe('TC-ROUTE-005: withdrawal above balance â€” 422', () => {
   it('returns 422 INSUFFICIENT_BALANCE; balance unchanged', async () => {
     const user = await ctx.createUser({ provision: true });
-    const acct = await createSavingsAccount(ctx, user, { opening_balance_paisa: 1000000 }); // ৳10,000
+    const acct = await createSavingsAccount(ctx, user, { opening_balance_paisa: 1000000 }); // à§³10,000
     const withdrawCat = await getCategoryByType(ctx, user, 'SAVINGS_WITHDRAWAL');
 
     const res = await postTx(ctx, user, {
@@ -164,10 +168,10 @@ describe('TC-ROUTE-005: withdrawal above balance — 422', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-006: Savings Interest — balance rises
+// TC-ROUTE-006: Savings Interest â€” balance rises
 // ---------------------------------------------------------------------------
 
-describe('TC-ROUTE-006: savings interest — balance rises', () => {
+describe('TC-ROUTE-006: savings interest â€” balance rises', () => {
   it('account balance increases by interest amount', async () => {
     const user = await ctx.createUser({ provision: true });
     const acct = await createSavingsAccount(ctx, user, { opening_balance_paisa: 5000000 });
@@ -189,7 +193,7 @@ describe('TC-ROUTE-006: savings interest — balance rises', () => {
 // ---------------------------------------------------------------------------
 
 describe('TC-ROUTE-007: AC-SAV-1 via transactions API', () => {
-  it('opening 50000 + 2×10000 deposits + 1250 interest - 5000 withdrawal = 66250 BDT', async () => {
+  it('opening 50000 + 2Ã—10000 deposits + 1250 interest - 5000 withdrawal = 66250 BDT', async () => {
     const user = await ctx.createUser({ provision: true });
     const acct = await createSavingsAccount(ctx, user, { opening_balance_paisa: 5000000 });
     const depositCat = await getCategoryByType(ctx, user, 'SAVINGS_DEPOSIT');
@@ -203,12 +207,12 @@ describe('TC-ROUTE-007: AC-SAV-1 via transactions API', () => {
 
     expect(lastRes.status).toBe(201);
     const body = await lastRes.json();
-    expect(body.routing.account.balance_paisa).toBe(6625000); // ৳66,250
+    expect(body.routing.account.balance_paisa).toBe(6625000); // à§³66,250
   });
 });
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-008: Deposit before opening date — 422
+// TC-ROUTE-008: Deposit before opening date â€” 422
 // ---------------------------------------------------------------------------
 
 describe('TC-ROUTE-008: deposit before opening date', () => {
@@ -229,7 +233,7 @@ describe('TC-ROUTE-008: deposit before opening date', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-009: Deposit into a closed account — 422
+// TC-ROUTE-009: Deposit into a closed account â€” 422
 // ---------------------------------------------------------------------------
 
 describe('TC-ROUTE-009: deposit into closed account', () => {
@@ -258,7 +262,7 @@ describe('TC-ROUTE-009: deposit into closed account', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-010: Deposit using another user's savings account — 422
+// TC-ROUTE-010: Deposit using another user's savings account â€” 422
 // ---------------------------------------------------------------------------
 
 describe('TC-ROUTE-010: deposit naming another user\'s savings account', () => {
@@ -279,7 +283,7 @@ describe('TC-ROUTE-010: deposit naming another user\'s savings account', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-011: Loan Given via /transactions — same as /loan-persons endpoint
+// TC-ROUTE-011: Loan Given via /transactions â€” same as /loan-persons endpoint
 // ---------------------------------------------------------------------------
 
 describe('TC-ROUTE-011: loan given via /transactions with existing person', () => {
@@ -307,7 +311,7 @@ describe('TC-ROUTE-011: loan given via /transactions with existing person', () =
 });
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-012: Loan Given with new person name — creates person
+// TC-ROUTE-012: Loan Given with new person name â€” creates person
 // ---------------------------------------------------------------------------
 
 describe('TC-ROUTE-012: loan given with new person name', () => {
@@ -333,7 +337,7 @@ describe('TC-ROUTE-012: loan given with new person name', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-013: Loan Given — name matches existing person case-insensitively
+// TC-ROUTE-013: Loan Given â€” name matches existing person case-insensitively
 // ---------------------------------------------------------------------------
 
 describe('TC-ROUTE-013: loan person name case-insensitive match', () => {
@@ -358,7 +362,7 @@ describe('TC-ROUTE-013: loan person name case-insensitive match', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-014: Loan category with no person — 422
+// TC-ROUTE-014: Loan category with no person â€” 422
 // ---------------------------------------------------------------------------
 
 describe('TC-ROUTE-014: loan category with no person', () => {
@@ -378,7 +382,7 @@ describe('TC-ROUTE-014: loan category with no person', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-015: Tax Payment — defaults to Fiscal Year of its date
+// TC-ROUTE-015: Tax Payment â€” defaults to Fiscal Year of its date
 // ---------------------------------------------------------------------------
 
 describe('TC-ROUTE-015: tax payment defaults to fiscal year of its date', () => {
@@ -389,7 +393,7 @@ describe('TC-ROUTE-015: tax payment defaults to fiscal year of its date', () => 
     const res = await postTx(ctx, user, {
       amount_paisa: 1000000, date: '2026-11-01', description: 'Tax payment',
       category_id: taxCat!.id, payment_method: 'BANK',
-      // No tax_fiscal_year — should default to 2026-27
+      // No tax_fiscal_year â€” should default to 2026-27
     });
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -399,7 +403,7 @@ describe('TC-ROUTE-015: tax payment defaults to fiscal year of its date', () => 
 });
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-016: Tax Payment assigned to previous Fiscal Year — accepted
+// TC-ROUTE-016: Tax Payment assigned to previous Fiscal Year â€” accepted
 // ---------------------------------------------------------------------------
 
 describe('TC-ROUTE-016: tax payment to previous fiscal year', () => {
@@ -419,7 +423,7 @@ describe('TC-ROUTE-016: tax payment to previous fiscal year', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-017: Tax Payment to future or old fiscal year — 422
+// TC-ROUTE-017: Tax Payment to future or old fiscal year â€” 422
 // ---------------------------------------------------------------------------
 
 describe('TC-ROUTE-017: tax payment to future or old fiscal year', () => {
@@ -446,10 +450,10 @@ describe('TC-ROUTE-017: tax payment to future or old fiscal year', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-018: Change a deposit's amount — balance follows
+// TC-ROUTE-018: Change a deposit's amount â€” balance follows
 // ---------------------------------------------------------------------------
 
-describe('TC-ROUTE-018: update deposit amount — balance follows', () => {
+describe('TC-ROUTE-018: update deposit amount â€” balance follows', () => {
   it('balance updates after PATCH', async () => {
     const user = await ctx.createUser({ provision: true });
     const acct = await createSavingsAccount(ctx, user, { opening_balance_paisa: 5000000 });
@@ -474,7 +478,7 @@ describe('TC-ROUTE-018: update deposit amount — balance follows', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-020: Delete deposit and loan — balance recalculates
+// TC-ROUTE-020: Delete deposit and loan â€” balance recalculates
 // ---------------------------------------------------------------------------
 
 describe('TC-ROUTE-020: delete deposit and loan transaction', () => {
@@ -511,10 +515,10 @@ describe('TC-ROUTE-020: delete deposit and loan transaction', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-ROUTE-021: Failure mid-write — no person, TX or entry
+// TC-ROUTE-021: Failure mid-write â€” no person, TX or entry
 // ---------------------------------------------------------------------------
 
-describe('TC-ROUTE-021: atomic failure — no person created', () => {
+describe('TC-ROUTE-021: atomic failure â€” no person created', () => {
   it('invalid loan_person_id causes 422; no transaction created', async () => {
     const user = await ctx.createUser({ provision: true });
     const loanGivenCat = await getCategoryByType(ctx, user, 'LOAN_GIVEN');
