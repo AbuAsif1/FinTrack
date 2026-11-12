@@ -71,6 +71,10 @@ export async function buildRouter() {
     taxYearFileMod,
     taxYearReopenMod,
     taxInvestmentsMod,
+    dashboardSummaryMod,
+    analyticsMonthlyMod,
+    analyticsCategoryTrendMod,
+    analyticsIncomeTrendMod,
     adminUsersMod,
     adminUserIdMod,
     adminDeactivateMod,
@@ -131,6 +135,10 @@ export async function buildRouter() {
     import('../../app/api/v1/tax-years/[fiscalYear]/file/route'),
     import('../../app/api/v1/tax-years/[fiscalYear]/reopen/route'),
     import('../../app/api/v1/tax-investments/[fiscalYear]/route'),
+    import('../../app/api/v1/dashboard/summary/route'),
+    import('../../app/api/v1/analytics/monthly/route'),
+    import('../../app/api/v1/analytics/category-trend/route'),
+    import('../../app/api/v1/analytics/income-trend/route'),
     import('../../app/api/v1/admin/users/route'),
     import('../../app/api/v1/admin/users/[id]/route'),
     import('../../app/api/v1/admin/users/[id]/deactivate/route'),
@@ -221,6 +229,12 @@ export async function buildRouter() {
   addRoute('/api/v1/tax-years/:fiscalYear/reopen', { POST: taxYearReopenMod.POST });
   addRoute('/api/v1/tax-years/:fiscalYear', { GET: taxYearFyMod.GET, PUT: taxYearFyMod.PUT });
   addRoute('/api/v1/tax-investments/:fiscalYear', { GET: taxInvestmentsMod.GET, PUT: taxInvestmentsMod.PUT });
+
+  // Dashboard & Analytics
+  addRoute('/api/v1/dashboard/summary', { GET: dashboardSummaryMod.GET });
+  addRoute('/api/v1/analytics/monthly', { GET: analyticsMonthlyMod.GET });
+  addRoute('/api/v1/analytics/category-trend', { GET: analyticsCategoryTrendMod.GET });
+  addRoute('/api/v1/analytics/income-trend', { GET: analyticsIncomeTrendMod.GET });
 
   // Admin — specific sub-routes before :id
   addRoute('/api/v1/admin/users', { GET: adminUsersMod.GET, POST: adminUsersMod.POST });
