@@ -13,9 +13,9 @@
 
 ## Status
 
-**Phase: documentation complete and ready for development; development not started.**
+**Phase: Sprint 1 — in development.**
 
-> **Development hold (set 2026-11-12).** The docs and tickets are ready, but the owner has not yet said to start. Do not scaffold the app, write application code or pick up a ticket until the owner lifts this hold. Editing docs and tickets is fine.
+> **Development hold lifted 2026-11-12** by the owner. Sprint 1 is in progress on branch `ticket/01-monorepo-core-foundation`.
 
 - [x] BRD v1.1, architecture, rules, design and glossary aligned on one stack and one data model
 - [x] Decisions recorded as ADR-0001 to ADR-0011
@@ -23,8 +23,8 @@
 - [x] Regression test matrix written for every MVP feature; each ticket names its cases
 - [x] Phase 2 backlog and Phase 3 idea captured
 - [ ] Owner confirms the tax parameters (ticket 24)
-- [ ] Owner lifts the development hold
-- [ ] Development
+- [x] Owner lifts the development hold
+- [ ] Development (Sprint 1 in progress)
 
 ---
 
