@@ -4,7 +4,7 @@
 
 **Blocked by:** None
 
-**Status:** in-progress
+**Status:** done
 
 **Test cases:** `test-cases/01-foundation.md` (`TC-FND`) · `test-cases/02-tax-engine.md` (`TC-TAXE`)
 
