@@ -13,6 +13,12 @@ const createSchema = z.object({
   category_id: z.string().min(1),
   payment_method: PaymentMethodEnum,
   idempotency_key: z.string().min(1),
+  savings_account_id: z.string().optional(),
+  loan_person_id: z.string().optional(),
+  loan_person_name: z.string().optional(),
+  return_due_date: z.string().optional(),
+  reason: z.string().optional(),
+  tax_fiscal_year: z.string().optional(),
 });
 
 function txRow(tx: {
@@ -113,7 +119,7 @@ export async function POST(req: Request) {
     if (result.duplicate) {
       return Response.json({ code: 'DUPLICATE', transaction: result.transaction }, { status: 409 });
     }
-    return Response.json(result.transaction, { status: 201 });
+    return Response.json({ ...result.transaction, routing: result.routing ?? null }, { status: 201 });
   } catch (err) {
     if (err instanceof RoutingError) {
       return Response.json({ error: err.message, code: err.code }, { status: err.status });

@@ -5,13 +5,16 @@ import { CategoryRoutingService, RoutingError } from '@/lib/services/category-ro
 
 const patchSchema = z.object({
   amount_paisa: z.number().int().positive().optional(),
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   description: z.string().min(1).optional(),
   payment_method: z.enum(['CASH', 'BKASH', 'BANK', 'CARD']).optional(),
   category_id: z.string().optional(),
+  savings_account_id: z.string().optional(),
+  loan_person_id: z.string().optional(),
+  loan_person_name: z.string().optional(),
+  return_due_date: z.string().optional(),
+  reason: z.string().optional(),
+  tax_fiscal_year: z.string().optional(),
 });
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
