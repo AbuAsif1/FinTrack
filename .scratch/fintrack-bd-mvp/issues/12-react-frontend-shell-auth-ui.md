@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Test cases:** `test-cases/17-ui.md` §Shell (`TC-UI-001` to `TC-UI-008`) · `test-cases/19-security.md` (`TC-SEC-007`, `TC-SEC-008`)
 
