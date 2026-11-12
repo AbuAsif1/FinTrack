@@ -84,6 +84,11 @@ export async function buildRouter() {
     adminPaymentsMod,
     adminPaymentIdMod,
     adminActionsMod,
+    importsMod,
+    importsPreviewMod,
+    importsCommitMod,
+    importsUndoMod,
+    importsTemplatesMod,
   ] = await Promise.all([
     import('../../app/api/v1/health/route'),
     import('../../app/api/v1/auth/login/route'),
@@ -148,6 +153,11 @@ export async function buildRouter() {
     import('../../app/api/v1/admin/users/[id]/payments/route'),
     import('../../app/api/v1/admin/users/[id]/payments/[paymentId]/route'),
     import('../../app/api/v1/admin/actions/route'),
+    import('../../app/api/v1/imports/route'),
+    import('../../app/api/v1/imports/preview/route'),
+    import('../../app/api/v1/imports/[id]/commit/route'),
+    import('../../app/api/v1/imports/[id]/undo/route'),
+    import('../../app/api/v1/imports/templates/[dataset]/route'),
   ]);
 
   routes.length = 0;
@@ -253,6 +263,13 @@ export async function buildRouter() {
     DELETE: adminUserIdMod.DELETE,
   });
   addRoute('/api/v1/admin/actions', { GET: adminActionsMod.GET });
+
+  // Imports — specific sub-routes before :id
+  addRoute('/api/v1/imports/preview', { POST: importsPreviewMod.POST });
+  addRoute('/api/v1/imports/templates/:dataset', { GET: importsTemplatesMod.GET });
+  addRoute('/api/v1/imports/:id/commit', { POST: importsCommitMod.POST });
+  addRoute('/api/v1/imports/:id/undo', { POST: importsUndoMod.POST });
+  addRoute('/api/v1/imports', { GET: importsMod.GET });
 }
 
 export function routeRequest(req: Request): Response | Promise<Response> {
