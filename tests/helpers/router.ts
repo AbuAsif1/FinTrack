@@ -40,6 +40,12 @@ export async function buildRouter() {
     savingsAccountsMod,
     savingsAccountIdMod,
     savingsAccountTxsMod,
+    loanPersonsMod,
+    loanPersonIdMod,
+    loanEntriesMod,
+    loanEntryIdMod,
+    loanSettleMod,
+    loansSummaryMod,
     adminUsersMod,
     adminUserIdMod,
     adminDeactivateMod,
@@ -69,6 +75,12 @@ export async function buildRouter() {
     import('../../app/api/v1/savings-accounts/route'),
     import('../../app/api/v1/savings-accounts/[id]/route'),
     import('../../app/api/v1/savings-accounts/[id]/transactions/route'),
+    import('../../app/api/v1/loan-persons/route'),
+    import('../../app/api/v1/loan-persons/[id]/route'),
+    import('../../app/api/v1/loan-persons/[id]/entries/route'),
+    import('../../app/api/v1/loan-persons/[id]/entries/[entryId]/route'),
+    import('../../app/api/v1/loan-persons/[id]/settle/route'),
+    import('../../app/api/v1/loans/summary/route'),
     import('../../app/api/v1/admin/users/route'),
     import('../../app/api/v1/admin/users/[id]/route'),
     import('../../app/api/v1/admin/users/[id]/deactivate/route'),
@@ -111,6 +123,17 @@ export async function buildRouter() {
   addRoute('/api/v1/savings-accounts', { GET: savingsAccountsMod.GET, POST: savingsAccountsMod.POST });
   addRoute('/api/v1/savings-accounts/:id/transactions', { GET: savingsAccountTxsMod.GET });
   addRoute('/api/v1/savings-accounts/:id', { GET: savingsAccountIdMod.GET, PATCH: savingsAccountIdMod.PATCH });
+
+  // Loans — specific sub-routes before :id
+  addRoute('/api/v1/loans/summary', { GET: loansSummaryMod.GET });
+  addRoute('/api/v1/loan-persons', { GET: loanPersonsMod.GET, POST: loanPersonsMod.POST });
+  addRoute('/api/v1/loan-persons/:id/entries/:entryId', {
+    PATCH: loanEntryIdMod.PATCH,
+    DELETE: loanEntryIdMod.DELETE,
+  });
+  addRoute('/api/v1/loan-persons/:id/entries', { GET: loanEntriesMod.GET, POST: loanEntriesMod.POST });
+  addRoute('/api/v1/loan-persons/:id/settle', { POST: loanSettleMod.POST });
+  addRoute('/api/v1/loan-persons/:id', { PATCH: loanPersonIdMod.PATCH });
 
   // Admin — specific sub-routes before :id
   addRoute('/api/v1/admin/users', { GET: adminUsersMod.GET, POST: adminUsersMod.POST });
