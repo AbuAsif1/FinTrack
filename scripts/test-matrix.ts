@@ -4,7 +4,9 @@
  */
 import { readdir, readFile } from 'fs/promises';
 import { join } from 'path';
-import { glob } from 'fs/promises';
+// Node 22+ has glob in fs/promises; this script runs with tsx which uses Node's native glob
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { glob } = require('node:fs/promises') as typeof import('fs/promises') & { glob: (pattern: string, opts: { cwd: string }) => Promise<string[]> };
 
 const MATRIX_DIR = join(process.cwd(), '.scratch', 'fintrack-bd-mvp', 'test-cases');
 const TEST_DIRS = [
@@ -32,7 +34,8 @@ async function getTestedIds(): Promise<Set<string>> {
   const testedIds = new Set<string>();
   for (const dir of TEST_DIRS) {
     try {
-      for await (const file of glob('**/*.test.{ts,tsx}', { cwd: dir })) {
+      const files = await glob('**/*.test.{ts,tsx}', { cwd: dir });
+      for (const file of files) {
         const content = await readFile(join(dir, file), 'utf-8');
         for (const match of content.matchAll(/TC-[A-Z]+-\d+/g)) {
           testedIds.add(match[0]);
