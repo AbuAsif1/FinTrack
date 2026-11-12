@@ -26,6 +26,11 @@ export async function buildRouter() {
     logoutMod,
     changePasswordMod,
     meMod,
+    registerMod,
+    verifyEmailMod,
+    resendMod,
+    pwResetRequestMod,
+    pwResetConfirmMod,
   ] = await Promise.all([
     import('../../app/api/v1/health/route'),
     import('../../app/api/v1/auth/login/route'),
@@ -33,6 +38,11 @@ export async function buildRouter() {
     import('../../app/api/v1/auth/logout/route'),
     import('../../app/api/v1/auth/change-password/route'),
     import('../../app/api/v1/me/route'),
+    import('../../app/api/v1/auth/register/route'),
+    import('../../app/api/v1/auth/verify-email/route'),
+    import('../../app/api/v1/auth/resend-verification/route'),
+    import('../../app/api/v1/auth/password-reset/request/route'),
+    import('../../app/api/v1/auth/password-reset/confirm/route'),
   ]);
 
   routes.length = 0;
@@ -43,6 +53,11 @@ export async function buildRouter() {
   addRoute('/api/v1/auth/logout', { POST: logoutMod.POST });
   addRoute('/api/v1/auth/change-password', { POST: changePasswordMod.POST });
   addRoute('/api/v1/me', { GET: meMod.GET, PATCH: meMod.PATCH });
+  addRoute('/api/v1/auth/register', { POST: registerMod.POST });
+  addRoute('/api/v1/auth/verify-email', { POST: verifyEmailMod.POST });
+  addRoute('/api/v1/auth/resend-verification', { POST: resendMod.POST });
+  addRoute('/api/v1/auth/password-reset/request', { POST: pwResetRequestMod.POST });
+  addRoute('/api/v1/auth/password-reset/confirm', { POST: pwResetConfirmMod.POST });
 }
 
 export function routeRequest(req: Request): Response | Promise<Response> {

@@ -11,6 +11,31 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showResend, setShowResend] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendLoading, setResendLoading] = useState(false);
+
+  function startResendCooldown() {
+    setResendCooldown(60);
+    const interval = setInterval(() => {
+      setResendCooldown((n) => {
+        if (n <= 1) { clearInterval(interval); return 0; }
+        return n - 1;
+      });
+    }, 1000);
+  }
+
+  async function handleResend() {
+    setResendLoading(true);
+    try {
+      await axios.post('/api/v1/auth/resend-verification', { email });
+      startResendCooldown();
+    } catch {
+      // silent
+    } finally {
+      setResendLoading(false);
+    }
+  }
 
   // Attempt silent refresh first
   useEffect(() => {
@@ -36,6 +61,7 @@ export default function LoginPage() {
         const status = err.response?.status;
         if (status === 403 && code === 'EMAIL_NOT_VERIFIED') {
           setError('Verify your email first.');
+          setShowResend(true);
         } else if (status === 403 && code === 'ACCOUNT_DEACTIVATED') {
           const reason = err.response?.data?.reason;
           setError(reason ? `Account deactivated: ${reason}` : 'This account is deactivated. Contact the site admin.');
@@ -86,9 +112,25 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div role="alert" style={{ color: 'var(--danger)', font: 'var(--t-caption)', marginBottom: 16 }}>
+          <div role="alert" style={{ color: 'var(--danger)', font: 'var(--t-caption)', marginBottom: showResend ? 8 : 16 }}>
             {error}
           </div>
+        )}
+
+        {showResend && (
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resendCooldown > 0 || resendLoading}
+            style={{
+              width: '100%', padding: '10px', marginBottom: 16, borderRadius: 8,
+              border: '1px solid var(--border)', background: 'transparent',
+              color: resendCooldown > 0 ? 'var(--fg-muted)' : 'var(--accent)',
+              font: 'var(--t-caption)', cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {resendCooldown > 0 ? `Resend verification email (${resendCooldown}s)` : resendLoading ? 'Sending…' : 'Resend verification email'}
+          </button>
         )}
 
         <button
