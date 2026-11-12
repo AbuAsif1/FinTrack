@@ -51,6 +51,12 @@ export async function buildRouter() {
     incomeSummaryMod,
     holidaySupportMod,
     holidaySupportIdMod,
+    fixedExpensesMod,
+    fixedExpenseIdMod,
+    fixedExpenseInstancesMod,
+    fixedInstancePayMod,
+    fixedInstanceSkipMod,
+    fixedInstanceReopenMod,
     adminUsersMod,
     adminUserIdMod,
     adminDeactivateMod,
@@ -91,6 +97,12 @@ export async function buildRouter() {
     import('../../app/api/v1/income-entries/summary/route'),
     import('../../app/api/v1/holiday-support-entries/route'),
     import('../../app/api/v1/holiday-support-entries/[id]/route'),
+    import('../../app/api/v1/fixed-expenses/route'),
+    import('../../app/api/v1/fixed-expenses/[id]/route'),
+    import('../../app/api/v1/fixed-expense-instances/route'),
+    import('../../app/api/v1/fixed-expense-instances/[id]/pay/route'),
+    import('../../app/api/v1/fixed-expense-instances/[id]/skip/route'),
+    import('../../app/api/v1/fixed-expense-instances/[id]/reopen/route'),
     import('../../app/api/v1/admin/users/route'),
     import('../../app/api/v1/admin/users/[id]/route'),
     import('../../app/api/v1/admin/users/[id]/deactivate/route'),
@@ -153,6 +165,14 @@ export async function buildRouter() {
   // Holiday Support
   addRoute('/api/v1/holiday-support-entries', { GET: holidaySupportMod.GET, POST: holidaySupportMod.POST });
   addRoute('/api/v1/holiday-support-entries/:id', { PATCH: holidaySupportIdMod.PATCH, DELETE: holidaySupportIdMod.DELETE });
+
+  // Fixed Expenses — instance sub-routes before :id
+  addRoute('/api/v1/fixed-expenses', { GET: fixedExpensesMod.GET, POST: fixedExpensesMod.POST });
+  addRoute('/api/v1/fixed-expenses/:id', { PATCH: fixedExpenseIdMod.PATCH });
+  addRoute('/api/v1/fixed-expense-instances', { GET: fixedExpenseInstancesMod.GET });
+  addRoute('/api/v1/fixed-expense-instances/:id/pay', { POST: fixedInstancePayMod.POST });
+  addRoute('/api/v1/fixed-expense-instances/:id/skip', { POST: fixedInstanceSkipMod.POST });
+  addRoute('/api/v1/fixed-expense-instances/:id/reopen', { POST: fixedInstanceReopenMod.POST });
 
   // Admin — specific sub-routes before :id
   addRoute('/api/v1/admin/users', { GET: adminUsersMod.GET, POST: adminUsersMod.POST });
