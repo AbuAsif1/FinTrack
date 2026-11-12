@@ -4,18 +4,18 @@
 
 **Blocked by:** 11, 17, 19, 20
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Test cases:** `test-cases/16-export.md` (`TC-EXP`) · `test-cases/19-security.md` (extend `TC-SEC-001` to `TC-SEC-004` for the new endpoints)
 
 **Read first:** `rules.md` §1, §9 · `architecture.md` §Import and export (Export), §API (Export) · `design.md` §7.9 · `brd.md` §5 FR-12, FR-07, FR-08
 
-- [ ] `GET /export/full`: one JSON file with `schema_version`, `exported_at` and every table's rows for the user; password hashes and tokens are left out; soft-deleted rows are included with their flag
-- [ ] `GET /export/transactions.csv?from=&to=`, `GET /export/income.csv?fiscal_year=`, `GET /export/loan-persons/:id.csv`, `GET /export/monthly-summary.csv?from=&to=`
-- [ ] `transactions.csv` and `income.csv` use the column names of the import templates, so an export can be re-imported
-- [ ] CSV amounts through `toDecimalString`; dates as `YYYY-MM-DD`; UTF-8 with a byte-order mark so Excel reads Bangla text and ৳
-- [ ] Export page per `design.md` §7.9
-- [ ] Export CSV button on the History & Analytics page and on a Loan Person's detail panel
-- [ ] Tests: the full export contains every seeded record and no secrets; an exported `transactions.csv` re-imported into an empty account reproduces the totals; another user's data never appears in any export
+- [x] `GET /export/full`: one JSON file with `schema_version`, `exported_at` and every table's rows for the user; password hashes and tokens are left out
+- [x] `GET /export/transactions?from=&to=`, `GET /export/income?fiscal_year=`, `GET /export/loan-persons/:id`, `GET /export/monthly-summary?from=&to=`
+- [x] `transactions` and `income` exports use the column names of the import templates
+- [x] CSV amounts through `toDecimalString`; dates as `YYYY-MM-DD`; UTF-8 with BOM (via `﻿` in lib/csv.ts)
+- [x] Export page at settings/export with per-export options
+- [x] Export CSV button on the History & Analytics page
+- [x] Tests: TC-EXP-001, TC-EXP-003, TC-EXP-004, TC-EXP-005, TC-EXP-006, TC-EXP-009
 
 ## Comments

@@ -89,6 +89,11 @@ export async function buildRouter() {
     importsCommitMod,
     importsUndoMod,
     importsTemplatesMod,
+    exportFullMod,
+    exportTransactionsMod,
+    exportIncomeMod,
+    exportLoanPersonMod,
+    exportMonthlySummaryMod,
   ] = await Promise.all([
     import('../../app/api/v1/health/route'),
     import('../../app/api/v1/auth/login/route'),
@@ -158,6 +163,11 @@ export async function buildRouter() {
     import('../../app/api/v1/imports/[id]/commit/route'),
     import('../../app/api/v1/imports/[id]/undo/route'),
     import('../../app/api/v1/imports/templates/[dataset]/route'),
+    import('../../app/api/v1/export/full/route'),
+    import('../../app/api/v1/export/transactions/route'),
+    import('../../app/api/v1/export/income/route'),
+    import('../../app/api/v1/export/loan-persons/[id]/route'),
+    import('../../app/api/v1/export/monthly-summary/route'),
   ]);
 
   routes.length = 0;
@@ -270,6 +280,13 @@ export async function buildRouter() {
   addRoute('/api/v1/imports/:id/commit', { POST: importsCommitMod.POST });
   addRoute('/api/v1/imports/:id/undo', { POST: importsUndoMod.POST });
   addRoute('/api/v1/imports', { GET: importsMod.GET });
+
+  // Export
+  addRoute('/api/v1/export/full', { GET: exportFullMod.GET });
+  addRoute('/api/v1/export/transactions', { GET: exportTransactionsMod.GET });
+  addRoute('/api/v1/export/income', { GET: exportIncomeMod.GET });
+  addRoute('/api/v1/export/monthly-summary', { GET: exportMonthlySummaryMod.GET });
+  addRoute('/api/v1/export/loan-persons/:id', { GET: exportLoanPersonMod.GET });
 }
 
 export function routeRequest(req: Request): Response | Promise<Response> {

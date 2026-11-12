@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import api from '@/lib/api';
+import api, { getAccessToken } from '@/lib/api';
 import { Amount } from '@/components/ui/Amount';
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -366,19 +366,37 @@ export default function HistoryPage() {
       {/* Page title + FY selector */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <h1 style={{ font: 'var(--t-page)', margin: 0 }}>History &amp; Analytics</h1>
-        <select
-          value={fy}
-          onChange={(e) => setFy(e.target.value)}
-          style={{
-            padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border)',
-            background: 'var(--bg-surface)', color: 'var(--fg-primary)', font: 'var(--t-label)',
-          }}
-          aria-label="Fiscal year"
-        >
-          {fyOptions.map((y) => (
-            <option key={y} value={y}>FY{y}</option>
-          ))}
-        </select>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <select
+            value={fy}
+            onChange={(e) => setFy(e.target.value)}
+            style={{
+              padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border)',
+              background: 'var(--bg-surface)', color: 'var(--fg-primary)', font: 'var(--t-label)',
+            }}
+            aria-label="Fiscal year"
+          >
+            {fyOptions.map((y) => (
+              <option key={y} value={y}>FY{y}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => {
+              const { from, to } = fyMonths(fy);
+              const token = getAccessToken();
+              fetch(`/api/v1/export/monthly-summary?from=${from}&to=${to}`, { headers: { Authorization: `Bearer ${token ?? ''}` } })
+                .then((r) => r.blob()).then((blob) => {
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url; a.download = `monthly_summary_${fy}.csv`; a.click();
+                  URL.revokeObjectURL(url);
+                });
+            }}
+            style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--fg-primary)', font: 'var(--t-label)', cursor: 'pointer' }}
+          >
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
