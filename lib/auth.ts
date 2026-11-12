@@ -150,3 +150,38 @@ export async function recordFailedLogin(key: string): Promise<void> {
 export async function resetRateLimit(key: string): Promise<void> {
   await prisma.authRateLimit.deleteMany({ where: { key } }).catch(() => {});
 }
+
+// ---------------------------------------------------------------------------
+// Registration/resend/reset rate limiting — 5 per IP and per email per hour
+// ---------------------------------------------------------------------------
+
+const REG_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const REG_MAX = 5;
+
+export async function checkRegRateLimit(key: string): Promise<void> {
+  const now = new Date();
+  const record = await prisma.authRateLimit.findUnique({ where: { key } });
+  if (record) {
+    const age = now.getTime() - record.windowStart.getTime();
+    if (age < REG_WINDOW_MS && record.attempts >= REG_MAX) {
+      throw new AuthError(429, 'RATE_LIMITED');
+    }
+  }
+}
+
+export async function recordRegAttempt(key: string): Promise<void> {
+  const now = new Date();
+  const record = await prisma.authRateLimit.findUnique({ where: { key } });
+  if (!record || now.getTime() - record.windowStart.getTime() >= REG_WINDOW_MS) {
+    await prisma.authRateLimit.upsert({
+      where: { key },
+      create: { key, windowStart: now, attempts: 1 },
+      update: { windowStart: now, attempts: 1 },
+    });
+  } else {
+    await prisma.authRateLimit.update({
+      where: { key },
+      data: { attempts: { increment: 1 } },
+    });
+  }
+}

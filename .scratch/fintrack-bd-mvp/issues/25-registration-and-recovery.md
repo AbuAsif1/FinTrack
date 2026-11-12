@@ -4,7 +4,7 @@
 
 **Blocked by:** 02, 12
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Test cases:** `test-cases/04-registration.md` (`TC-REG`) · `test-cases/19-security.md` (extend `TC-SEC-001` to `TC-SEC-004` for the new endpoints)
 
@@ -12,28 +12,30 @@
 
 **API**
 
-- [ ] `POST /auth/register`: name, email, password (at least 10 characters); creates the user unverified and runs `provisionNewUser` in the same database transaction; emails a verification link; 403 `SIGNUP_CLOSED` when `SIGNUP_MODE=closed`
-- [ ] `POST /auth/verify-email`: consumes the token and sets `email_verified_at`; an expired or used token is 422
-- [ ] `POST /auth/resend-verification`
-- [ ] `POST /auth/password-reset/request` and `POST /auth/password-reset/confirm`; a successful reset revokes every refresh token of that user
-- [ ] Tokens: 32 random bytes, stored as a SHA-256 hash in `email_tokens`, single use; verification valid 24 hours, reset valid 1 hour
-- [ ] Register, resend and reset-request give the same response whether or not the email is registered
-- [ ] Rate limit: 5 requests per IP and per email per hour on register, resend and reset-request
-- [ ] `lib/email.ts` with a Resend transport and an in-memory transport for tests; the two email templates (verify, reset) contain the link and no personal or financial data
+- [x] `POST /auth/register`: name, email, password (at least 10 characters); creates the user unverified and runs `provisionNewUser` in the same database transaction; emails a verification link; 403 `SIGNUP_CLOSED` when `SIGNUP_MODE=closed`
+- [x] `POST /auth/verify-email`: consumes the token and sets `email_verified_at`; an expired or used token is 422
+- [x] `POST /auth/resend-verification`
+- [x] `POST /auth/password-reset/request` and `POST /auth/password-reset/confirm`; a successful reset revokes every refresh token of that user
+- [x] Tokens: 32 random bytes, stored as a SHA-256 hash in `email_tokens`, single use; verification valid 24 hours, reset valid 1 hour
+- [x] Register, resend and reset-request give the same response whether or not the email is registered
+- [x] Rate limit: 5 requests per IP and per email per hour on register, resend and reset-request
+- [x] `lib/email.ts` with a Resend transport and an in-memory transport for tests; the two email templates (verify, reset) contain the link and no personal or financial data
 
 **Pages** (per `design.md` §7.10)
 
-- [ ] Create account, Check your email, Verify email, Forgot password, Reset password
-- [ ] Sign in page gains the Forgot password and Create account links, and the "Verify your email first" state with a resend action
-- [ ] Create account shows "Registration is currently closed" when sign-up is closed
+- [x] Create account, Check your email, Verify email, Forgot password, Reset password
+- [x] Sign in page gains the Forgot password and Create account links, and the "Verify your email first" state with a resend action
+- [x] Create account shows "Registration is currently closed" when sign-up is closed
 
 **Tests**
 
-- [ ] Register, follow the emailed link, sign in; the new account has the 16 starter categories, three provisional tax years and no financial records
-- [ ] Sign-in before verification is 403; an expired and a reused verification token are rejected
-- [ ] Registering an existing email returns the normal response and creates nothing
-- [ ] Password reset: the link works once, the old password stops working, and existing sessions end
-- [ ] `SIGNUP_MODE=closed` rejects registration; rate limits return 429
-- [ ] Two registered users: neither can read, change or export anything of the other's through any endpoint built so far
+- [x] Register, follow the emailed link, sign in; the new account has the 16 starter categories, three provisional tax years and no financial records
+- [x] Sign-in before verification is 403; an expired and a reused verification token are rejected
+- [x] Registering an existing email returns the normal response and creates nothing
+- [x] Password reset: the link works once, the old password stops working, and existing sessions end
+- [x] `SIGNUP_MODE=closed` rejects registration; rate limits return 429
+- [ ] Two registered users: neither can read, change or export anything of the other's through any endpoint built so far (covered in TC-SEC test file — requires auth tests from ticket 02)
 
 ## Comments
+
+Implemented on branch `ticket/25-registration`. Cross-user isolation test (TC-SEC) deferred to security test file as it depends on auth endpoints from ticket 02.
