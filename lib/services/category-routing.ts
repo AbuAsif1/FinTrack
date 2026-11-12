@@ -19,6 +19,11 @@ export interface CreateTxInput {
   category_id: string;
   payment_method: PaymentMethod;
   idempotency_key: string;
+  // Loan routing
+  loan_person_id?: string;
+  return_due_date?: string;
+  reason?: string;
+  is_settlement?: boolean;
 }
 
 export interface UpdateTxInput {
@@ -71,6 +76,45 @@ export class CategoryRoutingService {
     });
     if (!category) throw new RoutingError(422, 'VALIDATION_ERROR', 'Category not found');
     if (category.isArchived) throw new RoutingError(422, 'VALIDATION_ERROR', 'Category is archived');
+
+    if (category.routingType === 'LOAN_GIVEN' || category.routingType === 'LOAN_RECEIVED') {
+      if (!input.loan_person_id) throw new RoutingError(422, 'VALIDATION_ERROR', 'loan_person_id is required');
+      const loanPerson = await prisma.loanPerson.findFirst({
+        where: { id: input.loan_person_id, userId: this.userId },
+      });
+      if (!loanPerson) throw new RoutingError(422, 'VALIDATION_ERROR', 'Loan person not found');
+
+      const result = await prisma.$transaction(async (tx) => {
+        const transaction = await tx.transaction.create({
+          data: {
+            userId: this.userId,
+            amountPaisa: BigInt(input.amount_paisa),
+            date: toDbDate(input.date),
+            description: input.description,
+            categoryId: input.category_id,
+            type: category.routingType,
+            paymentMethod: input.payment_method,
+            idempotencyKey: input.idempotency_key,
+          },
+          include: { category: true },
+        });
+        const loanEntry = await tx.loanEntry.create({
+          data: {
+            userId: this.userId,
+            loanPersonId: input.loan_person_id!,
+            transactionId: transaction.id,
+            direction: category.routingType === 'LOAN_GIVEN' ? 'GIVEN' : 'RECEIVED',
+            reason: input.reason ?? null,
+            returnDueDate: input.return_due_date ? toDbDate(input.return_due_date) : null,
+            isSettlement: input.is_settlement ?? false,
+          },
+        });
+        return { transaction, loanEntry };
+      });
+
+      return { duplicate: false, transaction: txToJson(result.transaction), loanEntry: result.loanEntry };
+    }
+
     if (category.routingType !== 'NONE') {
       throw new RoutingError(422, 'ROUTING_NOT_IMPLEMENTED', 'This routing type is not yet supported');
     }
