@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import api from '@/lib/api';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -352,13 +353,9 @@ function DeleteConfirm({
   async function handleDelete() {
     setDeleting(true);
     if (ids.length === 1) {
-      await fetch(`/api/v1/transactions/${ids[0]}`, { method: 'DELETE' });
+      await api.delete(`/transactions/${ids[0]}`).catch(() => {});
     } else {
-      await fetch('/api/v1/transactions/bulk-delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids }),
-      });
+      await api.post('/transactions/bulk-delete', { ids }).catch(() => {});
     }
     onDeleted();
   }
@@ -424,7 +421,7 @@ function BudgetSidebar({ onManage }: { onManage: () => void }) {
   const [budgets, setBudgets] = useState<BudgetItem[]>([]);
 
   useEffect(() => {
-    fetch('/api/v1/budgets').then((r) => r.json()).then(setBudgets).catch(() => {});
+    api.get('/budgets').then(({ data }) => setBudgets(Array.isArray(data) ? data : [])).catch(() => {});
   }, []);
 
   if (budgets.length === 0) {
@@ -515,9 +512,8 @@ export default function TransactionsPage() {
     if (filterFrom) params.set('from', filterFrom);
     if (filterTo) params.set('to', filterTo);
 
-    const res = await fetch(`/api/v1/transactions?${params}`);
-    if (!res.ok) { setLoading(false); return; }
-    const data = await res.json();
+    const { data } = await api.get(`/transactions?${params}`).catch(() => ({ data: null }));
+    if (!data) { setLoading(false); return; }
     setTransactions(Array.isArray(data) ? data : data.transactions ?? []);
     if (data.total != null) setTotal(data.total);
     setLoading(false);
@@ -527,13 +523,13 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/v1/categories').then((r) => r.json()),
-      fetch('/api/v1/savings-accounts').then((r) => r.json()),
-      fetch('/api/v1/loan-persons').then((r) => r.json()),
+      api.get('/categories').then(({ data }) => data),
+      api.get('/savings-accounts').then(({ data }) => data),
+      api.get('/loan-persons').then(({ data }) => data),
     ]).then(([cats, accs, persons]) => {
-      setCategories(Array.isArray(cats) ? cats : cats.categories ?? []);
-      setSavingsAccounts(Array.isArray(accs) ? accs : accs.accounts ?? []);
-      setLoanPersons(Array.isArray(persons) ? persons : persons.persons ?? []);
+      setCategories(Array.isArray(cats) ? cats : []);
+      setSavingsAccounts(Array.isArray(accs) ? accs : []);
+      setLoanPersons(Array.isArray(persons) ? persons : []);
     }).catch(() => {});
   }, []);
 
@@ -774,12 +770,12 @@ function BudgetsPage({ onBack }: { onBack: () => void }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [b, c] = await Promise.all([
-      fetch('/api/v1/budgets').then((r) => r.json()),
-      fetch('/api/v1/categories').then((r) => r.json()),
+    const [{ data: b }, { data: c }] = await Promise.all([
+      api.get('/budgets'),
+      api.get('/categories'),
     ]);
     setBudgets(Array.isArray(b) ? b : []);
-    const cats = Array.isArray(c) ? c : c.categories ?? [];
+    const cats = Array.isArray(c) ? c : [];
     setCategories(cats.filter((cat: Category) => cat.routing_type === 'NONE'));
     setLoading(false);
   }, []);

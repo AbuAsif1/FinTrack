@@ -27,6 +27,8 @@
     "user:set-role": "tsx scripts/set-role.ts"
   },
   "dependencies": {
+    "@fintrack/shared": "workspace:*",
+    "@fintrack/tax-engine": "workspace:*",
     "@neondatabase/serverless": "^0.9.4",
     "@prisma/adapter-neon": "^5.19.0",
     "@tanstack/react-query": "^5.56.2",
@@ -41,9 +43,7 @@
     "react-hook-form": "^7.53.0",
     "recharts": "^2.12.7",
     "resend": "^4.0.0",
-    "zod": "^3.23.8",
-    "@fintrack/shared": "workspace:*",
-    "@fintrack/tax-engine": "workspace:*"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -58,6 +58,7 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "@vitest/coverage-v8": "^2.1.1",
+    "dotenv": "^18.0.10",
     "eslint": "^8.57.1",
     "eslint-config-next": "14.2.14",
     "jsdom": "^25.0.1",

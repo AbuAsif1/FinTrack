@@ -1,19 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 
 function createPrismaClient() {
-  const url = process.env.DATABASE_URL ?? '';
-  if (url && new URL(url).hostname.endsWith('neon.tech')) {
-    // Use @prisma/adapter-neon for Neon hosted PostgreSQL
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { Pool, neonConfig } = require('@neondatabase/serverless');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PrismaNeon } = require('@prisma/adapter-neon');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const ws = require('ws');
-    neonConfig.webSocketConstructor = ws;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return new PrismaClient({ adapter: new PrismaNeon(new Pool({ connectionString: url })) } as any);
-  }
+  // Neon adapter (WebSocket) is only needed for edge/serverless runtimes.
+  // In a standard Node.js process (local dev, Node-based deploy) Prisma connects
+  // over TCP directly — works fine with Neon over sslmode=require.
   return new PrismaClient();
 }
 

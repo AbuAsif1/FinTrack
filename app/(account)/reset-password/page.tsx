@@ -1,12 +1,12 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import axios from 'axios';
 
 type Stage = 'form' | 'success' | 'invalid';
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
   const [stage, setStage] = useState<Stage>(token ? 'form' : 'invalid');
@@ -153,5 +153,13 @@ export default function ResetPasswordPage() {
         </button>
       </form>
     </>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

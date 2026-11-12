@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import api from '@/lib/api';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -118,18 +119,13 @@ function AddEntryModal({
     let loanPersonId = existing?.id ?? null;
 
     if (!loanPersonId) {
-      const createRes = await fetch('/api/v1/loan-persons', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: form.person_name.trim() }),
-      });
-      if (!createRes.ok) {
+      const createRes = await api.post('/loan-persons', { name: form.person_name.trim() }).catch(() => null);
+      if (!createRes) {
         setError('Failed to create person.');
         setSaving(false);
         return;
       }
-      const created = await createRes.json();
-      loanPersonId = created.id;
+      loanPersonId = createRes.data.id;
     }
 
     const body: Record<string, unknown> = {
@@ -520,13 +516,12 @@ export default function LoansPage() {
   const load = useCallback(async () => {
     setLoading(true);
     const [sumRes, persRes] = await Promise.all([
-      fetch('/api/v1/loans/summary'),
-      fetch('/api/v1/loan-persons'),
+      api.get('/loans/summary').catch(() => null),
+      api.get('/loan-persons').catch(() => null),
     ]);
-    if (sumRes.ok) setSummary(await sumRes.json());
-    if (persRes.ok) {
-      const data = await persRes.json();
-      const list: LoanPerson[] = Array.isArray(data) ? data : data.persons ?? [];
+    if (sumRes) setSummary(sumRes.data);
+    if (persRes) {
+      const list: LoanPerson[] = Array.isArray(persRes.data) ? persRes.data : [];
       setPersons(list);
       if (!selectedPersonId && list.length > 0) setSelectedPersonId(list[0].id);
     }

@@ -15,7 +15,7 @@ function downloadUrl(path: string) {
       const a = document.createElement('a');
       a.href = url;
       const cd = '';
-      a.download = cd || path.split('/').pop() ?? 'export';
+      a.download = (cd || path.split('/').pop()) ?? 'export';
       a.click();
       URL.revokeObjectURL(url);
     });

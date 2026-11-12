@@ -1,12 +1,12 @@
 ﻿'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import axios from 'axios';
 
 type Stage = 'loading' | 'success' | 'invalid';
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const [stage, setStage] = useState<Stage>('loading');
@@ -110,5 +110,13 @@ export default function VerifyEmailPage() {
         <a href="/login" style={{ color: 'var(--accent)', font: 'var(--t-caption)', textDecoration: 'none' }}>Back to sign in</a>
       </div>
     </>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }
