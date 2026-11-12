@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { getAuthUser, AuthError } from '@/lib/auth';
 
 const RoutingTypeEnum = z.enum([
   'NONE',
@@ -31,12 +31,17 @@ function catToJson(cat: {
 }
 
 export async function GET(req: Request) {
-  const user = await getAuthUser(req);
-  const cats = await prisma.category.findMany({
-    where: { userId: user.id },
-    orderBy: [{ isArchived: 'asc' }, { name: 'asc' }],
-  });
-  return Response.json(cats.map(catToJson));
+  try {
+    const user = await getAuthUser(req);
+    const cats = await prisma.category.findMany({
+      where: { userId: user.id },
+      orderBy: [{ isArchived: 'asc' }, { name: 'asc' }],
+    });
+    return Response.json(cats.map(catToJson));
+  } catch (err) {
+    if (err instanceof AuthError) return Response.json({ error: err.message, code: err.code }, { status: err.status });
+    throw err;
+  }
 }
 
 export async function POST(req: Request) {

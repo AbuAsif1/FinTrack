@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { getAuthUser, AuthError } from '@/lib/auth';
 import { CategoryRoutingService, RoutingError } from '@/lib/services/category-routing';
 import { toDbDate } from '@fintrack/shared';
 
@@ -54,7 +54,13 @@ function txRow(tx: {
 }
 
 export async function GET(req: Request) {
-  const user = await getAuthUser(req);
+  let user: Awaited<ReturnType<typeof getAuthUser>>;
+  try {
+    user = await getAuthUser(req);
+  } catch (err) {
+    if (err instanceof AuthError) return Response.json({ error: err.message, code: err.code }, { status: err.status });
+    throw err;
+  }
   const url = new URL(req.url);
 
   const from = url.searchParams.get('from');

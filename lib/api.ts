@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 let accessToken: string | null = null;
+let sessionRestorePromise: Promise<boolean> | null = null;
 
 export function setAccessToken(token: string | null) {
   accessToken = token;
@@ -70,13 +71,23 @@ api.interceptors.response.use(
 export default api;
 
 export async function tryRestoreSession(): Promise<boolean> {
-  try {
-    const { data } = await axios.post<{ accessToken: string }>('/api/v1/auth/refresh', null, {
-      withCredentials: true,
-    });
-    accessToken = data.accessToken;
-    return true;
-  } catch {
-    return false;
-  }
+  // If we already have a valid in-memory token, no refresh needed.
+  if (accessToken) return true;
+  // Deduplicate concurrent calls (Strict Mode fires useEffect twice; token rotation
+  // means the second concurrent call would get TOKEN_REUSE and revoke all sessions).
+  if (sessionRestorePromise) return sessionRestorePromise;
+  sessionRestorePromise = (async () => {
+    try {
+      const { data } = await axios.post<{ accessToken: string }>('/api/v1/auth/refresh', null, {
+        withCredentials: true,
+      });
+      accessToken = data.accessToken;
+      return true;
+    } catch {
+      return false;
+    } finally {
+      sessionRestorePromise = null;
+    }
+  })();
+  return sessionRestorePromise;
 }

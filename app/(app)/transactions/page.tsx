@@ -504,7 +504,7 @@ export default function TransactionsPage() {
 
     const { data } = await api.get(`/transactions?${params}`).catch(() => ({ data: null }));
     if (!data) { setLoading(false); return; }
-    setTransactions(Array.isArray(data) ? data : data.transactions ?? []);
+    setTransactions(Array.isArray(data) ? data : (data.data ?? data.transactions ?? []));
     if (data.total != null) setTotal(data.total);
     setLoading(false);
   }, [page, search, filterCategory, filterMethod, filterFrom, filterTo]);
@@ -512,15 +512,10 @@ export default function TransactionsPage() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    Promise.all([
-      api.get('/categories').then(({ data }) => data),
-      api.get('/savings-accounts').then(({ data }) => data),
-      api.get('/loan-persons').then(({ data }) => data),
-    ]).then(([cats, accs, persons]) => {
-      setCategories(Array.isArray(cats) ? cats : []);
-      setSavingsAccounts(Array.isArray(accs) ? accs : (accs?.accounts ?? []));
-      setLoanPersons(Array.isArray(persons) ? persons : []);
-    }).catch(() => {});
+    // Load each independently so one failure doesn't block the others
+    api.get('/categories').then(({ data }) => setCategories(Array.isArray(data) ? data : [])).catch(() => {});
+    api.get('/savings-accounts').then(({ data }) => setSavingsAccounts(Array.isArray(data) ? data : (data?.accounts ?? []))).catch(() => {});
+    api.get('/loan-persons').then(({ data }) => setLoanPersons(Array.isArray(data) ? data : [])).catch(() => {});
   }, []);
 
   function clearFilters() {

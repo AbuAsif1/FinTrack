@@ -24,7 +24,9 @@
     "db:seed": "tsx prisma/seed.ts",
     "user:create": "tsx scripts/user-create.ts",
     "user:reset-password": "tsx scripts/reset-password.ts",
-    "user:set-role": "tsx scripts/set-role.ts"
+    "user:set-role": "tsx scripts/set-role.ts",
+    "seed:e2e": "tsx scripts/e2e-seed.ts",
+    "test:e2e:happy": "playwright test --config playwright.happy-path.config.ts"
   },
   "dependencies": {
     "@fintrack/shared": "workspace:*",
