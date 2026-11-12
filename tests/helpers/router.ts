@@ -37,6 +37,9 @@ export async function buildRouter() {
     transactionsMod,
     transactionBulkDeleteMod,
     transactionIdMod,
+    savingsAccountsMod,
+    savingsAccountIdMod,
+    savingsAccountTxsMod,
     adminUsersMod,
     adminUserIdMod,
     adminDeactivateMod,
@@ -63,6 +66,9 @@ export async function buildRouter() {
     import('../../app/api/v1/transactions/route'),
     import('../../app/api/v1/transactions/bulk-delete/route'),
     import('../../app/api/v1/transactions/[id]/route'),
+    import('../../app/api/v1/savings-accounts/route'),
+    import('../../app/api/v1/savings-accounts/[id]/route'),
+    import('../../app/api/v1/savings-accounts/[id]/transactions/route'),
     import('../../app/api/v1/admin/users/route'),
     import('../../app/api/v1/admin/users/[id]/route'),
     import('../../app/api/v1/admin/users/[id]/deactivate/route'),
@@ -100,6 +106,11 @@ export async function buildRouter() {
     PATCH: transactionIdMod.PATCH,
     DELETE: transactionIdMod.DELETE,
   });
+
+  // Savings accounts — :id/transactions before :id
+  addRoute('/api/v1/savings-accounts', { GET: savingsAccountsMod.GET, POST: savingsAccountsMod.POST });
+  addRoute('/api/v1/savings-accounts/:id/transactions', { GET: savingsAccountTxsMod.GET });
+  addRoute('/api/v1/savings-accounts/:id', { GET: savingsAccountIdMod.GET, PATCH: savingsAccountIdMod.PATCH });
 
   // Admin — specific sub-routes before :id
   addRoute('/api/v1/admin/users', { GET: adminUsersMod.GET, POST: adminUsersMod.POST });
