@@ -46,6 +46,11 @@ export async function buildRouter() {
     loanEntryIdMod,
     loanSettleMod,
     loansSummaryMod,
+    incomeEntriesMod,
+    incomeEntryIdMod,
+    incomeSummaryMod,
+    holidaySupportMod,
+    holidaySupportIdMod,
     adminUsersMod,
     adminUserIdMod,
     adminDeactivateMod,
@@ -81,6 +86,11 @@ export async function buildRouter() {
     import('../../app/api/v1/loan-persons/[id]/entries/[entryId]/route'),
     import('../../app/api/v1/loan-persons/[id]/settle/route'),
     import('../../app/api/v1/loans/summary/route'),
+    import('../../app/api/v1/income-entries/route'),
+    import('../../app/api/v1/income-entries/[id]/route'),
+    import('../../app/api/v1/income-entries/summary/route'),
+    import('../../app/api/v1/holiday-support-entries/route'),
+    import('../../app/api/v1/holiday-support-entries/[id]/route'),
     import('../../app/api/v1/admin/users/route'),
     import('../../app/api/v1/admin/users/[id]/route'),
     import('../../app/api/v1/admin/users/[id]/deactivate/route'),
@@ -134,6 +144,15 @@ export async function buildRouter() {
   addRoute('/api/v1/loan-persons/:id/entries', { GET: loanEntriesMod.GET, POST: loanEntriesMod.POST });
   addRoute('/api/v1/loan-persons/:id/settle', { POST: loanSettleMod.POST });
   addRoute('/api/v1/loan-persons/:id', { PATCH: loanPersonIdMod.PATCH });
+
+  // Income — summary before :id
+  addRoute('/api/v1/income-entries/summary', { GET: incomeSummaryMod.GET });
+  addRoute('/api/v1/income-entries', { GET: incomeEntriesMod.GET, POST: incomeEntriesMod.POST });
+  addRoute('/api/v1/income-entries/:id', { PATCH: incomeEntryIdMod.PATCH, DELETE: incomeEntryIdMod.DELETE });
+
+  // Holiday Support
+  addRoute('/api/v1/holiday-support-entries', { GET: holidaySupportMod.GET, POST: holidaySupportMod.POST });
+  addRoute('/api/v1/holiday-support-entries/:id', { PATCH: holidaySupportIdMod.PATCH, DELETE: holidaySupportIdMod.DELETE });
 
   // Admin — specific sub-routes before :id
   addRoute('/api/v1/admin/users', { GET: adminUsersMod.GET, POST: adminUsersMod.POST });
