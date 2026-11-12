@@ -1,3 +1,10 @@
-﻿export default function Page() {
-  return <h1 style={{ font: 'var(--t-page)' }}>Budgets</h1>;
+﻿'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function BudgetsRedirect() {
+  const router = useRouter();
+  useEffect(() => { router.replace('/transactions'); }, [router]);
+  return null;
 }
