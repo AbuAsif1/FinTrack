@@ -1,0 +1,460 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum RoutingType {
+  NONE
+  SAVINGS_DEPOSIT
+  SAVINGS_WITHDRAWAL
+  SAVINGS_INTEREST
+  LOAN_GIVEN
+  LOAN_RECEIVED
+  TAX_PAYMENT
+}
+
+enum PaymentMethod {
+  CASH
+  BKASH
+  BANK
+  CARD
+}
+
+enum IncomeType {
+  SALARY
+  CHEER
+  PROFIT_SHARE
+  EID_BONUS
+  LEAVE_ENCASHMENT
+  CERTIFICATION
+  HOLIDAY_SUPPORT
+  OTHER
+}
+
+enum SavingsAccountType {
+  SAVINGS
+  DPS
+  SANCHAYPATRA
+  INVESTMENT
+  CASH
+}
+
+enum FixedExpenseStatus {
+  PENDING
+  PAID
+  SKIPPED
+}
+
+enum LoanDirection {
+  GIVEN
+  RECEIVED
+}
+
+enum NotificationType {
+  FIXED_DUE_SOON
+  FIXED_OVERDUE
+  LOAN_RETURN_DUE_SOON
+  LOAN_RETURN_OVERDUE
+  BUDGET_80
+  BUDGET_EXCEEDED
+  TAX_CONFIG_PROVISIONAL
+}
+
+enum ImportDataset {
+  INCOME
+  TRANSACTIONS
+  LOAN_ENTRIES
+}
+
+enum EmailTokenPurpose {
+  VERIFY_EMAIL
+  PASSWORD_RESET
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id                 String    @id @default(cuid())
+  email              String    @unique @db.Citext
+  passwordHash       String?   @map("password_hash")
+  name               String
+  role               UserRole  @default(USER)
+  emailVerifiedAt    DateTime? @map("email_verified_at")
+  deactivatedAt      DateTime? @map("deactivated_at")
+  deactivatedUntil   DateTime? @map("deactivated_until")
+  deactivationReason String?   @map("deactivation_reason")
+  lastLoginAt        DateTime? @map("last_login_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  refreshTokens          RefreshToken[]
+  emailTokens            EmailToken[]
+  payments               UserPayment[]
+  categories             Category[]
+  transactions           Transaction[]
+  savingsAccounts        SavingsAccount[]
+  loanPersons            LoanPerson[]
+  loanEntries            LoanEntry[]
+  incomeEntries          IncomeEntry[]
+  holidaySupportEntries  HolidaySupportEntry[]
+  fixedExpenses          FixedExpense[]
+  fixedExpenseInstances  FixedExpenseInstance[]
+  taxYears               TaxYear[]
+  taxInvestments         TaxInvestment[]
+  budgets                Budget[]
+  notifications          Notification[]
+  importBatches          ImportBatch[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model EmailToken {
+  id        String            @id @default(cuid())
+  userId    String            @map("user_id")
+  purpose   EmailTokenPurpose
+  tokenHash String            @unique @map("token_hash")
+  expiresAt DateTime          @map("expires_at")
+  usedAt    DateTime?         @map("used_at")
+  createdAt DateTime          @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("email_tokens")
+}
+
+model UserPayment {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  paidOn      DateTime @db.Date @map("paid_on")
+  amountPaisa BigInt   @map("amount_paisa")
+  coversUntil DateTime @db.Date @map("covers_until")
+  note        String?
+  recordedBy  String   @map("recorded_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_payments")
+}
+
+model AdminAction {
+  id           String   @id @default(cuid())
+  adminId      String   @map("admin_id")
+  targetUserId String?  @map("target_user_id")
+  targetEmail  String   @map("target_email")
+  action       String
+  detail       String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("admin_actions")
+}
+
+model AuthRateLimit {
+  key         String   @id
+  windowStart DateTime @map("window_start")
+  attempts    Int
+
+  @@map("auth_rate_limits")
+}
+
+model Category {
+  id          String      @id @default(cuid())
+  userId      String      @map("user_id")
+  name        String
+  routingType RoutingType @map("routing_type")
+  colorHex    String      @map("color_hex")
+  isArchived  Boolean     @default(false) @map("is_archived")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions          Transaction[]
+  fixedExpenses         FixedExpense[]
+  budgets               Budget[]
+
+  @@unique([userId, name])
+  @@map("categories")
+}
+
+model Transaction {
+  id               String        @id @default(cuid())
+  userId           String        @map("user_id")
+  date             DateTime      @db.Date
+  amountPaisa      BigInt        @map("amount_paisa")
+  description      String
+  categoryId       String        @map("category_id")
+  type             RoutingType
+  paymentMethod    PaymentMethod @map("payment_method")
+  savingsAccountId String?       @map("savings_account_id")
+  taxFiscalYear    String?       @map("tax_fiscal_year")
+  idempotencyKey   String        @map("idempotency_key")
+  importBatchId    String?       @map("import_batch_id")
+  isDeleted        Boolean       @default(false) @map("is_deleted")
+  deletedAt        DateTime?     @map("deleted_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category             Category              @relation(fields: [categoryId], references: [id])
+  savingsAccount       SavingsAccount?       @relation(fields: [savingsAccountId], references: [id])
+  loanEntry            LoanEntry?
+  fixedExpenseInstance FixedExpenseInstance?
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, date])
+  @@index([userId, savingsAccountId])
+  @@map("transactions")
+}
+
+model SavingsAccount {
+  id                     String              @id @default(cuid())
+  userId                 String              @map("user_id")
+  name                   String
+  type                   SavingsAccountType
+  bankName               String              @map("bank_name")
+  lastFour               String?             @map("last_four")
+  openingBalancePaisa    BigInt              @default(0) @map("opening_balance_paisa")
+  openingDate            DateTime            @db.Date @map("opening_date")
+  monthlyInstallmentPaisa BigInt?            @map("monthly_installment_paisa")
+  maturityDate           DateTime?           @db.Date @map("maturity_date")
+  interestRateBps        Int?                @map("interest_rate_bps")
+  closedOn               DateTime?           @db.Date @map("closed_on")
+  createdAt              DateTime            @default(now()) @map("created_at")
+  updatedAt              DateTime            @updatedAt @map("updated_at")
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+  fixedExpenses FixedExpense[]
+
+  @@map("savings_accounts")
+}
+
+model LoanPerson {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  name      String
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loanEntries LoanEntry[]
+
+  @@unique([userId, name])
+  @@map("loan_persons")
+}
+
+model LoanEntry {
+  id            String       @id @default(cuid())
+  userId        String       @map("user_id")
+  loanPersonId  String       @map("loan_person_id")
+  transactionId String       @unique @map("transaction_id")
+  direction     LoanDirection
+  reason        String?
+  returnDueDate DateTime?    @db.Date @map("return_due_date")
+  isSettlement  Boolean      @default(false) @map("is_settlement")
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loanPerson  LoanPerson  @relation(fields: [loanPersonId], references: [id])
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+
+  @@map("loan_entries")
+}
+
+model IncomeEntry {
+  id             String     @id @default(cuid())
+  userId         String     @map("user_id")
+  month          DateTime   @db.Date
+  fiscalYear     String     @map("fiscal_year")
+  incomeType     IncomeType @map("income_type")
+  grossPaisa     BigInt     @map("gross_paisa")
+  tdsPaisa       BigInt     @map("tds_paisa")
+  isTaxable      Boolean    @default(true) @map("is_taxable")
+  employerName   String?    @map("employer_name")
+  payerName      String?    @map("payer_name")
+  earnedPeriod   String?    @map("earned_period")
+  comment        String?
+  idempotencyKey String     @map("idempotency_key")
+  importBatchId  String?    @map("import_batch_id")
+  isDeleted      Boolean    @default(false) @map("is_deleted")
+  deletedAt      DateTime?  @map("deleted_at")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, fiscalYear])
+  @@map("income_entries")
+}
+
+model HolidaySupportEntry {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  date        DateTime @db.Date
+  days        Int
+  rateType    String   @map("rate_type")
+  ratePaisa   BigInt   @map("rate_paisa")
+  amountPaisa BigInt   @map("amount_paisa")
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("holiday_support_entries")
+}
+
+model FixedExpense {
+  id                  String    @id @default(cuid())
+  userId              String    @map("user_id")
+  name                String
+  standardAmountPaisa BigInt    @map("standard_amount_paisa")
+  dueDay              Int       @map("due_day")
+  categoryId          String    @map("category_id")
+  savingsAccountId    String?   @map("savings_account_id")
+  startMonth          DateTime  @db.Date @map("start_month")
+  endMonth            DateTime? @db.Date @map("end_month")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category       Category               @relation(fields: [categoryId], references: [id])
+  savingsAccount SavingsAccount?        @relation(fields: [savingsAccountId], references: [id])
+  instances      FixedExpenseInstance[]
+
+  @@map("fixed_expenses")
+}
+
+model FixedExpenseInstance {
+  id                  String             @id @default(cuid())
+  userId              String             @map("user_id")
+  fixedExpenseId      String             @map("fixed_expense_id")
+  month               DateTime           @db.Date
+  dueDate             DateTime           @db.Date @map("due_date")
+  standardAmountPaisa BigInt             @map("standard_amount_paisa")
+  status              FixedExpenseStatus @default(PENDING)
+  actualAmountPaisa   BigInt?            @map("actual_amount_paisa")
+  paidDate            DateTime?          @db.Date @map("paid_date")
+  transactionId       String?            @unique @map("transaction_id")
+  note                String?
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fixedExpense FixedExpense @relation(fields: [fixedExpenseId], references: [id])
+  transaction  Transaction? @relation(fields: [transactionId], references: [id])
+
+  @@unique([fixedExpenseId, month])
+  @@map("fixed_expense_instances")
+}
+
+model TaxYear {
+  id                 String    @id @default(cuid())
+  userId             String    @map("user_id")
+  fiscalYear         String    @map("fiscal_year")
+  configJson         Json      @map("config_json")
+  configConfirmedAt  DateTime? @map("config_confirmed_at")
+  filedOn            DateTime? @db.Date @map("filed_on")
+  filedResultJson    Json?     @map("filed_result_json")
+  isLocked           Boolean   @default(false) @map("is_locked")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fiscalYear])
+  @@map("tax_years")
+}
+
+model TaxInvestment {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  fiscalYear      String   @map("fiscal_year")
+  stocksPaisa     BigInt   @default(0) @map("stocks_paisa")
+  insurancePaisa  BigInt   @default(0) @map("insurance_paisa")
+  othersPaisa     BigInt   @default(0) @map("others_paisa")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fiscalYear])
+  @@map("tax_investments")
+}
+
+model Budget {
+  id                  String   @id @default(cuid())
+  userId              String   @map("user_id")
+  categoryId          String   @map("category_id")
+  effectiveFromMonth  DateTime @db.Date @map("effective_from_month")
+  monthlyLimitPaisa   BigInt?  @map("monthly_limit_paisa")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@unique([userId, categoryId, effectiveFromMonth])
+  @@map("budgets")
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String           @map("user_id")
+  type       NotificationType
+  message    String
+  entityType String?          @map("entity_type")
+  entityId   String?          @map("entity_id")
+  dedupeKey  String           @map("dedupe_key")
+  isRead     Boolean          @default(false) @map("is_read")
+  resolvedAt DateTime?        @map("resolved_at")
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@map("notifications")
+}
+
+model ImportBatch {
+  id          String        @id @default(cuid())
+  userId      String        @map("user_id")
+  dataset     ImportDataset
+  filename    String
+  status      String
+  rowCount    Int           @map("row_count")
+  rowsJson    Json          @map("rows_json")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  committedAt DateTime?     @map("committed_at")
+  undoneAt    DateTime?     @map("undone_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("import_batches")
+}
