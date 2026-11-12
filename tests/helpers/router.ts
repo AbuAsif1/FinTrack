@@ -62,6 +62,15 @@ export async function buildRouter() {
     notificationsMod,
     notificationReadMod,
     notificationReadAllMod,
+    taxSummaryMod,
+    taxForecastMod,
+    taxCompareMod,
+    taxYearsMod,
+    taxYearFyMod,
+    taxYearConfirmMod,
+    taxYearFileMod,
+    taxYearReopenMod,
+    taxInvestmentsMod,
     adminUsersMod,
     adminUserIdMod,
     adminDeactivateMod,
@@ -113,6 +122,15 @@ export async function buildRouter() {
     import('../../app/api/v1/notifications/route'),
     import('../../app/api/v1/notifications/[id]/read/route'),
     import('../../app/api/v1/notifications/read-all/route'),
+    import('../../app/api/v1/tax/summary/route'),
+    import('../../app/api/v1/tax/forecast/route'),
+    import('../../app/api/v1/tax/compare/route'),
+    import('../../app/api/v1/tax-years/route'),
+    import('../../app/api/v1/tax-years/[fiscalYear]/route'),
+    import('../../app/api/v1/tax-years/[fiscalYear]/confirm/route'),
+    import('../../app/api/v1/tax-years/[fiscalYear]/file/route'),
+    import('../../app/api/v1/tax-years/[fiscalYear]/reopen/route'),
+    import('../../app/api/v1/tax-investments/[fiscalYear]/route'),
     import('../../app/api/v1/admin/users/route'),
     import('../../app/api/v1/admin/users/[id]/route'),
     import('../../app/api/v1/admin/users/[id]/deactivate/route'),
@@ -192,6 +210,17 @@ export async function buildRouter() {
   addRoute('/api/v1/notifications/read-all', { POST: notificationReadAllMod.POST });
   addRoute('/api/v1/notifications/:id/read', { POST: notificationReadMod.POST });
   addRoute('/api/v1/notifications', { GET: notificationsMod.GET });
+
+  // Tax — specific sub-routes before :fiscalYear
+  addRoute('/api/v1/tax/summary', { GET: taxSummaryMod.GET });
+  addRoute('/api/v1/tax/forecast', { GET: taxForecastMod.GET });
+  addRoute('/api/v1/tax/compare', { GET: taxCompareMod.GET });
+  addRoute('/api/v1/tax-years', { GET: taxYearsMod.GET });
+  addRoute('/api/v1/tax-years/:fiscalYear/confirm', { POST: taxYearConfirmMod.POST });
+  addRoute('/api/v1/tax-years/:fiscalYear/file', { POST: taxYearFileMod.POST });
+  addRoute('/api/v1/tax-years/:fiscalYear/reopen', { POST: taxYearReopenMod.POST });
+  addRoute('/api/v1/tax-years/:fiscalYear', { GET: taxYearFyMod.GET, PUT: taxYearFyMod.PUT });
+  addRoute('/api/v1/tax-investments/:fiscalYear', { GET: taxInvestmentsMod.GET, PUT: taxInvestmentsMod.PUT });
 
   // Admin — specific sub-routes before :id
   addRoute('/api/v1/admin/users', { GET: adminUsersMod.GET, POST: adminUsersMod.POST });
