@@ -37,6 +37,15 @@ export async function buildRouter() {
     transactionsMod,
     transactionBulkDeleteMod,
     transactionIdMod,
+    adminUsersMod,
+    adminUserIdMod,
+    adminDeactivateMod,
+    adminReactivateMod,
+    adminResendVerifyMod,
+    adminSendPwResetMod,
+    adminPaymentsMod,
+    adminPaymentIdMod,
+    adminActionsMod,
   ] = await Promise.all([
     import('../../app/api/v1/health/route'),
     import('../../app/api/v1/auth/login/route'),
@@ -54,6 +63,15 @@ export async function buildRouter() {
     import('../../app/api/v1/transactions/route'),
     import('../../app/api/v1/transactions/bulk-delete/route'),
     import('../../app/api/v1/transactions/[id]/route'),
+    import('../../app/api/v1/admin/users/route'),
+    import('../../app/api/v1/admin/users/[id]/route'),
+    import('../../app/api/v1/admin/users/[id]/deactivate/route'),
+    import('../../app/api/v1/admin/users/[id]/reactivate/route'),
+    import('../../app/api/v1/admin/users/[id]/resend-verification/route'),
+    import('../../app/api/v1/admin/users/[id]/send-password-reset/route'),
+    import('../../app/api/v1/admin/users/[id]/payments/route'),
+    import('../../app/api/v1/admin/users/[id]/payments/[paymentId]/route'),
+    import('../../app/api/v1/admin/actions/route'),
   ]);
 
   routes.length = 0;
@@ -82,6 +100,24 @@ export async function buildRouter() {
     PATCH: transactionIdMod.PATCH,
     DELETE: transactionIdMod.DELETE,
   });
+
+  // Admin — specific sub-routes before :id
+  addRoute('/api/v1/admin/users', { GET: adminUsersMod.GET, POST: adminUsersMod.POST });
+  addRoute('/api/v1/admin/users/:id/deactivate', { POST: adminDeactivateMod.POST });
+  addRoute('/api/v1/admin/users/:id/reactivate', { POST: adminReactivateMod.POST });
+  addRoute('/api/v1/admin/users/:id/resend-verification', { POST: adminResendVerifyMod.POST });
+  addRoute('/api/v1/admin/users/:id/send-password-reset', { POST: adminSendPwResetMod.POST });
+  addRoute('/api/v1/admin/users/:id/payments/:paymentId', {
+    PATCH: adminPaymentIdMod.PATCH,
+    DELETE: adminPaymentIdMod.DELETE,
+  });
+  addRoute('/api/v1/admin/users/:id/payments', { GET: adminPaymentsMod.GET, POST: adminPaymentsMod.POST });
+  addRoute('/api/v1/admin/users/:id', {
+    GET: adminUserIdMod.GET,
+    PATCH: adminUserIdMod.PATCH,
+    DELETE: adminUserIdMod.DELETE,
+  });
+  addRoute('/api/v1/admin/actions', { GET: adminActionsMod.GET });
 }
 
 export function routeRequest(req: Request): Response | Promise<Response> {
