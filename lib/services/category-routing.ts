@@ -29,6 +29,8 @@ export interface CreateTxInput {
   is_settlement?: boolean;
   // Tax routing
   tax_fiscal_year?: string;
+  // Import
+  import_batch_id?: string;
 }
 
 export interface UpdateTxInput {
@@ -205,6 +207,7 @@ export class CategoryRoutingService {
           paymentMethod: input.payment_method,
           savingsAccountId: input.savings_account_id,
           idempotencyKey: input.idempotency_key,
+          importBatchId: input.import_batch_id ?? null,
         },
         include: { category: true },
       });
@@ -232,6 +235,7 @@ export class CategoryRoutingService {
             type: category.routingType,
             paymentMethod: input.payment_method,
             idempotencyKey: input.idempotency_key,
+            importBatchId: input.import_batch_id ?? null,
           },
           include: { category: true },
         });
@@ -272,6 +276,7 @@ export class CategoryRoutingService {
           paymentMethod: input.payment_method,
           taxFiscalYear: taxFY,
           idempotencyKey: input.idempotency_key,
+          importBatchId: input.import_batch_id ?? null,
         },
         include: { category: true },
       });
@@ -297,6 +302,7 @@ export class CategoryRoutingService {
         type: category.routingType,
         paymentMethod: input.payment_method,
         idempotencyKey: input.idempotency_key,
+        importBatchId: input.import_batch_id ?? null,
       },
       include: { category: true },
     });
