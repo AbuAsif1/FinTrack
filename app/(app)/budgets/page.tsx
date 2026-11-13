@@ -25,7 +25,32 @@ function fmt(paisa: number) {
   return '৳' + (paisa / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function currentYM(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function formatMonthLabel(ym: string): string {
+  const [y, m] = ym.split('-');
+  return new Date(Number(y), Number(m) - 1, 1)
+    .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+function prevMonth(ym: string): string {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(y, m - 2, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function nextMonth(ym: string): string {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(y, m, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export default function BudgetsPage() {
+  const today = currentYM();
+  const [selectedMonth, setSelectedMonth] = useState(today);
   const [budgets, setBudgets] = useState<BudgetItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,10 +58,10 @@ export default function BudgetsPage() {
   const [limitInput, setLimitInput] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (month: string) => {
     setLoading(true);
     const [{ data: b }, { data: c }] = await Promise.all([
-      api.get('/budgets'),
+      api.get(`/budgets?month=${month}`),
       api.get('/categories'),
     ]);
     setBudgets(Array.isArray(b) ? b : []);
@@ -45,7 +70,7 @@ export default function BudgetsPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(selectedMonth); }, [load, selectedMonth]);
 
   async function saveBudget() {
     if (!editing) return;
@@ -55,27 +80,68 @@ export default function BudgetsPage() {
     await api.put(`/budgets/${editing.categoryId}`, { monthly_limit_paisa: paisa }).catch(() => {});
     setSaving(false);
     setEditing(null);
-    load();
+    load(selectedMonth);
   }
 
   async function removeBudget(categoryId: string) {
     await api.delete(`/budgets/${categoryId}`).catch(() => {});
-    load();
+    load(selectedMonth);
   }
 
   const setBudgetsCount = budgets.length;
   const overCount = budgets.filter((b) => b.state === 'over').length;
+  const isCurrentMonth = selectedMonth === today;
+  const isFuture = selectedMonth > today;
 
   return (
     <div>
       <PageHeader
         eyebrow="Monthly spending limits"
         title="Budgets"
-        description="Set limits per category and track how much of each you've used this month."
+        description="Set limits per category and track how much of each you've used."
       />
 
+      {/* ── Month navigator ── */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 10,
+        padding: '10px 16px',
+        marginBottom: 20,
+      }}>
+        <button
+          onClick={() => { setSelectedMonth(prevMonth(selectedMonth)); setEditing(null); }}
+          style={{ padding: '6px 12px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: 'pointer', font: 'var(--t-body)', color: 'var(--fg-secondary)' }}
+        >
+          ‹
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ font: '600 15px var(--font-space-grotesk, system-ui)', color: 'var(--fg-primary)' }}>
+            {formatMonthLabel(selectedMonth)}
+          </span>
+          {isCurrentMonth && (
+            <span style={{ font: 'var(--t-caption)', color: 'var(--accent)', background: 'rgba(99,102,241,0.1)', padding: '2px 8px', borderRadius: 999 }}>
+              This month
+            </span>
+          )}
+        </div>
+
+        <button
+          onClick={() => { setSelectedMonth(nextMonth(selectedMonth)); setEditing(null); }}
+          disabled={isFuture}
+          style={{ padding: '6px 12px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: isFuture ? 'not-allowed' : 'pointer', opacity: isFuture ? 0.3 : 1, font: 'var(--t-body)', color: 'var(--fg-secondary)' }}
+        >
+          ›
+        </button>
+      </div>
+
+      {/* ── Summary tiles ── */}
       {setBudgetsCount > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
           <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
             <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 4 }}>BUDGETS SET</div>
             <div style={{ font: 'var(--t-data)', color: 'var(--fg-primary)' }}>{setBudgetsCount}</div>
@@ -91,6 +157,7 @@ export default function BudgetsPage() {
         </div>
       )}
 
+      {/* ── Budget rows ── */}
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: 'var(--fg-muted)', font: 'var(--t-body)' }}>Loading…</div>
       ) : (
@@ -133,13 +200,18 @@ export default function BudgetsPage() {
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                       <span style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>
-                        {fmt(b.spent_paisa)} / {fmt(b.monthly_limit_paisa)}
+                        {fmt(b.spent_paisa)} spent / {fmt(b.monthly_limit_paisa)} limit
                       </span>
                       <span style={{ font: 'var(--t-caption)', color, fontWeight: 600 }}>{b.pct}%</span>
                     </div>
                     <div style={{ height: 8, background: 'var(--bg-sunken)', borderRadius: 4, overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${Math.min(b.pct, 100)}%`, background: color, borderRadius: 4, transition: 'width 0.3s' }} />
                     </div>
+                    {b.state === 'over' && (
+                      <div style={{ font: 'var(--t-caption)', color: 'var(--danger)', marginTop: 4 }}>
+                        Over by {fmt(b.spent_paisa - b.monthly_limit_paisa)}
+                      </div>
+                    )}
                   </>
                 )}
 
@@ -168,6 +240,12 @@ export default function BudgetsPage() {
               </div>
             );
           })}
+
+          {categories.length === 0 && (
+            <div style={{ padding: 60, textAlign: 'center', color: 'var(--fg-muted)', font: 'var(--t-body)' }}>
+              No spending categories yet. Add categories in Settings first.
+            </div>
+          )}
         </div>
       )}
     </div>
