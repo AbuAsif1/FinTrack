@@ -15,7 +15,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Global add spending modal
+  // Global add expenses modal
   const [showAdd, setShowAdd] = useState(false);
   const [modalCategories, setModalCategories] = useState<Category[]>([]);
   const [modalAccounts, setModalAccounts] = useState<SavingsAccount[]>([]);
@@ -115,7 +115,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <BottomTabBar />
       </div>
 
-      {/* Global add spending modal */}
+      {/* Global add expenses modal */}
       {showAdd && (
         <TransactionModal
           categories={modalCategories}

@@ -26,9 +26,9 @@ async function signIn(page: import('@playwright/test').Page) {
   await page.waitForURL('/');
 }
 
-// ── Flow 1: Register → verify → sign in → add spending ───────────────────
+// ── Flow 1: Register → verify → sign in → add expenses ───────────────────
 
-test('Flow 1: register, verify email, sign in and add spending', async ({ page }) => {
+test('Flow 1: register, verify email, sign in and add expenses', async ({ page }) => {
   const ts = Date.now();
   const email = `smoke+${ts}@test.invalid`;
   const password = 'SmokeTest1234!';

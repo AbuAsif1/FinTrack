@@ -308,7 +308,7 @@ Shown in Dashboard when fixed expenses are overdue or due soon.
 Fixed-bottom bar on mobile; inline group below hero on desktop.
 
 ```
-  [ + Add Spending ]   [ + Add Income ]   [ ✓ Mark Fixed Paid ]
+  [ + Add Expenses ]   [ + Add Income ]   [ ✓ Mark Fixed Paid ]
   primary CTA          secondary          ghost
 ```
 
@@ -336,7 +336,7 @@ Icon: 48px, --fg-muted. Heading: --t-section. Body: --t-body --fg-secondary.
 ### 5.9 Form / Modal
 
 ```
-┌─── Add Spending ───────────────────────────────────────────────────┐
+┌─── Add Expenses ───────────────────────────────────────────────────┐
 │                                                                     │
 │  Amount (৳)         Date                                            │
 │  ┌────────────────┐ ┌────────────────┐                             │
@@ -477,7 +477,7 @@ Chart text (labels, ticks, legends) always uses `--fg-secondary`. Grid lines use
 │  Progress:  [████████████████████████████░░░░░░░░] 89% committed  │
 └───────────────────────────────────────────────────────────────────┘
 
-[Quick action bar: + Add Spending  |  + Add Income  |  ✓ Mark Fixed]
+[Quick action bar: + Add Expenses  |  + Add Income  |  ✓ Mark Fixed]
 ```
 
 **Cash This Month panel:** Remaining to Spend is the larger figure (`--t-data`); it turns `--danger` when negative. Both figures carry an `estimated` chip (`--neutral`) until this month's salary is entered. The panel always describes the current calendar month, whatever the period selector shows.
@@ -564,7 +564,7 @@ Chart text (labels, ticks, legends) always uses `--fg-secondary`. Grid lines use
 
 ```
 ┌── Page title + actions ───────────────────────────────────────────┐
-│  Transactions                                   [ + Add Spending ] │
+│  Transactions                                   [ + Add Expenses ] │
 └───────────────────────────────────────────────────────────────────┘
 
 ┌── Filter Bar ─────────────────────────────────────────────────────┐

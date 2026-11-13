@@ -162,10 +162,10 @@ test('S03 — Add Dining spending → transactions list, dashboard total and bud
   await expect(page.getByRole('heading', { name: 'Transactions' })).toBeVisible({ timeout: 8_000 });
   // Wait for categories API to finish loading
   await page.waitForLoadState('networkidle');
-  await page.getByRole('button', { name: /\+ add spending/i }).click();
+  await page.getByRole('button', { name: /\+ add expenses/i }).click();
 
   // Wait for the add modal
-  await expect(page.getByRole('heading', { name: /add spending/i })).toBeVisible({ timeout: 6_000 });
+  await expect(page.getByRole('heading', { name: /add expenses/i })).toBeVisible({ timeout: 6_000 });
 
   // ── 3b: Fill Transaction #1 — Dining ৳800 ──
   await page.locator('input[type="number"]').first().fill('800');
@@ -178,7 +178,7 @@ test('S03 — Add Dining spending → transactions list, dashboard total and bud
   await page.getByRole('button', { name: 'Save Transaction' }).click();
 
   // Modal closes
-  await expect(page.getByRole('heading', { name: /add spending/i })).not.toBeVisible({ timeout: 8_000 });
+  await expect(page.getByRole('heading', { name: /add expenses/i })).not.toBeVisible({ timeout: 8_000 });
   await page.waitForLoadState('networkidle');
 
   // Transaction appears in the list
@@ -186,13 +186,13 @@ test('S03 — Add Dining spending → transactions list, dashboard total and bud
 
   // ── 3c: Add more Dining to push over ৳4,000 (80% of ৳5,000 budget) ──
   for (const desc of ['Dinner', 'Team lunch', 'Office snacks']) {
-    await page.getByRole('button', { name: /\+ add spending/i }).click();
-    await expect(page.getByRole('heading', { name: /add spending/i })).toBeVisible({ timeout: 6_000 });
+    await page.getByRole('button', { name: /\+ add expenses/i }).click();
+    await expect(page.getByRole('heading', { name: /add expenses/i })).toBeVisible({ timeout: 6_000 });
     await page.locator('input[type="number"]').first().fill('1200');
     await page.locator('input[type="text"][required]').first().fill(desc);
     await page.locator('select[required]').first().selectOption({ label: 'Dining' });
     await page.getByRole('button', { name: 'Save Transaction' }).click();
-    await expect(page.getByRole('heading', { name: /add spending/i })).not.toBeVisible({ timeout: 6_000 });
+    await expect(page.getByRole('heading', { name: /add expenses/i })).not.toBeVisible({ timeout: 6_000 });
   }
 
   // ── 3d: Dashboard — Total Spending is non-zero ──
@@ -229,8 +229,8 @@ test('S04 — DPS payment → savings balance increases, NOT counted as spending
   await page.waitForURL('**/transactions');
   await expect(page.getByRole('heading', { name: 'Transactions' })).toBeVisible({ timeout: 8_000 });
   await page.waitForLoadState('networkidle');
-  await page.getByRole('button', { name: /\+ add spending/i }).click();
-  await expect(page.getByRole('heading', { name: /add spending/i })).toBeVisible({ timeout: 6_000 });
+  await page.getByRole('button', { name: /\+ add expenses/i }).click();
+  await expect(page.getByRole('heading', { name: /add expenses/i })).toBeVisible({ timeout: 6_000 });
 
   await page.locator('input[type="number"]').first().fill('10000');
   await page.locator('input[type="text"][required]').first().fill('DPS October installment');
@@ -244,7 +244,7 @@ test('S04 — DPS payment → savings balance increases, NOT counted as spending
   await savingsSelect.selectOption({ label: 'City Bank DPS 10k' });
 
   await page.getByRole('button', { name: 'Save Transaction' }).click();
-  await expect(page.getByRole('heading', { name: /add spending/i })).not.toBeVisible({ timeout: 8_000 });
+  await expect(page.getByRole('heading', { name: /add expenses/i })).not.toBeVisible({ timeout: 8_000 });
 
   // ── 4c: Savings page — City Bank DPS 10k balance is now ৳10,000 ──
   await page.goto('/savings');
@@ -374,15 +374,15 @@ test('S07 — Tax Payment of ৳20,000 → Tax Paid increases, Remaining Tax dro
   await page.waitForURL('**/transactions');
   await expect(page.getByRole('heading', { name: 'Transactions' })).toBeVisible({ timeout: 8_000 });
   await page.waitForLoadState('networkidle');
-  await page.getByRole('button', { name: /\+ add spending/i }).click();
-  await expect(page.getByRole('heading', { name: /add spending/i })).toBeVisible({ timeout: 6_000 });
+  await page.getByRole('button', { name: /\+ add expenses/i }).click();
+  await expect(page.getByRole('heading', { name: /add expenses/i })).toBeVisible({ timeout: 6_000 });
 
   await page.locator('input[type="number"]').first().fill('20000');
   await page.locator('input[type="text"][required]').first().fill('Advance income tax FY2025-26');
   await page.locator('select[required]').first().selectOption({ label: 'Tax Payment' });
 
   await page.getByRole('button', { name: 'Save Transaction' }).click();
-  await expect(page.getByRole('heading', { name: /add spending/i })).not.toBeVisible({ timeout: 8_000 });
+  await expect(page.getByRole('heading', { name: /add expenses/i })).not.toBeVisible({ timeout: 8_000 });
 
   // ── 7b: Tax page — Tax Paid now includes our ৳20,000 ──
   await page.goto('/tax');

@@ -169,7 +169,7 @@ Captured in `.scratch/fintrack-bd-phase-3/spec.md`; an idea only, not specified.
 - Recent Transactions: the last 10
 - Tax snapshot: "Tax paid so far ৳X · Est. remaining ৳Y · Suggested monthly TDS ৳Z", with a notice when the Fiscal Year's tax settings are provisional
 - Borrow-loan summary: "People owe you ৳X · You owe ৳Y"
-- Quick actions: Add Spending, Add Income, Mark Fixed Expense Paid
+- Quick actions: Add Expenses, Add Income, Mark Fixed Expense Paid
 
 ### FR-03 · Income Management
 

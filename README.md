@@ -25,7 +25,7 @@ A personal finance web application built for a salaried professional in Banglade
 - Recent Transactions (last 10)
 - Tax snapshot: Tax paid so far, estimated remaining, and suggested monthly TDS
 - Borrow-loan summary: "People owe you ৳X · You owe ৳Y"
-- Quick actions: Add Spending, Add Income, Mark Fixed Expense Paid
+- Quick actions: Add Expenses, Add Income, Mark Fixed Expense Paid
 
 ### Income Management
 

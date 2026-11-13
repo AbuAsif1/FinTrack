@@ -45,7 +45,7 @@ FinTrack BD is a mobile-first PWA that replaces the three spreadsheets:
 9. As the user, I want these cash figures marked "estimated" until I enter this month's salary, so that an early-month view is not misleading.
 10. As the user, I want a six-month income against spending chart and a spending-by-category chart, so that I can see trends and concentrations.
 11. As the user, I want my last 10 Transactions, a tax snapshot and a loan summary on the dashboard, so that I rarely need to open another page.
-12. As the user, I want quick actions for Add Spending, Add Income and Mark Fixed Expense Paid, so that entry takes seconds.
+12. As the user, I want quick actions for Add Expenses, Add Income and Mark Fixed Expense Paid, so that entry takes seconds.
 
 ### Income
 

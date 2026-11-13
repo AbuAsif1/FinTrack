@@ -16,7 +16,7 @@
 - [x] Alert banners for due-soon and overdue Fixed Expenses with a Mark Paid action
 - [x] Cash flow bar chart for six months and spending-by-category donut, each with a text fallback
 - [x] Fixed Expenses panel, Recent Transactions, Tax snapshot card with the provisional notice, Borrow-Loan summary
-- [x] Quick actions: Add Spending, Add Income, Mark Fixed Paid
+- [x] Quick actions: Add Expenses, Add Income, Mark Fixed Paid
 - [x] First-run checklist card when there is no data
 - [x] Loading skeletons and empty states
 - [x] Desktop layout and mobile stacking order as in `design.md` §7.1
