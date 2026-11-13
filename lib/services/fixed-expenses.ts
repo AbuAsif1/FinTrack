@@ -41,8 +41,13 @@ export async function ensureInstances(userId: string, month: string): Promise<vo
     const startMonth = fromDbDate(tmpl.startMonth).slice(0, 7); // YYYY-MM
     const endMonth = tmpl.endMonth ? fromDbDate(tmpl.endMonth).slice(0, 7) : null;
 
-    // Skip if this month is before the template's start
-    if (compareYM(month, startMonth) < 0) continue;
+    // If the template was created this month but startMonth was pushed to next month
+    // (because due_day had already passed at creation time), include it this month.
+    const createdMonth = tmpl.createdAt.toISOString().slice(0, 7);
+    const effectiveStart = createdMonth === month && compareYM(startMonth, month) > 0 ? month : startMonth;
+
+    // Skip if this month is before the template's effective start
+    if (compareYM(month, effectiveStart) < 0) continue;
     // Skip if this month is after the template's end
     if (endMonth && compareYM(month, endMonth) > 0) continue;
 

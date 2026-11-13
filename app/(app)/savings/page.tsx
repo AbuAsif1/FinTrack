@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SummaryTile } from '@/components/ui/SummaryTile';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -194,12 +195,7 @@ function AccountModal({ open, onClose, onSaved, editAccount }: AccountModalProps
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4, font: 'var(--t-body)' }}>
             Opening Date
-            <input
-              type="date"
-              value={openingDate}
-              onChange={(e) => setOpeningDate(e.target.value)}
-              style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-sunken)', color: 'var(--fg-primary)' }}
-            />
+            <DatePicker value={openingDate} onChange={setOpeningDate} />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4, font: 'var(--t-body)' }}>
             Opening Balance (৳)
@@ -217,12 +213,7 @@ function AccountModal({ open, onClose, onSaved, editAccount }: AccountModalProps
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 4, font: 'var(--t-body)' }}>
                 Maturity Date
-                <input
-                  type="date"
-                  value={maturityDate}
-                  onChange={(e) => setMaturityDate(e.target.value)}
-                  style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-sunken)', color: 'var(--fg-primary)' }}
-                />
+                <DatePicker value={maturityDate} onChange={setMaturityDate} />
               </label>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 4, font: 'var(--t-body)' }}>
                 Interest Rate (%)
@@ -397,12 +388,7 @@ function QuickActionModal({ open, onClose, onSaved, account, action }: QuickActi
         <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>Account: {account?.name}</div>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, font: 'var(--t-body)' }}>
           Date
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-sunken)', color: 'var(--fg-primary)' }}
-          />
+          <DatePicker value={date} onChange={setDate} />
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, font: 'var(--t-body)' }}>
           Amount (৳)

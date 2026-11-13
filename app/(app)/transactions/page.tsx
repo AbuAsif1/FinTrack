@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { TransactionModal } from '@/components/ui/TransactionModal';
 import type { Category, SavingsAccount, LoanPerson, EditingTransaction } from '@/components/ui/TransactionModal';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -388,14 +389,8 @@ export default function TransactionsPage() {
               <option value="">All Methods</option>
               {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
-            <input
-              type="date" value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1); }}
-              style={{ flex: '0 0 auto', padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)' }}
-            />
-            <input
-              type="date" value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1); }}
-              style={{ flex: '0 0 auto', padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)' }}
-            />
+            <DatePicker value={filterFrom} onChange={(v) => { setFilterFrom(v); setPage(1); }} placeholder="From date" style={{ flex: '0 0 auto', minWidth: 150 }} />
+            <DatePicker value={filterTo} onChange={(v) => { setFilterTo(v); setPage(1); }} placeholder="To date" style={{ flex: '0 0 auto', minWidth: 150 }} />
             {hasFilters && (
               <button onClick={clearFilters} style={{ padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: 'pointer', font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>
                 Clear filters
@@ -648,7 +643,10 @@ export default function TransactionsPage() {
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-raised)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
           >
-            <span style={{ fontSize: 14 }}>✏️</span> Edit
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+              <path d="M21.731 2.269a2.625 2.625 0 00-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 000-3.712zM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 00-1.32 2.214l-.8 2.685a.75.75 0 00.933.933l2.685-.8a5.25 5.25 0 002.214-1.32L19.513 8.2z"/>
+            </svg>
+            Edit
           </button>
           <div style={{ height: 1, background: 'var(--border)', margin: '0 8px' }} />
           <button
@@ -667,7 +665,10 @@ export default function TransactionsPage() {
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-raised)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
           >
-            <span style={{ fontSize: 14 }}>🗑️</span> Remove
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+              <path fillRule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.256 1.478l-.209-.035-1.005 13.07a3 3 0 01-2.991 2.77H8.084a3 3 0 01-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 01-.256-1.478A48.567 48.567 0 017.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 013.369 0c1.603.051 2.815 1.387 2.815 2.951zm-6.136-1.452a51.196 51.196 0 013.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 00-6 0v-.113c0-.794.609-1.428 1.364-1.452zm-.355 5.945a.75.75 0 10-1.5.058l.347 9a.75.75 0 101.499-.058l-.346-9zm5.48.058a.75.75 0 10-1.498-.058l-.347 9a.75.75 0 001.5.058l.345-9z" clipRule="evenodd"/>
+            </svg>
+            Remove
           </button>
         </div>
       )}

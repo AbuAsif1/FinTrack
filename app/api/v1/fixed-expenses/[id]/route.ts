@@ -31,7 +31,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!template) return Response.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 });
 
   const body = await req.json();
-  const { name, standard_amount_paisa, due_day, savings_account_id, deactivate } = body;
+  const { name, standard_amount_paisa, due_day, savings_account_id, deactivate, start_month } = body;
 
   const today = todayInDhaka();
   const currentMonth = today.slice(0, 7);
@@ -61,6 +61,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const updateData: Record<string, unknown> = {};
   if (name != null) updateData.name = name;
   if (standard_amount_paisa != null) updateData.standardAmountPaisa = BigInt(standard_amount_paisa);
+  if (start_month != null && /^\d{4}-\d{2}$/.test(start_month)) updateData.startMonth = toDbDate(start_month + '-01');
   if (due_day != null) {
     if (due_day < 1 || due_day > 31) return Response.json({ error: 'due_day must be 1–31', code: 'VALIDATION_ERROR' }, { status: 422 });
     updateData.dueDay = due_day;

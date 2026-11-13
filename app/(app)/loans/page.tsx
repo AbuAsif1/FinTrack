@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -197,11 +198,7 @@ function AddEntryModal({
             </label>
             <label>
               <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Date</div>
-              <input
-                type="date" required
-                value={form.date} onChange={set('date')}
-                style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
-              />
+              <DatePicker value={form.date} onChange={(v) => set('date')({ target: { value: v } } as React.ChangeEvent<HTMLInputElement>)} />
             </label>
           </div>
 
@@ -217,11 +214,7 @@ function AddEntryModal({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <label>
               <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Return due date (optional)</div>
-              <input
-                type="date"
-                value={form.return_due_date} onChange={set('return_due_date')}
-                style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
-              />
+              <DatePicker value={form.return_due_date} onChange={(v) => set('return_due_date')({ target: { value: v } } as React.ChangeEvent<HTMLInputElement>)} />
             </label>
             <label>
               <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Payment Method</div>
@@ -377,7 +370,7 @@ function EditEntryModal({
           </label>
           <label>
             <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Date</div>
-            <input type="date" required value={form.date} onChange={set('date')} style={inputStyle} />
+            <DatePicker value={form.date} onChange={(v) => set('date')({ target: { value: v } } as React.ChangeEvent<HTMLInputElement>)} />
           </label>
         </div>
 
@@ -395,7 +388,7 @@ function EditEntryModal({
           </label>
           <label>
             <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Return due date</div>
-            <input type="date" value={form.return_due_date} onChange={set('return_due_date')} style={inputStyle} />
+            <DatePicker value={form.return_due_date} onChange={(v) => set('return_due_date')({ target: { value: v } } as React.ChangeEvent<HTMLInputElement>)} />
           </label>
         </div>
 
@@ -527,9 +520,10 @@ function DetailPanel({
                     {!entry.is_settlement && (
                       <button
                         onClick={() => setEditEntry(entry)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', fontSize: 14, padding: 4 }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', padding: 4, display: 'flex', alignItems: 'center' }}
+                        title="Edit"
                       >
-                        ✏
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21.731 2.269a2.625 2.625 0 00-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 000-3.712zM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 00-1.32 2.214l-.8 2.685a.75.75 0 00.933.933l2.685-.8a5.25 5.25 0 002.214-1.32L19.513 8.2z"/></svg>
                       </button>
                     )}
                   </div>

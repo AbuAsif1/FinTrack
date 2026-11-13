@@ -30,14 +30,9 @@ function templateToJson(t: {
 }
 
 function computeStartMonth(dueDay: number, today: string): string {
-  // today is YYYY-MM-DD
-  const [y, m, d] = today.split('-').map(Number);
-  const currentMonth = `${y}-${String(m).padStart(2, '0')}`;
-  // If due_day is today or later this month → start this month
-  // Otherwise → start next month
-  if (dueDay >= d) return currentMonth;
-  const nextDate = new Date(y, m, 1); // first day of next month
-  return `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}`;
+  void dueDay;
+  const [y, m] = today.split('-').map(Number);
+  return `${y}-${String(m).padStart(2, '0')}`;
 }
 
 export async function GET(req: Request) {

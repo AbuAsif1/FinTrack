@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SUGGESTED_FIXED_EXPENSES } from '@fintrack/shared';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -72,9 +73,10 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span style={{
       ...STATUS_BADGE[status],
-      display: 'inline-flex', alignItems: 'center',
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       padding: '2px 8px', borderRadius: 999,
       font: 'var(--t-caption)', fontWeight: 600, whiteSpace: 'nowrap',
+      minWidth: 90, flexShrink: 0,
     }}>
       {STATUS_LABEL[status] ?? status}
     </span>
@@ -213,7 +215,7 @@ function PayDrawer({ instance, onClose, onDone }: { instance: FixedExpenseInstan
                 </label>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 4, font: 'var(--t-body)' }}>
                   Date Paid
-                  <input type="date" value={paidDate} onChange={e => setPaidDate(e.target.value)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-sunken)', color: 'var(--fg-primary)' }} />
+                  <DatePicker value={paidDate} onChange={setPaidDate} />
                 </label>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 4, font: 'var(--t-body)' }}>
                   Payment Method
@@ -618,15 +620,19 @@ export default function FixedExpensesPage() {
                           <button
                             type="button"
                             onClick={() => { setEditTemplate(tmpl); setTemplateModalOpen(true); }}
-                            style={{ padding: '4px 8px', borderRadius: 5, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}
+                            style={{ padding: '4px 8px', borderRadius: 5, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--fg-secondary)', display: 'flex', alignItems: 'center' }}
                             title="Edit"
-                          >✏</button>
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21.731 2.269a2.625 2.625 0 00-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 000-3.712zM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 00-1.32 2.214l-.8 2.685a.75.75 0 00.933.933l2.685-.8a5.25 5.25 0 002.214-1.32L19.513 8.2z"/></svg>
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleDelete(tmpl)}
-                            style={{ padding: '4px 8px', borderRadius: 5, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', font: 'var(--t-caption)', color: 'var(--danger)' }}
+                            style={{ padding: '4px 8px', borderRadius: 5, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--danger)', display: 'flex', alignItems: 'center' }}
                             title="Delete"
-                          >🗑</button>
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path fillRule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.256 1.478l-.209-.035-1.005 13.07a3 3 0 01-2.991 2.77H8.084a3 3 0 01-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 01-.256-1.478A48.567 48.567 0 017.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 013.369 0c1.603.051 2.815 1.387 2.815 2.951zm-6.136-1.452a51.196 51.196 0 013.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 00-6 0v-.113c0-.794.609-1.428 1.364-1.452zm-.355 5.945a.75.75 0 10-1.5.058l.347 9a.75.75 0 101.499-.058l-.346-9zm5.48.058a.75.75 0 10-1.498-.058l-.347 9a.75.75 0 001.5.058l.345-9z" clipRule="evenodd"/></svg>
+                          </button>
                         </div>
                       )}
                     </div>
@@ -739,8 +745,12 @@ export default function FixedExpensesPage() {
                         {/* Row actions */}
                         <td style={{ padding: '8px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                           <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-                            <button type="button" onClick={() => { setEditTemplate(tmpl); setTemplateModalOpen(true); }} style={{ padding: '4px 8px', borderRadius: 5, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', font: 'var(--t-caption)' }}>✏</button>
-                            <button type="button" onClick={() => handleDelete(tmpl)} style={{ padding: '4px 8px', borderRadius: 5, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', font: 'var(--t-caption)', color: 'var(--danger)' }}>🗑</button>
+                            <button type="button" onClick={() => { setEditTemplate(tmpl); setTemplateModalOpen(true); }} style={{ padding: '4px 8px', borderRadius: 5, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--fg-secondary)', display: 'flex', alignItems: 'center' }} title="Edit">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21.731 2.269a2.625 2.625 0 00-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 000-3.712zM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 00-1.32 2.214l-.8 2.685a.75.75 0 00.933.933l2.685-.8a5.25 5.25 0 002.214-1.32L19.513 8.2z"/></svg>
+                            </button>
+                            <button type="button" onClick={() => handleDelete(tmpl)} style={{ padding: '4px 8px', borderRadius: 5, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--danger)', display: 'flex', alignItems: 'center' }} title="Delete">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path fillRule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.256 1.478l-.209-.035-1.005 13.07a3 3 0 01-2.991 2.77H8.084a3 3 0 01-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 01-.256-1.478A48.567 48.567 0 017.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 013.369 0c1.603.051 2.815 1.387 2.815 2.951zm-6.136-1.452a51.196 51.196 0 013.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 00-6 0v-.113c0-.794.609-1.428 1.364-1.452zm-.355 5.945a.75.75 0 10-1.5.058l.347 9a.75.75 0 101.499-.058l-.346-9zm5.48.058a.75.75 0 10-1.498-.058l-.347 9a.75.75 0 001.5.058l.345-9z" clipRule="evenodd"/></svg>
+                            </button>
                           </div>
                         </td>
                       </tr>
