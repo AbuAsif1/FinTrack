@@ -161,8 +161,14 @@ export function TransactionModal({
       return;
     }
 
-    if (isFixedExpenseMode && !selectedFixedTemplate) {
+    if (isFixedExpenseMode && fixedExpenses.length > 0 && !selectedFixedTemplate) {
       setError('Please select which fixed expense this payment is for.');
+      setSaving(false);
+      return;
+    }
+    // If no templates loaded but fixed expense mode selected, block save with guidance
+    if (isFixedExpenseMode && fixedExpenses.length === 0) {
+      setError('No fixed expenses found. Add them on the Fixed Expenses page first, or choose a different category.');
       setSaving(false);
       return;
     }
@@ -189,8 +195,8 @@ export function TransactionModal({
             description: form.description || undefined,
           });
         } else {
-          // Use the template's real category_id when in fixed-expense mode
-          const categoryIdToSend = isFixedExpenseMode ? effectiveCategoryId : form.category_id;
+          // Use the template's real category_id when in fixed-expense mode; fall back to empty (will error server-side) if none selected
+          const categoryIdToSend = isFixedExpenseMode && effectiveCategoryId ? effectiveCategoryId : form.category_id;
           const body: Record<string, unknown> = {
             amount_paisa: amountPaisa,
             date: form.date,
@@ -277,7 +283,7 @@ export function TransactionModal({
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
-                {!isEdit && fixedExpenses.length > 0 && (
+                {!isEdit && (
                   <option value="__FIXED_EXPENSE__">📋 Fixed Expenses</option>
                 )}
                 {!isEdit && savingsOnly.length >= 2 && (
@@ -301,33 +307,39 @@ export function TransactionModal({
               <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 8, fontWeight: 600 }}>
                 📋 Which fixed expense is this payment for?
               </div>
-              <select
-                required
-                value={form.fixed_expense_id}
-                onChange={(e) => {
-                  const id = e.target.value;
-                  const tmpl = fixedExpenses.find((t) => t.id === id);
-                  setForm((f) => ({
-                    ...f,
-                    fixed_expense_id: id,
-                    ...(tmpl ? {
-                      amount_paisa: String(tmpl.standard_amount_paisa / 100),
-                      description: tmpl.name,
-                    } : {}),
-                  }));
-                }}
-                style={inputStyle}
-              >
-                <option value="">Select fixed expense…</option>
-                {fixedExpenses.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                    {t.category ? ` · ${t.category.name}` : ''}
-                    {` · ৳${(t.standard_amount_paisa / 100).toLocaleString('en-IN', { minimumFractionDigits: 0 })}`}
-                    {` · due day ${t.due_day}`}
-                  </option>
-                ))}
-              </select>
+              {fixedExpenses.length === 0 ? (
+                <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', padding: '8px 0' }}>
+                  No fixed expenses set up yet. Add them on the <strong>Fixed Expenses</strong> page first.
+                </div>
+              ) : (
+                <select
+                  required
+                  value={form.fixed_expense_id}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    const tmpl = fixedExpenses.find((t) => t.id === id);
+                    setForm((f) => ({
+                      ...f,
+                      fixed_expense_id: id,
+                      ...(tmpl ? {
+                        amount_paisa: String(tmpl.standard_amount_paisa / 100),
+                        description: tmpl.name,
+                      } : {}),
+                    }));
+                  }}
+                  style={inputStyle}
+                >
+                  <option value="">Select fixed expense…</option>
+                  {fixedExpenses.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                      {t.category ? ` · ${t.category.name}` : ''}
+                      {` · ৳${(t.standard_amount_paisa / 100).toLocaleString('en-IN', { minimumFractionDigits: 0 })}`}
+                      {` · due day ${t.due_day}`}
+                    </option>
+                  ))}
+                </select>
+              )}
               {selectedFixedTemplate && (
                 <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginTop: 6 }}>
                   Amount and description pre-filled. Adjust above if the actual amount differs.
