@@ -613,6 +613,15 @@ export default function SavingsPage() {
         eyebrow="Accounts, DPS and deposits"
         title="Bank & Savings"
         description="Balance overview and maturity tracking across all your accounts."
+        actions={
+          <button
+            type="button"
+            onClick={() => { setEditAccount(null); setModalOpen(true); }}
+            style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', font: 'var(--t-body)' }}
+          >
+            + Add Account
+          </button>
+        }
       />
 
       {loading ? (

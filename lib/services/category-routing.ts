@@ -1,6 +1,7 @@
 import { prisma } from '../prisma';
 import { toDbDate, fromDbDate, fiscalYear, todayInDhaka } from '@fintrack/shared';
 import type { PaymentMethod, Prisma } from '@prisma/client';
+import { ensureInstances } from './fixed-expenses';
 
 export class RoutingError extends Error {
   constructor(
@@ -214,6 +215,7 @@ export class CategoryRoutingService {
       });
 
       const newBalance = await computeSavingsBalance(input.savings_account_id, this.userId);
+      await this.autoLinkFixedExpense(tx.id, input.category_id, input.date, input.amount_paisa);
       return {
         duplicate: false,
         transaction: txToJson(tx),
@@ -255,6 +257,7 @@ export class CategoryRoutingService {
       });
 
       const newBalance = await computeRunningBalance(result.person.id, this.userId);
+      await this.autoLinkFixedExpense(result.transaction.id, input.category_id, input.date, input.amount_paisa);
       return {
         duplicate: false,
         transaction: txToJson(result.transaction),
@@ -281,6 +284,7 @@ export class CategoryRoutingService {
         },
         include: { category: true },
       });
+      await this.autoLinkFixedExpense(tx.id, input.category_id, input.date, input.amount_paisa);
       return {
         duplicate: false,
         transaction: txToJson(tx),
@@ -320,6 +324,8 @@ export class CategoryRoutingService {
       include: { category: true },
     });
 
+    await this.autoLinkFixedExpense(tx.id, input.category_id, input.date, input.amount_paisa);
+
     if (bankAccountId) {
       const acct = await prisma.savingsAccount.findUnique({ where: { id: bankAccountId } });
       const newBalance = await computeSavingsBalance(bankAccountId, this.userId);
@@ -330,6 +336,35 @@ export class CategoryRoutingService {
       };
     }
     return { duplicate: false, transaction: txToJson(tx) };
+  }
+
+  private async autoLinkFixedExpense(
+    txId: string,
+    categoryId: string,
+    txDate: string,
+    actualAmountPaisa: number,
+  ): Promise<void> {
+    const month = txDate.slice(0, 7);
+    await ensureInstances(this.userId, month);
+    const instance = await prisma.fixedExpenseInstance.findFirst({
+      where: {
+        userId: this.userId,
+        status: 'PENDING',
+        transactionId: null,
+        month: toDbDate(month + '-01'),
+        fixedExpense: { categoryId },
+      },
+    });
+    if (!instance) return;
+    await prisma.fixedExpenseInstance.update({
+      where: { id: instance.id },
+      data: {
+        status: 'PAID',
+        transactionId: txId,
+        actualAmountPaisa: BigInt(actualAmountPaisa),
+        paidDate: toDbDate(txDate),
+      },
+    });
   }
 
   async update(txId: string, input: UpdateTxInput) {
