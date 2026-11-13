@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import api from '@/lib/api';
 
 export interface Category {
@@ -48,11 +48,17 @@ export interface EditingTransaction {
   };
 }
 
+interface SelectOption {
+  value: string;
+  label: string;
+  group?: string;
+}
+
 interface Form {
   amount_paisa: string;
   date: string;
   description: string;
-  category_id: string;      // may be '__FIXED_EXPENSE__' as a UI placeholder
+  category_id: string;
   payment_method: string;
   savings_account_id: string;
   loan_person_name: string;
@@ -74,6 +80,216 @@ function fmt(paisa: number) {
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
+
+// ── Searchable category combobox ──────────────────────────────────────────
+
+function SearchableSelect({
+  options,
+  value,
+  onChange,
+  placeholder = 'Select…',
+  style,
+}: {
+  options: SelectOption[];
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  style?: React.CSSProperties;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const selected = options.find((o) => o.value === value);
+
+  const filtered = query.trim()
+    ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
+    : options;
+
+  // Close on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery('');
+      }
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  function handleOpen() {
+    setOpen(true);
+    setQuery('');
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
+  function handleSelect(val: string) {
+    onChange(val);
+    setOpen(false);
+    setQuery('');
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') { setOpen(false); setQuery(''); }
+    if (e.key === 'Enter' && filtered.length === 1) {
+      e.preventDefault();
+      handleSelect(filtered[0].value);
+    }
+  }
+
+  const baseStyle: React.CSSProperties = {
+    width: '100%', padding: '8px 10px', border: '1px solid var(--border)',
+    borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)',
+    boxSizing: 'border-box', cursor: 'pointer', display: 'flex',
+    alignItems: 'center', justifyContent: 'space-between', userSelect: 'none',
+    ...style,
+  };
+
+  // Group options by their group property
+  const groups = Array.from(new Set(options.map((o) => o.group ?? ''))).filter(Boolean);
+  const hasGroups = groups.length > 0;
+
+  function renderOptions() {
+    if (!hasGroups) {
+      return filtered.map((o) => (
+        <div
+          key={o.value}
+          onMouseDown={(e) => { e.preventDefault(); handleSelect(o.value); }}
+          style={{
+            padding: '8px 12px', cursor: 'pointer',
+            background: o.value === value ? 'rgba(99,102,241,0.1)' : 'transparent',
+            color: o.value === value ? 'var(--accent)' : 'var(--fg-primary)',
+            fontWeight: o.value === value ? 600 : 400,
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-raised)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = o.value === value ? 'rgba(99,102,241,0.1)' : 'transparent'; }}
+        >
+          {o.label}
+        </div>
+      ));
+    }
+
+    // Grouped rendering
+    const ungrouped = filtered.filter((o) => !o.group);
+    const result: React.ReactNode[] = [];
+
+    // Ungrouped first
+    ungrouped.forEach((o) => {
+      result.push(
+        <div
+          key={o.value}
+          onMouseDown={(e) => { e.preventDefault(); handleSelect(o.value); }}
+          style={{
+            padding: '8px 12px', cursor: 'pointer',
+            background: o.value === value ? 'rgba(99,102,241,0.1)' : 'transparent',
+            color: o.value === value ? 'var(--accent)' : 'var(--fg-primary)',
+            fontWeight: o.value === value ? 600 : 400,
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-raised)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = o.value === value ? 'rgba(99,102,241,0.1)' : 'transparent'; }}
+        >
+          {o.label}
+        </div>
+      );
+    });
+
+    groups.forEach((group) => {
+      const groupOptions = filtered.filter((o) => o.group === group);
+      if (groupOptions.length === 0) return;
+      result.push(
+        <div key={`group-${group}`} style={{ padding: '6px 12px 2px', font: 'var(--t-label)', color: 'var(--fg-muted)', borderTop: ungrouped.length > 0 || result.length > 0 ? '1px solid var(--border)' : 'none', marginTop: 4 }}>
+          {group}
+        </div>
+      );
+      groupOptions.forEach((o) => {
+        result.push(
+          <div
+            key={o.value}
+            onMouseDown={(e) => { e.preventDefault(); handleSelect(o.value); }}
+            style={{
+              padding: '8px 12px', cursor: 'pointer',
+              background: o.value === value ? 'rgba(99,102,241,0.1)' : 'transparent',
+              color: o.value === value ? 'var(--accent)' : 'var(--fg-primary)',
+              fontWeight: o.value === value ? 600 : 400,
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-raised)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = o.value === value ? 'rgba(99,102,241,0.1)' : 'transparent'; }}
+          >
+            {o.label}
+          </div>
+        );
+      });
+    });
+
+    return result;
+  }
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+      {/* Trigger */}
+      <div
+        role="combobox"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        tabIndex={0}
+        onClick={handleOpen}
+        onFocus={handleOpen}
+        style={baseStyle}
+      >
+        <span style={{ color: selected ? 'var(--fg-primary)' : 'var(--fg-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selected ? selected.label : placeholder}
+        </span>
+        <span style={{ color: 'var(--fg-muted)', fontSize: 11, marginLeft: 6, flexShrink: 0 }}>▾</span>
+      </div>
+
+      {/* Dropdown */}
+      {open && (
+        <div
+          role="listbox"
+          style={{
+            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999,
+            background: 'var(--bg-surface)', border: '1px solid var(--border)',
+            borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+            marginTop: 2, maxHeight: 280, overflow: 'hidden',
+            display: 'flex', flexDirection: 'column',
+          }}
+        >
+          {/* Search input */}
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Search categories…"
+              style={{
+                width: '100%', padding: '6px 10px', border: '1px solid var(--border)',
+                borderRadius: 5, font: 'var(--t-body)', background: 'var(--bg-sunken)',
+                outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          {/* Options list */}
+          <div style={{ overflowY: 'auto', flex: 1 }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding: '12px', font: 'var(--t-caption)', color: 'var(--fg-muted)', textAlign: 'center' }}>
+                No matches for "{query}"
+              </div>
+            ) : (
+              renderOptions()
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────
 
 export function TransactionModal({
   categories,
@@ -117,7 +333,6 @@ export function TransactionModal({
   const isTransfer = form.category_id === '__TRANSFER__';
   const isFixedExpenseMode = form.category_id === '__FIXED_EXPENSE__';
 
-  // For routing type detection: use the template's category when in fixed-expense mode
   const selectedFixedTemplate = fixedExpenses.find((t) => t.id === form.fixed_expense_id);
   const effectiveCategoryId = isFixedExpenseMode
     ? (selectedFixedTemplate?.category?.id ?? selectedFixedTemplate?.category_id ?? '')
@@ -129,6 +344,13 @@ export function TransactionModal({
   const isTax = routingType === 'TAX';
   const savingsOnly = savingsAccounts.filter((a) => a.type === 'SAVINGS');
 
+  // Build options for the searchable category select
+  const categoryOptions: SelectOption[] = [
+    ...categories.map((c) => ({ value: c.id, label: c.name })),
+    ...(!isEdit ? [{ value: '__FIXED_EXPENSE__', label: 'Fixed Expenses', group: 'Special' }] : []),
+    ...(!isEdit && savingsOnly.length >= 2 ? [{ value: '__TRANSFER__', label: 'Transfer between accounts', group: 'Special' }] : []),
+  ];
+
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '8px 10px', border: '1px solid var(--border)',
     borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box',
@@ -139,15 +361,20 @@ export function TransactionModal({
     setForm((f) => {
       const next = { ...f, [k]: val };
       if (k === 'payment_method' && val !== 'BANK') next.savings_account_id = '';
-      if (k === 'category_id') {
-        next.transfer_from_id = '';
-        next.transfer_to_id = '';
-        next.savings_account_id = '';
-        next.fixed_expense_id = '';
-      }
       return next;
     });
   };
+
+  function setCategoryId(val: string) {
+    setForm((f) => ({
+      ...f,
+      category_id: val,
+      transfer_from_id: '',
+      transfer_to_id: '',
+      savings_account_id: '',
+      fixed_expense_id: '',
+    }));
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -166,9 +393,8 @@ export function TransactionModal({
       setSaving(false);
       return;
     }
-    // If no templates loaded but fixed expense mode selected, block save with guidance
     if (isFixedExpenseMode && fixedExpenses.length === 0) {
-      setError('No fixed expenses found. Add them on the Fixed Expenses page first, or choose a different category.');
+      setError('No fixed expenses found. Add them on the Fixed Expenses page first.');
       setSaving(false);
       return;
     }
@@ -195,7 +421,6 @@ export function TransactionModal({
             description: form.description || undefined,
           });
         } else {
-          // Use the template's real category_id when in fixed-expense mode; fall back to empty (will error server-side) if none selected
           const categoryIdToSend = isFixedExpenseMode && effectiveCategoryId ? effectiveCategoryId : form.category_id;
           const body: Record<string, unknown> = {
             amount_paisa: amountPaisa,
@@ -276,21 +501,15 @@ export function TransactionModal({
 
           {/* Category + Payment Method */}
           <div style={{ display: 'grid', gridTemplateColumns: isTransfer ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 12 }}>
-            <label>
+            <div>
               <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Category</div>
-              <select required value={form.category_id} onChange={set('category_id')} style={inputStyle}>
-                <option value="">Select category…</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-                {!isEdit && (
-                  <option value="__FIXED_EXPENSE__">📋 Fixed Expenses</option>
-                )}
-                {!isEdit && savingsOnly.length >= 2 && (
-                  <option value="__TRANSFER__">⇄ Transfer between accounts</option>
-                )}
-              </select>
-            </label>
+              <SearchableSelect
+                options={categoryOptions}
+                value={form.category_id}
+                onChange={setCategoryId}
+                placeholder="Select category…"
+              />
+            </div>
             {!isTransfer && (
               <label>
                 <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Payment Method</div>
@@ -301,63 +520,61 @@ export function TransactionModal({
             )}
           </div>
 
-          {/* Fixed Expense mode: template picker */}
+          {/* Fixed Expense mode */}
           {isFixedExpenseMode && (
             <div style={{ background: 'rgba(99,102,241,0.07)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '12px 14px', marginBottom: 12 }}>
               <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 8, fontWeight: 600 }}>
-                📋 Which fixed expense is this payment for?
+                Which fixed expense is this payment for?
               </div>
               {fixedExpenses.length === 0 ? (
-                <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', padding: '8px 0' }}>
-                  No fixed expenses set up yet. Add them on the <strong>Fixed Expenses</strong> page first.
+                <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>
+                  No fixed expenses set up yet. Add them on the Fixed Expenses page first.
                 </div>
               ) : (
-                <select
-                  required
-                  value={form.fixed_expense_id}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    const tmpl = fixedExpenses.find((t) => t.id === id);
-                    setForm((f) => ({
-                      ...f,
-                      fixed_expense_id: id,
-                      ...(tmpl ? {
-                        amount_paisa: String(tmpl.standard_amount_paisa / 100),
-                        description: tmpl.name,
-                      } : {}),
-                    }));
-                  }}
-                  style={inputStyle}
-                >
-                  <option value="">Select fixed expense…</option>
-                  {fixedExpenses.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                      {t.category ? ` · ${t.category.name}` : ''}
-                      {` · ৳${(t.standard_amount_paisa / 100).toLocaleString('en-IN', { minimumFractionDigits: 0 })}`}
-                      {` · due day ${t.due_day}`}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {selectedFixedTemplate && (
-                <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginTop: 6 }}>
-                  Amount and description pre-filled. Adjust above if the actual amount differs.
-                </div>
-              )}
-              {selectedFixedTemplate?.category && (
-                <div style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)', marginTop: 4 }}>
-                  Category: <strong>{selectedFixedTemplate.category.name}</strong> (from template)
-                </div>
+                <>
+                  <select
+                    required
+                    value={form.fixed_expense_id}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      const tmpl = fixedExpenses.find((t) => t.id === id);
+                      setForm((f) => ({
+                        ...f,
+                        fixed_expense_id: id,
+                        ...(tmpl ? {
+                          amount_paisa: String(tmpl.standard_amount_paisa / 100),
+                          description: tmpl.name,
+                        } : {}),
+                      }));
+                    }}
+                    style={inputStyle}
+                  >
+                    <option value="">Select fixed expense…</option>
+                    {fixedExpenses.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                        {t.category ? ` (${t.category.name})` : ''}
+                        {` — ৳${(t.standard_amount_paisa / 100).toLocaleString('en-IN', { minimumFractionDigits: 0 })}`}
+                        {` — day ${t.due_day}`}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedFixedTemplate && (
+                    <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginTop: 6 }}>
+                      Amount and description pre-filled. Adjust above if the actual amount differs.
+                      {selectedFixedTemplate.category && <> Category: <strong>{selectedFixedTemplate.category.name}</strong>.</>}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
 
-          {/* Transfer: from / to */}
+          {/* Transfer */}
           {isTransfer && (
             <div style={{ background: 'rgba(58,95,205,0.08)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
               <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 10 }}>
-                ⇄ Moves money between your savings accounts. Both balances update instantly.
+                Moves money between your savings accounts. Both balances update instantly.
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <label>
@@ -386,7 +603,7 @@ export function TransactionModal({
           {!isTransfer && !isFixedExpenseMode && form.payment_method === 'BANK' && !isSavings && !isLoan && !isTax && savingsOnly.length > 0 && (
             <div style={{ background: 'rgba(21,128,61,0.08)', borderLeft: '3px solid var(--ok)', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
               <div style={{ font: 'var(--t-caption)', color: 'var(--ok)', marginBottom: 6 }}>
-                🏦 Deduct from bank account (optional)
+                Deduct from bank account (optional)
               </div>
               <select value={form.savings_account_id} onChange={set('savings_account_id')} style={inputStyle}>
                 <option value="">— Don't deduct from account —</option>
@@ -401,7 +618,7 @@ export function TransactionModal({
           {!isTransfer && isSavings && (
             <div style={{ background: 'rgba(58,95,205,0.08)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
               <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 6 }}>
-                🔵 This will {routingType === 'SAVINGS_DEPOSIT' ? 'deposit into' : 'withdraw from'} your savings account.
+                This will {routingType === 'SAVINGS_DEPOSIT' ? 'deposit into' : 'withdraw from'} your savings account.
               </div>
               <label>
                 <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Savings Account</div>
@@ -416,7 +633,7 @@ export function TransactionModal({
           {/* Loan routing */}
           {!isTransfer && isLoan && (
             <div style={{ background: 'rgba(58,95,205,0.08)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
-              <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 8 }}>🤝 This will update the loan ledger.</div>
+              <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 8 }}>This will update the loan ledger.</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 8 }}>
                 <label>
                   <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Person</div>
@@ -448,7 +665,7 @@ export function TransactionModal({
           {!isTransfer && isTax && (
             <div style={{ background: 'rgba(58,95,205,0.08)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
               <div style={{ font: 'var(--t-caption)', color: 'var(--accent)' }}>
-                📋 This transaction will be recorded against the current Fiscal Year.
+                This transaction will be recorded against the current Fiscal Year.
               </div>
             </div>
           )}
