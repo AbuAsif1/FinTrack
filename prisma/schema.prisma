@@ -250,6 +250,7 @@ model SavingsAccount {
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions  Transaction[]
   fixedExpenses FixedExpense[]
+  incomeEntries IncomeEntry[]
 
   @@map("savings_accounts")
 }
@@ -299,15 +300,17 @@ model IncomeEntry {
   employerName   String?    @map("employer_name")
   payerName      String?    @map("payer_name")
   earnedPeriod   String?    @map("earned_period")
-  comment        String?
-  idempotencyKey String     @map("idempotency_key")
-  importBatchId  String?    @map("import_batch_id")
-  isDeleted      Boolean    @default(false) @map("is_deleted")
-  deletedAt      DateTime?  @map("deleted_at")
-  createdAt      DateTime   @default(now()) @map("created_at")
-  updatedAt      DateTime   @updatedAt @map("updated_at")
+  comment           String?
+  savingsAccountId  String?  @map("savings_account_id")
+  idempotencyKey    String   @map("idempotency_key")
+  importBatchId     String?  @map("import_batch_id")
+  isDeleted         Boolean  @default(false) @map("is_deleted")
+  deletedAt         DateTime? @map("deleted_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  savingsAccount SavingsAccount? @relation(fields: [savingsAccountId], references: [id])
 
   @@unique([userId, idempotencyKey])
   @@index([userId, fiscalYear])

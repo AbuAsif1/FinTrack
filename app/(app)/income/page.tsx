@@ -9,25 +9,12 @@ import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SummaryTile } from '@/components/ui/SummaryTile';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { IncomeModal, type IncomeEntry, type SavingsAccount } from '@/components/ui/IncomeModal';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface IncomeEntry {
-  id: string;
-  month: string; // e.g. "2026-11-01"
-  income_type: string;
-  gross_paisa: number;
-  tds_paisa: number;
-  in_hand_paisa: number;
-  is_taxable: boolean;
-  payer_name?: string | null;
-  earned_period?: string | null;
-  employer_name?: string | null;
-  notes?: string | null;
-  fiscal_year: string;
-}
 
 interface MonthRow {
   month: string; // "2026-11"
@@ -67,7 +54,6 @@ const INCOME_TYPES = [
   { value: 'OTHER', label: 'Other' },
 ];
 
-const OTHER_INCOME_TYPES = INCOME_TYPES.filter((t) => t.value !== 'SALARY');
 
 function fiscalYears(): string[] {
   const now = new Date();
@@ -88,339 +74,6 @@ function currentFY(): string {
 function formatMonth(m: string) {
   const d = new Date(m + '-01');
   return d.toLocaleDateString('en-BD', { month: 'short', year: 'numeric' });
-}
-
-// ---------------------------------------------------------------------------
-// Add/Edit Income Modal — two-mode form (Salary vs Other)
-// ---------------------------------------------------------------------------
-
-const inputStyle: React.CSSProperties = {
-  padding: '8px 12px', borderRadius: 6,
-  border: '1px solid var(--border)',
-  background: 'var(--bg-sunken)',
-  color: 'var(--fg-primary)',
-};
-
-function FieldLabel({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, font: 'var(--t-body)' }}>
-      {label}
-      {children}
-    </label>
-  );
-}
-
-function GrossSummaryBox({ grossPaisa, tdsPaisa }: { grossPaisa: number; tdsPaisa: number }) {
-  const inHand = grossPaisa - tdsPaisa;
-  return (
-    <div style={{
-      marginTop: 4, padding: '12px 16px', borderRadius: 8,
-      background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.2)',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-        <span style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>Gross Total</span>
-        <span style={{ font: 'var(--t-body)', fontWeight: 700, color: 'var(--accent)' }}>
-          ৳{(grossPaisa / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-        </span>
-      </div>
-      {tdsPaisa > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-          <span style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>− TDS</span>
-          <span style={{ font: 'var(--t-body)', color: 'var(--danger)' }}>
-            ৳{(tdsPaisa / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-          </span>
-        </div>
-      )}
-      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 6, borderTop: '1px solid rgba(99,102,241,0.2)' }}>
-        <span style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)', fontWeight: 600 }}>In-Hand</span>
-        <span style={{ font: 'var(--t-body)', fontWeight: 700, color: 'var(--ok)' }}>
-          ৳{(Math.max(0, inHand) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-interface IncomeModalProps {
-  open: boolean;
-  onClose: () => void;
-  onSaved: () => void;
-  editEntry?: IncomeEntry | null;
-  prefillFromLatestSalary?: SummaryData['latest_salary'];
-  prefillMonth?: string;
-}
-
-function IncomeModal({ open, onClose, onSaved, editEntry, prefillFromLatestSalary, prefillMonth }: IncomeModalProps) {
-  // Category switch
-  const [category, setCategory] = useState<'SALARY' | 'OTHER'>('SALARY');
-
-  // Common
-  const [month, setMonth] = useState('');
-  const [tdsPaisa, setTdsPaisa] = useState<number | null>(null);
-  const [notes, setNotes] = useState('');
-  const [isTaxable, setIsTaxable] = useState(true);
-  const [employerName, setEmployerName] = useState('');
-
-  // Salary-specific breakdown
-  const [actualPaisa, setActualPaisa] = useState<number | null>(null);   // basic/actual salary received
-  const [bonusPaisa, setBonusPaisa] = useState<number | null>(null);
-  const [otherPaisa, setOtherPaisa] = useState<number | null>(null);
-
-  // Other-income specific
-  const [incomeType, setIncomeType] = useState('CHEER');
-  const [amountPaisa, setAmountPaisa] = useState<number | null>(null);
-  const [payerName, setPayerName] = useState('');
-  const [earnedPeriod, setEarnedPeriod] = useState('');
-
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  // Derived gross
-  const salaryGross = (actualPaisa ?? 0) + (bonusPaisa ?? 0) + (otherPaisa ?? 0);
-  const otherGross = amountPaisa ?? 0;
-  const gross = category === 'SALARY' ? salaryGross : otherGross;
-  const tds = tdsPaisa ?? 0;
-  const tdsExceedsGross = tds > gross && gross > 0;
-
-  useEffect(() => {
-    if (!open) return;
-    if (editEntry) {
-      const isSal = editEntry.income_type === 'SALARY';
-      setCategory(isSal ? 'SALARY' : 'OTHER');
-      setMonth(editEntry.month.slice(0, 7));
-      setTdsPaisa(editEntry.tds_paisa || null);
-      setIsTaxable(editEntry.is_taxable);
-      setEmployerName(editEntry.employer_name ?? '');
-      setNotes(editEntry.notes ?? '');
-      setPayerName(editEntry.payer_name ?? '');
-      setEarnedPeriod(editEntry.earned_period ?? '');
-      if (isSal) {
-        setActualPaisa(editEntry.gross_paisa);
-        setBonusPaisa(null);
-        setOtherPaisa(null);
-      } else {
-        setIncomeType(editEntry.income_type);
-        setAmountPaisa(editEntry.gross_paisa);
-        setActualPaisa(null);
-        setBonusPaisa(null);
-        setOtherPaisa(null);
-      }
-    } else if (prefillFromLatestSalary) {
-      setCategory('SALARY');
-      setMonth(prefillMonth ?? '');
-      setActualPaisa(prefillFromLatestSalary.gross_paisa);
-      setBonusPaisa(null);
-      setOtherPaisa(null);
-      setTdsPaisa(prefillFromLatestSalary.tds_paisa || null);
-      setIsTaxable(true);
-      setEmployerName(prefillFromLatestSalary.employer_name ?? '');
-      setNotes(''); setPayerName(''); setEarnedPeriod(''); setAmountPaisa(null);
-    } else {
-      setCategory('SALARY');
-      setMonth(prefillMonth ?? '');
-      setActualPaisa(null); setBonusPaisa(null); setOtherPaisa(null);
-      setTdsPaisa(null); setIsTaxable(true); setEmployerName('');
-      setNotes(''); setPayerName(''); setEarnedPeriod(''); setAmountPaisa(null);
-      setIncomeType('CHEER');
-    }
-    setError(null);
-  }, [open, editEntry, prefillFromLatestSalary, prefillMonth]);
-
-  useEffect(() => {
-    if (!editEntry) setIsTaxable(incomeType !== 'CERTIFICATION');
-  }, [incomeType, editEntry]);
-
-  async function handleSave() {
-    if (!month) { setError('Month is required'); return; }
-    if (gross === 0) { setError('Amount is required'); return; }
-    if (tdsExceedsGross) { setError('TDS cannot exceed gross amount'); return; }
-    if (tds < 0) { setError('TDS cannot be negative'); return; }
-
-    const finalIncomeType = category === 'SALARY' ? 'SALARY' : incomeType;
-    setSaving(true); setError(null);
-    try {
-      if (editEntry) {
-        await api.patch(`/income-entries/${editEntry.id}`, {
-          gross_paisa: gross,
-          tds_paisa: tds,
-          is_taxable: isTaxable,
-          employer_name: employerName || null,
-          payer_name: finalIncomeType === 'CHEER' ? (payerName || null) : null,
-          earned_period: finalIncomeType === 'CHEER' ? (earnedPeriod || null) : null,
-          notes: notes || null,
-        });
-      } else {
-        await api.post('/income-entries', {
-          month,
-          income_type: finalIncomeType,
-          gross_paisa: gross,
-          tds_paisa: tds,
-          is_taxable: isTaxable,
-          employer_name: employerName || null,
-          payer_name: finalIncomeType === 'CHEER' ? (payerName || null) : null,
-          earned_period: finalIncomeType === 'CHEER' ? (earnedPeriod || null) : null,
-          notes: notes || null,
-          idempotency_key: `${month}-${finalIncomeType}-${Date.now()}`,
-        });
-      }
-      onSaved(); onClose();
-    } catch (err: unknown) {
-      setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to save');
-    } finally { setSaving(false); }
-  }
-
-  const isSalary = category === 'SALARY';
-
-  return (
-    <Modal open={open} onClose={onClose} title={editEntry ? 'Edit Income Entry' : 'Add Income'}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '80vh', overflowY: 'auto', paddingRight: 2 }}>
-
-        {/* ── Category toggle (Salary / Other) ── */}
-        {!editEntry && (
-          <div>
-            <div style={{ font: 'var(--t-body)', marginBottom: 6 }}>Category</div>
-            <div style={{ display: 'flex', borderRadius: 8, border: '1px solid var(--border)', overflow: 'hidden' }}>
-              {(['SALARY', 'OTHER'] as const).map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setCategory(cat)}
-                  style={{
-                    flex: 1, padding: '9px 0', border: 'none', cursor: 'pointer',
-                    font: 'var(--t-body)', fontWeight: category === cat ? 700 : 400,
-                    background: category === cat ? 'var(--accent)' : 'var(--bg-sunken)',
-                    color: category === cat ? '#fff' : 'var(--fg-secondary)',
-                    transition: 'background 0.15s',
-                  }}
-                >
-                  {cat === 'SALARY' ? '💼 Salary' : '💰 Other Income'}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Month ── */}
-        <FieldLabel label="Year & Month">
-          <input
-            type="month"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            disabled={!!editEntry}
-            style={inputStyle}
-          />
-        </FieldLabel>
-
-        {/* ── SALARY MODE ── */}
-        {isSalary ? (
-          <>
-            <FieldLabel label="Actual Amount Received (৳)">
-              <MoneyInput value={actualPaisa} onChange={setActualPaisa} id="actual-paisa" />
-              <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>Basic salary / net credited amount</span>
-            </FieldLabel>
-
-            <FieldLabel label="TDS Amount (৳)">
-              <MoneyInput value={tdsPaisa} onChange={setTdsPaisa} id="tds-paisa-salary" />
-              <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>Tax deducted at source</span>
-            </FieldLabel>
-
-            <FieldLabel label="Bonus (৳) — optional">
-              <MoneyInput value={bonusPaisa} onChange={setBonusPaisa} id="bonus-paisa" />
-            </FieldLabel>
-
-            <FieldLabel label="Other Allowances (৳) — optional">
-              <MoneyInput value={otherPaisa} onChange={setOtherPaisa} id="other-paisa" />
-              <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>e.g. medical, travel, festival allowance</span>
-            </FieldLabel>
-
-            <FieldLabel label="Employer (optional)">
-              <input type="text" value={employerName} onChange={(e) => setEmployerName(e.target.value)} placeholder="Company name" style={inputStyle} />
-            </FieldLabel>
-          </>
-        ) : (
-          /* ── OTHER INCOME MODE ── */
-          <>
-            {!editEntry && (
-              <FieldLabel label="Income Type">
-                <select value={incomeType} onChange={(e) => setIncomeType(e.target.value)} style={inputStyle}>
-                  {OTHER_INCOME_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
-              </FieldLabel>
-            )}
-
-            <FieldLabel label="Amount Received (৳)">
-              <MoneyInput value={amountPaisa} onChange={setAmountPaisa} id="other-amount-paisa" />
-            </FieldLabel>
-
-            <FieldLabel label="TDS (৳) — optional">
-              <MoneyInput value={tdsPaisa} onChange={setTdsPaisa} id="tds-paisa-other" />
-            </FieldLabel>
-
-            {incomeType === 'CHEER' && (
-              <>
-                <FieldLabel label="Payer Name (optional)">
-                  <input type="text" value={payerName} onChange={(e) => setPayerName(e.target.value)} placeholder="Who paid?" style={inputStyle} />
-                </FieldLabel>
-                <FieldLabel label="Earned Period (optional)">
-                  <input type="text" value={earnedPeriod} onChange={(e) => setEarnedPeriod(e.target.value)} placeholder="e.g. 2026-Q3" style={inputStyle} />
-                </FieldLabel>
-              </>
-            )}
-
-            <FieldLabel label="Employer / Source (optional)">
-              <input type="text" value={employerName} onChange={(e) => setEmployerName(e.target.value)} placeholder="Source / organisation" style={inputStyle} />
-            </FieldLabel>
-          </>
-        )}
-
-        {/* ── Notes (both modes) ── */}
-        <FieldLabel label="Notes (optional)">
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-            style={{ ...inputStyle, resize: 'vertical' }}
-          />
-        </FieldLabel>
-
-        {/* ── Taxable toggle ── */}
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, font: 'var(--t-body)', cursor: 'pointer' }}>
-          <input type="checkbox" checked={isTaxable} onChange={(e) => setIsTaxable(e.target.checked)} style={{ width: 16, height: 16 }} />
-          Taxable income
-        </label>
-
-        {/* ── Gross summary box ── */}
-        {gross > 0 && (
-          <div>
-            <div style={{ font: 'var(--t-body)', marginBottom: 2, fontWeight: 600 }}>
-              {isSalary ? 'Gross Salary Amount' : 'Gross Amount'}
-            </div>
-            <GrossSummaryBox grossPaisa={gross} tdsPaisa={tds} />
-          </div>
-        )}
-
-        {tdsExceedsGross && (
-          <div style={{ color: 'var(--danger)', font: 'var(--t-caption)' }}>TDS cannot exceed gross amount</div>
-        )}
-
-        {error && <div style={{ color: 'var(--danger)', font: 'var(--t-caption)' }}>{error}</div>}
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button type="button" onClick={onClose} style={{ padding: '8px 16px', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-primary)', cursor: 'pointer' }}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving || tdsExceedsGross}
-            style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', opacity: saving || tdsExceedsGross ? 0.7 : 1 }}
-          >
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-        </div>
-      </div>
-    </Modal>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -486,12 +139,7 @@ function HolidayModal({ open, onClose, onSaved, editEntry, prefillRatePaisa }: H
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, font: 'var(--t-body)' }}>
           Date
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-sunken)', color: 'var(--fg-primary)' }}
-          />
+          <DatePicker value={date} onChange={setDate} />
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, font: 'var(--t-body)' }}>
           Days
@@ -551,6 +199,7 @@ export default function IncomePage() {
   const [holidayModalOpen, setHolidayModalOpen] = useState(false);
   const [editHoliday, setEditHoliday] = useState<HolidayEntry | null>(null);
   const [latestHolidayRate, setLatestHolidayRate] = useState<number | null>(null);
+  const [savingsAccounts, setSavingsAccounts] = useState<SavingsAccount[]>([]);
 
   const loadSummary = useCallback(async () => {
     setLoading(true);
@@ -573,6 +222,9 @@ export default function IncomePage() {
   useEffect(() => {
     loadSummary();
     loadHolidayEntries();
+    api.get('/savings-accounts').then(({ data }) => {
+      setSavingsAccounts(Array.isArray(data) ? data : (data?.accounts ?? []));
+    }).catch(() => {});
   }, [loadSummary, loadHolidayEntries]);
 
   // Auto-open modal when navigated with ?action=add
@@ -842,6 +494,7 @@ export default function IncomePage() {
         editEntry={editEntry}
         prefillFromLatestSalary={!editEntry ? summary?.latest_salary : undefined}
         prefillMonth={prefillMonth}
+        savingsAccounts={savingsAccounts}
       />
 
       {/* Holiday Modal */}

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { getAccessToken } from '@/lib/api';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 function downloadUrl(path: string) {
   const token = getAccessToken();
@@ -81,11 +82,11 @@ export default function ExportPage() {
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div>
             <label style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', display: 'block', marginBottom: 4 }}>From</label>
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', color: 'var(--fg-primary)' }} />
+            <DatePicker value={from} onChange={setFrom} placeholder="Start date" />
           </div>
           <div>
             <label style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', display: 'block', marginBottom: 4 }}>To</label>
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', color: 'var(--fg-primary)' }} />
+            <DatePicker value={to} onChange={setTo} placeholder="End date" />
           </div>
           <button
             onClick={() => doExport('tx', `export/transactions${from || to ? `?from=${from}&to=${to}` : ''}`)}

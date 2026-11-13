@@ -17,6 +17,7 @@ function entryToJson(entry: {
   payerName: string | null;
   earnedPeriod: string | null;
   comment: string | null;
+  savingsAccountId: string | null;
   idempotencyKey: string;
   createdAt: Date;
   updatedAt: Date;
@@ -35,7 +36,8 @@ function entryToJson(entry: {
     employer_name: entry.employerName ?? null,
     payer_name: entry.payerName ?? null,
     earned_period: entry.earnedPeriod ?? null,
-    comment: entry.comment ?? null,
+    notes: entry.comment ?? null,
+    savings_account_id: entry.savingsAccountId ?? null,
     idempotency_key: entry.idempotencyKey,
     created_at: entry.createdAt.toISOString(),
     updated_at: entry.updatedAt.toISOString(),
@@ -50,17 +52,13 @@ export async function GET(req: Request) {
   const fy = url.searchParams.get('fiscal_year');
   const month = url.searchParams.get('month');
 
-  const where: { userId: string; isDeleted: boolean; fiscalYear?: string; month?: { gte: Date; lte: Date } } = {
-    userId: user.id,
-    isDeleted: false,
-  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const where: any = { userId: user.id, isDeleted: false };
   if (fy) where.fiscalYear = fy;
   if (month) {
     const monthStart = toDbDate(`${month}-01`);
     const [my, mm] = month.split('-').map(Number);
-    // Use lt: first day of NEXT month to avoid day-31 overflow wrapping into next month
-    const nextMonthStart = new Date(Date.UTC(my, mm, 1));
-    where.month = { gte: monthStart, lt: nextMonthStart };
+    where.month = { gte: monthStart, lt: new Date(Date.UTC(my, mm, 1)) };
   }
 
   const entries = await prisma.incomeEntry.findMany({
@@ -79,7 +77,7 @@ export async function POST(req: Request) {
   const {
     month, income_type, gross_paisa, tds_paisa = 0,
     is_taxable, employer_name, payer_name, earned_period,
-    comment, idempotency_key,
+    comment, notes, savings_account_id, idempotency_key,
   } = body;
 
   if (!month || !income_type || gross_paisa == null || !idempotency_key) {
@@ -122,7 +120,8 @@ export async function POST(req: Request) {
       employerName: employer_name ?? null,
       payerName: payer_name ?? null,
       earnedPeriod: earned_period ?? null,
-      comment: comment ?? null,
+      comment: notes ?? comment ?? null,
+      savingsAccountId: savings_account_id ?? null,
       idempotencyKey: idempotency_key,
     },
   });

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import api from '@/lib/api';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 export interface Category {
   id: string;
@@ -482,7 +483,7 @@ export function TransactionModal({
             </label>
             <label>
               <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Date</div>
-              <input type="date" required value={form.date} onChange={set('date')} style={inputStyle} />
+              <DatePicker value={form.date} onChange={(v) => set('date')({ target: { value: v } } as React.ChangeEvent<HTMLInputElement>)} />
             </label>
           </div>
 
@@ -656,7 +657,7 @@ export function TransactionModal({
               </label>
               <label style={{ display: 'block' }}>
                 <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Return due date (optional)</div>
-                <input type="date" value={form.loan_return_due_date} onChange={set('loan_return_due_date')} style={inputStyle} />
+                <DatePicker value={form.loan_return_due_date} onChange={(v) => set('loan_return_due_date')({ target: { value: v } } as React.ChangeEvent<HTMLInputElement>)} />
               </label>
             </div>
           )}

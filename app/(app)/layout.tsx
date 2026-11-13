@@ -4,6 +4,8 @@ import { Sidebar } from '@/components/nav/Sidebar';
 import { BottomTabBar } from '@/components/nav/BottomTabBar';
 import { NotificationBell } from '@/components/ui/NotificationDrawer';
 import { TransactionModal, type Category, type SavingsAccount, type LoanPerson, type FixedExpenseTemplate } from '@/components/ui/TransactionModal';
+import { IncomeModal } from '@/components/ui/IncomeModal';
+import type { SavingsAccount as IncomeSavingsAccount } from '@/components/ui/IncomeModal';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { tryRestoreSession } from '@/lib/api';
@@ -23,6 +25,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [modalFixedExpenses, setModalFixedExpenses] = useState<FixedExpenseTemplate[]>([]);
   const [modalDataLoaded, setModalDataLoaded] = useState(false);
 
+  // Global add income modal
+  const [showAddIncome, setShowAddIncome] = useState(false);
+  const [incomeAccounts, setIncomeAccounts] = useState<IncomeSavingsAccount[]>([]);
+  const [incomeDataLoaded, setIncomeDataLoaded] = useState(false);
+
   const openAdd = useCallback(async () => {
     setShowAdd(true);
     if (!modalDataLoaded) {
@@ -38,6 +45,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       setModalDataLoaded(true);
     }
   }, [modalDataLoaded]);
+
+  const openAddIncome = useCallback(async () => {
+    setShowAddIncome(true);
+    if (!incomeDataLoaded) {
+      api.get('/savings-accounts').then(({ data }) => {
+        const list = Array.isArray(data) ? data : (data?.accounts ?? []);
+        setIncomeAccounts(list);
+      }).catch(() => {});
+      setIncomeDataLoaded(true);
+    }
+  }, [incomeDataLoaded]);
 
   useEffect(() => {
     tryRestoreSession().then((ok) => {
@@ -96,7 +114,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* Desktop sticky top action bar */}
         <div className="app-topbar">
-          <Link href="/income?action=add" className="btn-secondary">+ Add Income</Link>
+          <button onClick={openAddIncome} className="btn-secondary">+ Add Income</button>
           <Link href="/fixed-expenses?action=mark-paid" className="btn-secondary">✓ Mark Fixed Paid</Link>
           <button
             onClick={openAdd}
@@ -116,6 +134,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="bottom-nav-mobile">
         <BottomTabBar />
       </div>
+
+      {/* Global add income modal */}
+      {showAddIncome && (
+        <IncomeModal
+          open={showAddIncome}
+          onClose={() => setShowAddIncome(false)}
+          onSaved={() => setShowAddIncome(false)}
+          savingsAccounts={incomeAccounts}
+        />
+      )}
 
       {/* Global add expenses modal */}
       {showAdd && (

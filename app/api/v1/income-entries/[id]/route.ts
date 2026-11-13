@@ -15,6 +15,7 @@ function entryToJson(entry: {
   payerName: string | null;
   earnedPeriod: string | null;
   comment: string | null;
+  savingsAccountId: string | null;
   idempotencyKey: string;
   createdAt: Date;
   updatedAt: Date;
@@ -33,7 +34,8 @@ function entryToJson(entry: {
     employer_name: entry.employerName ?? null,
     payer_name: entry.payerName ?? null,
     earned_period: entry.earnedPeriod ?? null,
-    comment: entry.comment ?? null,
+    notes: entry.comment ?? null,
+    savings_account_id: entry.savingsAccountId ?? null,
     idempotency_key: entry.idempotencyKey,
     created_at: entry.createdAt.toISOString(),
     updated_at: entry.updatedAt.toISOString(),
@@ -63,7 +65,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const body = await req.json();
   const {
     month, income_type, gross_paisa, tds_paisa,
-    is_taxable, employer_name, payer_name, earned_period, comment,
+    is_taxable, employer_name, payer_name, earned_period, comment, notes,
+    savings_account_id,
   } = body;
 
   const newGross = gross_paisa != null ? Number(gross_paisa) : Number(entry.grossPaisa);
@@ -91,7 +94,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       ...(employer_name !== undefined && { employerName: employer_name ?? null }),
       ...(payer_name !== undefined && { payerName: payer_name ?? null }),
       ...(earned_period !== undefined && { earnedPeriod: earned_period ?? null }),
-      ...(comment !== undefined && { comment: comment ?? null }),
+      ...((comment !== undefined || notes !== undefined) && { comment: notes ?? comment ?? null }),
+      ...(savings_account_id !== undefined && { savingsAccountId: savings_account_id ?? null }),
     },
   });
 
