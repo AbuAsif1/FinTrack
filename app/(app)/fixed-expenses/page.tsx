@@ -251,13 +251,18 @@ function PayDrawer({ instance, onClose, onDone }: { instance: FixedExpenseInstan
 
 // ── SetupModal ─────────────────────────────────────────────────────────────
 
-function SetupModal({ open, onClose, onDone, categories, savingsAccounts }: { open: boolean; onClose: () => void; onDone: () => void; categories: Category[]; savingsAccounts: SavingsAccount[] }) {
+function SetupModal({ open, onClose, onDone, categories, savingsAccounts, existingNames }: { open: boolean; onClose: () => void; onDone: () => void; categories: Category[]; savingsAccounts: SavingsAccount[]; existingNames: string[] }) {
   const [selected, setSelected] = useState<Record<number, boolean>>({});
   const [dpsAccounts, setDpsAccounts] = useState<Record<number, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => { if (!open) return; setSelected({}); setDpsAccounts({}); setError(null); }, [open]);
+
+  // Items not yet set up by the user
+  const availableItems = SUGGESTED_FIXED_EXPENSES
+    .map((item, idx) => ({ item, idx }))
+    .filter(({ item }) => !existingNames.includes(item.name.toLowerCase()));
 
   function findCategory(hint: string) {
     const h = hint.toLowerCase();
@@ -287,31 +292,41 @@ function SetupModal({ open, onClose, onDone, categories, savingsAccounts }: { op
 
   return (
     <Modal open={open} onClose={onClose} title="Set Up Suggested Fixed Expenses">
-      <p style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)', marginBottom: 16 }}>Select expenses to track. DPS items require a savings account.</p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 320, overflowY: 'auto', marginBottom: 16 }}>
-        {SUGGESTED_FIXED_EXPENSES.map((item, idx) => (
-          <div key={idx} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', background: selected[idx] ? 'var(--bg-sunken)' : 'transparent' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-              <input type="checkbox" checked={!!selected[idx]} onChange={e => setSelected(p => ({ ...p, [idx]: e.target.checked }))} style={{ width: 16, height: 16, flexShrink: 0 }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ font: 'var(--t-body)' }}>{item.name}</div>
-                <div style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}><Amount paisa={item.standard_amount_paisa} /> · Day {item.due_day} · {item.category_name}</div>
-              </div>
-            </label>
-            {selected[idx] && item.routing_type_hint === 'SAVINGS_DEPOSIT' && (
-              <div style={{ marginTop: 8, paddingLeft: 26 }}>
-                <label style={{ font: 'var(--t-caption)', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  Savings Account
-                  <select value={dpsAccounts[idx] ?? ''} onChange={e => setDpsAccounts(p => ({ ...p, [idx]: e.target.value }))} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-sunken)', color: 'var(--fg-primary)' }}>
-                    <option value="">Select account…</option>
-                    {savingsAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
-                </label>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      <p style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)', marginBottom: 16 }}>
+        Select expenses to add. Already-added items are hidden.
+        {availableItems.length === 0 && ' All suggested expenses are already set up.'}
+      </p>
+      {availableItems.length === 0 ? (
+        <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--fg-muted)', font: 'var(--t-body)' }}>
+          Nothing left to add from the suggested list.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 320, overflowY: 'auto', marginBottom: 16 }}>
+          {availableItems.map(({ item, idx }) => (
+            <div key={idx} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', background: selected[idx] ? 'var(--bg-sunken)' : 'transparent' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                <input type="checkbox" checked={!!selected[idx]} onChange={e => setSelected(p => ({ ...p, [idx]: e.target.checked }))} style={{ width: 16, height: 16, flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ font: 'var(--t-body)' }}>{item.name}</div>
+                  <div style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}><Amount paisa={item.standard_amount_paisa} /> · Day {item.due_day} · {item.category_name}</div>
+                </div>
+              </label>
+              {selected[idx] && item.routing_type_hint === 'SAVINGS_DEPOSIT' && (
+                <div style={{ marginTop: 8, paddingLeft: 26 }}>
+                  <label style={{ font: 'var(--t-caption)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    Savings Account
+                    <select value={dpsAccounts[idx] ?? ''} onChange={e => setDpsAccounts(p => ({ ...p, [idx]: e.target.value }))} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-sunken)', color: 'var(--fg-primary)' }}>
+                      <option value="">Select account…</option>
+                      {savingsAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                  </label>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {error && <div style={{ color: 'var(--danger)', font: 'var(--t-caption)', marginBottom: 8 }}>{error}</div>}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
         <button type="button" onClick={onClose} style={{ padding: '8px 16px', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
@@ -429,6 +444,11 @@ export default function FixedExpensesPage() {
   const currentMonth = currentYM();
   const today = todayStr();
   const BANNER_KEY = `fe_banner_dismissed_${today}`;
+
+  // Deduplicate templates by name — keeps only the first occurrence per name
+  const uniqueTemplates = templates.filter(
+    (t, i) => templates.findIndex(t2 => t2.name.toLowerCase() === t.name.toLowerCase()) === i
+  );
 
   // Check banner dismissal from localStorage
   useEffect(() => {
@@ -673,7 +693,7 @@ export default function FixedExpensesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {templates.map((tmpl, tIdx) => (
+                    {uniqueTemplates.map((tmpl, tIdx) => (
                       <tr key={tmpl.id} style={{ borderBottom: '1px solid var(--border)' }}>
                         {/* Template info */}
                         <td style={{ padding: '10px 16px', position: 'sticky', left: 0, background: 'var(--bg-surface)', borderRight: '1px solid var(--border)' }}>
@@ -761,7 +781,7 @@ export default function FixedExpensesPage() {
 
       {/* Modals & Drawers */}
       {activeDrawer && <PayDrawer instance={activeDrawer} onClose={() => setActiveDrawer(null)} onDone={reloadAll} />}
-      <SetupModal open={setupOpen} onClose={() => setSetupOpen(false)} onDone={reloadAll} categories={categories} savingsAccounts={savingsAccounts} />
+      <SetupModal open={setupOpen} onClose={() => setSetupOpen(false)} onDone={reloadAll} categories={categories} savingsAccounts={savingsAccounts} existingNames={templates.map(t => t.name.toLowerCase())} />
       <TemplateModal open={templateModalOpen} onClose={() => setTemplateModalOpen(false)} onSaved={reloadAll} edit={editTemplate} categories={categories} savingsAccounts={savingsAccounts} />
     </div>
   );
