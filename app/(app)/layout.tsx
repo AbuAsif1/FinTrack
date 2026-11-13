@@ -3,7 +3,7 @@
 import { Sidebar } from '@/components/nav/Sidebar';
 import { BottomTabBar } from '@/components/nav/BottomTabBar';
 import { NotificationBell } from '@/components/ui/NotificationDrawer';
-import { TransactionModal, type Category, type SavingsAccount, type LoanPerson } from '@/components/ui/TransactionModal';
+import { TransactionModal, type Category, type SavingsAccount, type LoanPerson, type FixedExpenseTemplate } from '@/components/ui/TransactionModal';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { tryRestoreSession } from '@/lib/api';
@@ -20,6 +20,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [modalCategories, setModalCategories] = useState<Category[]>([]);
   const [modalAccounts, setModalAccounts] = useState<SavingsAccount[]>([]);
   const [modalPersons, setModalPersons] = useState<LoanPerson[]>([]);
+  const [modalFixedExpenses, setModalFixedExpenses] = useState<FixedExpenseTemplate[]>([]);
   const [modalDataLoaded, setModalDataLoaded] = useState(false);
 
   const openAdd = useCallback(async () => {
@@ -32,6 +33,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           setModalAccounts(list);
         }).catch(() => {}),
         api.get('/loan-persons').then(({ data }) => setModalPersons(Array.isArray(data) ? data : [])).catch(() => {}),
+        api.get('/fixed-expenses').then(({ data }) => setModalFixedExpenses(Array.isArray(data) ? data : [])).catch(() => {}),
       ]);
       setModalDataLoaded(true);
     }
@@ -121,6 +123,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           categories={modalCategories}
           savingsAccounts={modalAccounts}
           loanPersons={modalPersons}
+          fixedExpenses={modalFixedExpenses}
           editing={null}
           onClose={() => setShowAdd(false)}
           onSaved={() => {
