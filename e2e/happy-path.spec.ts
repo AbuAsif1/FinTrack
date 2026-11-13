@@ -19,11 +19,17 @@ const PASSWORD = 'E2ETest1234!';
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 async function signIn(page: Page) {
-  await page.goto('/login');
-  await page.getByLabel(/email/i).fill(EMAIL);
-  await page.getByLabel(/password/i).fill(PASSWORD);
-  await page.getByRole('button', { name: /sign in/i }).click();
-  await page.waitForURL('/');
+  // Programmatic login: page.request shares the page's cookie jar, so the
+  // Set-Cookie (refresh_token) from this POST is available on the next goto.
+  const resp = await page.request.post('/api/v1/auth/login', {
+    data: { email: EMAIL, password: PASSWORD },
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!resp.ok()) throw new Error(`Login API failed: ${resp.status()} ${await resp.text()}`);
+
+  // Navigate to the app — the cookie is now in the jar, middleware allows through,
+  // layout calls tryRestoreSession() which exchanges it for an access token.
+  await page.goto('/');
   await page.waitForLoadState('networkidle');
 }
 
@@ -142,7 +148,7 @@ test('S03 — Add Dining spending → transactions list, dashboard total and bud
   await page.waitForLoadState('networkidle');
 
   // Transaction appears in the list
-  await expect(page.getByText(/lunch with team/i)).toBeVisible({ timeout: 6_000 });
+  await expect(page.getByText(/lunch with team/i).first()).toBeVisible({ timeout: 6_000 });
 
   // ── 3c: Add more Dining to push over ৳4,000 (80% of ৳5,000 budget) ──
   for (const desc of ['Dinner', 'Team lunch', 'Office snacks']) {
@@ -281,8 +287,7 @@ test('S06 — Loan Given to Sohel → running balance shown → settle up clears
   // Amount
   await page.locator('input[type="number"]').first().fill('5000');
   // Reason
-  const reasonInput = page.locator('input[type="text"]').filter({ hasText: '' }).nth(1);
-  await reasonInput.fill('medical expenses');
+  await page.getByLabel(/reason/i).fill('medical expenses');
 
   await page.getByRole('button', { name: 'Save Entry' }).click();
 

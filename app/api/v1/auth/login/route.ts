@@ -12,7 +12,7 @@ import {
   resetRateLimit,
 } from '@/lib/auth';
 
-const REFRESH_TTL_DAYS = 30;
+const REFRESH_TTL_DAYS = 30; // 30-day sliding window
 
 function getClientIp(req: Request): string {
   return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
