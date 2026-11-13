@@ -1,17 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { TransactionModal } from '@/components/ui/TransactionModal';
+import type { Category, SavingsAccount, LoanPerson, EditingTransaction } from '@/components/ui/TransactionModal';
 
 // ── Types ──────────────────────────────────────────────────────────────────
-
-interface Category {
-  id: string;
-  name: string;
-  colorHex: string;
-  routing_type: string;
-  savings_account?: { id: string; name: string } | null;
-}
 
 interface Transaction {
   id: string;
@@ -31,31 +27,6 @@ interface Transaction {
   };
 }
 
-interface SavingsAccount {
-  id: string;
-  name: string;
-  account_number?: string;
-}
-
-interface LoanPerson {
-  id: string;
-  name: string;
-}
-
-interface TransactionForm {
-  amount_paisa: string;
-  date: string;
-  description: string;
-  category_id: string;
-  payment_method: string;
-  savings_account_id: string;
-  loan_person_name: string;
-  loan_direction: string;
-  loan_reason: string;
-  loan_return_due_date: string;
-  idempotency_key: string;
-}
-
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function fmt(paisa: number) {
@@ -67,265 +38,8 @@ function fmtDate(iso: string) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 }
 
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function genKey() {
-  return crypto.randomUUID();
-}
-
 const PAYMENT_METHODS = ['CASH', 'BANK', 'BKASH', 'NAGAD', 'ROCKET', 'CARD'];
 
-// ── Add / Edit Modal ───────────────────────────────────────────────────────
-
-function TransactionModal({
-  categories,
-  savingsAccounts,
-  loanPersons,
-  editing,
-  onClose,
-  onSaved,
-}: {
-  categories: Category[];
-  savingsAccounts: SavingsAccount[];
-  loanPersons: LoanPerson[];
-  editing: Transaction | null;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const isEdit = !!editing;
-  const [form, setForm] = useState<TransactionForm>(() => ({
-    amount_paisa: editing ? String(editing.amount_paisa / 100) : '',
-    date: editing ? editing.date.slice(0, 10) : todayIso(),
-    description: editing?.description ?? '',
-    category_id: editing?.category_id ?? '',
-    payment_method: editing?.payment_method ?? 'CASH',
-    savings_account_id: editing?.routing?.savings_account?.id ?? '',
-    loan_person_name: editing?.routing?.loan_person?.name ?? '',
-    loan_direction: editing?.routing?.direction ?? 'GIVEN',
-    loan_reason: '',
-    loan_return_due_date: editing?.routing?.return_due_date?.slice(0, 10) ?? '',
-    idempotency_key: genKey(),
-  }));
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  const selectedCat = categories.find((c) => c.id === form.category_id);
-  const routingType = selectedCat?.routing_type ?? 'NONE';
-  const isSavings = routingType === 'SAVINGS_DEPOSIT' || routingType === 'SAVINGS_WITHDRAWAL';
-  const isLoan = routingType === 'LOAN_GIVEN' || routingType === 'LOAN_RECEIVED';
-  const isTax = routingType === 'TAX';
-
-  const set = (k: keyof TransactionForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError('');
-
-    const amountPaisa = Math.round(parseFloat(form.amount_paisa) * 100);
-    if (isNaN(amountPaisa) || amountPaisa <= 0) {
-      setError('Enter a valid amount.');
-      setSaving(false);
-      return;
-    }
-
-    const body: Record<string, unknown> = {
-      amount_paisa: amountPaisa,
-      date: form.date,
-      description: form.description,
-      category_id: form.category_id,
-      payment_method: form.payment_method,
-      idempotency_key: form.idempotency_key,
-    };
-    if (isSavings && form.savings_account_id) body.savings_account_id = form.savings_account_id;
-    if (isLoan) {
-      body.loan_person_name = form.loan_person_name;
-      if (form.loan_reason) body.reason = form.loan_reason;
-      if (form.loan_return_due_date) body.return_due_date = form.loan_return_due_date;
-    }
-
-    try {
-      if (isEdit) {
-        await api.patch(`/transactions/${editing!.id}`, body);
-      } else {
-        await api.post('/transactions', body);
-      }
-      onSaved();
-    } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
-      if (status === 409) { onSaved(); return; }
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to save transaction.';
-      setError(msg);
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50,
-      }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div style={{
-        background: 'var(--bg-surface)', borderRadius: 12, padding: 28,
-        width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-      }}>
-        <h2 style={{ font: 'var(--t-section)', marginBottom: 20 }}>
-          {isEdit ? 'Edit Transaction' : 'Add Spending'}
-        </h2>
-
-        <form onSubmit={submit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-            <label>
-              <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Amount (৳)</div>
-              <input
-                type="number" step="0.01" min="0.01" required
-                value={form.amount_paisa} onChange={set('amount_paisa')}
-                style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
-              />
-            </label>
-            <label>
-              <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Date</div>
-              <input
-                type="date" required
-                value={form.date} onChange={set('date')}
-                style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
-              />
-            </label>
-          </div>
-
-          <label style={{ display: 'block', marginBottom: 12 }}>
-            <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Description</div>
-            <input
-              type="text" required
-              value={form.description} onChange={set('description')}
-              style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
-            />
-          </label>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-            <label>
-              <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Category</div>
-              <select
-                required value={form.category_id} onChange={set('category_id')}
-                style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
-              >
-                <option value="">Select category…</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Payment Method</div>
-              <select
-                value={form.payment_method} onChange={set('payment_method')}
-                style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
-              >
-                {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-              </select>
-            </label>
-          </div>
-
-          {/* Routing notice */}
-          {isSavings && (
-            <div style={{ background: 'rgba(58,95,205,0.08)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
-              <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 6 }}>
-                🔵 This will {routingType === 'SAVINGS_DEPOSIT' ? 'deposit into' : 'withdraw from'} your savings account.
-              </div>
-              <label>
-                <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Savings Account</div>
-                <select
-                  required value={form.savings_account_id} onChange={set('savings_account_id')}
-                  style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
-                >
-                  <option value="">Select account…</option>
-                  {savingsAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-              </label>
-            </div>
-          )}
-
-          {isLoan && (
-            <div style={{ background: 'rgba(58,95,205,0.08)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
-              <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 8 }}>
-                🤝 This will update the loan ledger.
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 8 }}>
-                <label>
-                  <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Person</div>
-                  <input
-                    type="text" required placeholder="Name (creates person if new)"
-                    value={form.loan_person_name} onChange={set('loan_person_name')}
-                    list="loan-persons-list"
-                    style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
-                  />
-                  <datalist id="loan-persons-list">
-                    {loanPersons.map((p) => <option key={p.id} value={p.name} />)}
-                  </datalist>
-                </label>
-                <label>
-                  <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Direction</div>
-                  <select
-                    value={form.loan_direction} onChange={set('loan_direction')}
-                    style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
-                  >
-                    <option value="GIVEN">I gave</option>
-                    <option value="RECEIVED">I received</option>
-                  </select>
-                </label>
-              </div>
-              <label style={{ display: 'block', marginBottom: 8 }}>
-                <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Reason (optional)</div>
-                <input
-                  type="text" value={form.loan_reason} onChange={set('loan_reason')}
-                  style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
-                />
-              </label>
-              <label style={{ display: 'block' }}>
-                <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Return due date (optional)</div>
-                <input
-                  type="date" value={form.loan_return_due_date} onChange={set('loan_return_due_date')}
-                  style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
-                />
-              </label>
-            </div>
-          )}
-
-          {isTax && (
-            <div style={{ background: 'rgba(58,95,205,0.08)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
-              <div style={{ font: 'var(--t-caption)', color: 'var(--accent)' }}>
-                📋 This transaction will be recorded against the current Fiscal Year.
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <div style={{ color: 'var(--danger)', font: 'var(--t-caption)', marginBottom: 10 }}>{error}</div>
-          )}
-
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
-            <button type="button" onClick={onClose} style={{ padding: '8px 20px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: 'pointer', font: 'var(--t-body)' }}>
-              Cancel
-            </button>
-            <button
-              type="submit" disabled={saving}
-              style={{ padding: '8px 20px', background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', font: 'var(--t-body)', opacity: saving ? 0.7 : 1 }}
-            >
-              {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Save Transaction'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 // ── Delete Confirmation ────────────────────────────────────────────────────
 
@@ -368,6 +82,7 @@ function DeleteConfirm({
   );
 }
 
+
 // ── Routing Indicator Row ──────────────────────────────────────────────────
 
 function RoutingRow({ routing }: { routing: Transaction['routing'] }) {
@@ -407,7 +122,7 @@ interface BudgetItem {
   state: 'ok' | 'warn' | 'over';
 }
 
-function BudgetSidebar({ onManage }: { onManage: () => void }) {
+function BudgetSidebar({ onManage }: { onManage?: () => void }) {
   const [budgets, setBudgets] = useState<BudgetItem[]>([]);
 
   useEffect(() => {
@@ -487,7 +202,23 @@ export default function TransactionsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [deleteIds, setDeleteIds] = useState<string[] | null>(null);
-  const [showBudgets, setShowBudgets] = useState(false);
+  const router = useRouter();
+
+  // Row action popup (⚡ button)
+  const [actionOpen, setActionOpen] = useState<string | null>(null);
+  const [actionPos, setActionPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const actionPopupRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!actionOpen) return;
+    function close(e: MouseEvent) {
+      if (actionPopupRef.current && !actionPopupRef.current.contains(e.target as Node)) {
+        setActionOpen(null);
+      }
+    }
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [actionOpen]);
 
   const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
@@ -534,30 +265,22 @@ export default function TransactionsPage() {
   const selectAll = () => setSelected(new Set(transactions.map((t) => t.id)));
   const clearSelect = () => setSelected(new Set());
 
-  if (showBudgets) return <BudgetsPage onBack={() => setShowBudgets(false)} />;
-
   return (
     <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
       {/* Main content */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <h1 style={{ font: 'var(--t-page)', margin: 0 }}>Transactions</h1>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            {!isOnline && (
+        <PageHeader
+          eyebrow="Every entry, one clear view"
+          title="Transactions"
+          description="Search, filter, categorise and tag your records."
+          actions={
+            !isOnline ? (
               <span style={{ font: 'var(--t-caption)', color: 'var(--warn)', background: 'var(--warn-bg)', padding: '4px 10px', borderRadius: 999 }}>
-                Offline — submitting disabled
+                Offline
               </span>
-            )}
-            <button
-              disabled={!isOnline}
-              onClick={() => { setEditing(null); setShowModal(true); }}
-              style={{ padding: '8px 16px', background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 8, cursor: isOnline ? 'pointer' : 'not-allowed', font: 'var(--t-body)', opacity: isOnline ? 1 : 0.5 }}
-            >
-              + Add Spending
-            </button>
-          </div>
-        </div>
+            ) : undefined
+          }
+        />
 
         {/* Filter Bar */}
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px', marginBottom: 12 }}>
@@ -628,7 +351,7 @@ export default function TransactionsPage() {
         )}
 
         {/* Table */}
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+        <div className="table-scroll" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
           {loading ? (
             <div style={{ padding: 40, textAlign: 'center', color: 'var(--fg-muted)', font: 'var(--t-body)' }}>Loading…</div>
           ) : transactions.length === 0 ? (
@@ -639,15 +362,15 @@ export default function TransactionsPage() {
               <button
                 disabled={!isOnline}
                 onClick={() => { setEditing(null); setShowModal(true); }}
-                style={{ padding: '10px 20px', background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 8, cursor: 'pointer' }}
+                style={{ padding: '10px 20px', background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 8, cursor: 'pointer', opacity: isOnline ? 1 : 0.5 }}
               >
-                + Add Transaction
+                + Add Spending
               </button>
             </div>
           ) : (
             <>
               {/* Table Header */}
-              <div style={{ display: 'grid', gridTemplateColumns: '36px 90px 1fr 160px 100px 120px 44px', gap: 0, borderBottom: '2px solid var(--border)', padding: '10px 16px', background: 'var(--bg-raised)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '36px 90px 1fr 160px 90px 180px 56px', gap: 0, borderBottom: '2px solid var(--border)', padding: '10px 16px', background: 'var(--bg-raised)', minWidth: 620 }}>
                 <div>
                   <input type="checkbox" checked={selected.size === transactions.length && transactions.length > 0} onChange={() => selected.size === transactions.length ? clearSelect() : selectAll()} />
                 </div>
@@ -656,17 +379,16 @@ export default function TransactionsPage() {
                 <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>CATEGORY</div>
                 <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>METHOD</div>
                 <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', textAlign: 'right' }}>AMOUNT</div>
-                <div />
+                <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', textAlign: 'center' }}>ACTION</div>
               </div>
 
               {/* Rows */}
               {transactions.map((tx) => (
                 <div key={tx.id}>
                   <div
-                    style={{ display: 'grid', gridTemplateColumns: '36px 90px 1fr 160px 100px 120px 44px', gap: 0, padding: '12px 16px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
-                    onClick={() => { setEditing(tx); setShowModal(true); }}
+                    style={{ display: 'grid', gridTemplateColumns: '36px 90px 1fr 160px 90px 180px 56px', gap: 0, padding: '12px 16px', borderBottom: '1px solid var(--border)', minWidth: 620 }}
                   >
-                    <div onClick={(e) => e.stopPropagation()}>
+                    <div>
                       <input type="checkbox" checked={selected.has(tx.id)} onChange={() => toggleSelect(tx.id)} />
                     </div>
                     <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>{fmtDate(tx.date)}</div>
@@ -676,16 +398,31 @@ export default function TransactionsPage() {
                       {tx.category?.name ?? '—'}
                     </div>
                     <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>{tx.payment_method}</div>
-                    <div style={{ font: 'var(--t-data)', color: 'var(--danger)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    <div style={{ font: 'var(--t-data)', color: 'var(--danger)', textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                       −{fmt(tx.amount_paisa)}
                     </div>
-                    <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <button
-                        onClick={() => setDeleteIds([tx.id])}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', fontSize: 16, padding: 4, lineHeight: 1 }}
-                        title="Delete"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          setActionPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+                          setActionOpen((prev) => prev === tx.id ? null : tx.id);
+                        }}
+                        style={{
+                          background: actionOpen === tx.id ? 'var(--accent)' : 'none',
+                          border: '1px solid var(--border)',
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          color: actionOpen === tx.id ? 'var(--accent-fg)' : 'var(--fg-muted)',
+                          fontSize: 14,
+                          padding: '3px 7px',
+                          lineHeight: 1,
+                          transition: 'background 100ms',
+                        }}
+                        title="Actions"
                       >
-                        ×
+                        ⚡
                       </button>
                     </div>
                   </div>
@@ -708,7 +445,7 @@ export default function TransactionsPage() {
 
       {/* Budget sidebar — hidden on mobile */}
       <div style={{ width: 320, flexShrink: 0 }} className="hidden-mobile">
-        <BudgetSidebar onManage={() => setShowBudgets(true)} />
+        <BudgetSidebar onManage={() => router.push('/budgets')} />
       </div>
 
       {/* Modals */}
@@ -717,9 +454,12 @@ export default function TransactionsPage() {
           categories={categories}
           savingsAccounts={savingsAccounts}
           loanPersons={loanPersons}
-          editing={editing}
+          editing={editing as EditingTransaction | null}
           onClose={() => setShowModal(false)}
-          onSaved={() => { setShowModal(false); load(); }}
+          onSaved={() => {
+            setShowModal(false); load();
+            api.get('/savings-accounts').then(({ data }) => setSavingsAccounts(Array.isArray(data) ? data : (data?.accounts ?? []))).catch(() => {});
+          }}
         />
       )}
 
@@ -729,6 +469,62 @@ export default function TransactionsPage() {
           onCancel={() => setDeleteIds(null)}
           onDeleted={() => { setDeleteIds(null); setSelected(new Set()); load(); }}
         />
+      )}
+
+      {/* ⚡ Action popup */}
+      {actionOpen && (
+        <div
+          ref={actionPopupRef}
+          style={{
+            position: 'fixed',
+            top: actionPos.top,
+            right: actionPos.right,
+            zIndex: 300,
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            boxShadow: '0 6px 24px rgba(0,0,0,0.18)',
+            overflow: 'hidden',
+            minWidth: 130,
+          }}
+        >
+          <button
+            onClick={() => {
+              const tx = transactions.find((t) => t.id === actionOpen);
+              if (tx) { setEditing(tx); setShowModal(true); }
+              setActionOpen(null);
+            }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              width: '100%', padding: '10px 16px',
+              background: 'none', border: 'none', cursor: 'pointer',
+              font: 'var(--t-body)', color: 'var(--fg-primary)',
+              textAlign: 'left',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-raised)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+          >
+            <span style={{ fontSize: 14 }}>✏️</span> Edit
+          </button>
+          <div style={{ height: 1, background: 'var(--border)', margin: '0 8px' }} />
+          <button
+            onClick={() => {
+              setDeleteIds([actionOpen]);
+              setActionOpen(null);
+            }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              width: '100%', padding: '10px 16px',
+              background: 'none', border: 'none', cursor: 'pointer',
+              font: 'var(--t-body)', color: 'var(--danger)',
+              textAlign: 'left',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-raised)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+          >
+            <span style={{ fontSize: 14 }}>🗑️</span> Remove
+          </button>
+        </div>
       )}
     </div>
   );
@@ -743,114 +539,4 @@ function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
   );
 }
 
-// ── Budgets Page ───────────────────────────────────────────────────────────
 
-function BudgetsPage({ onBack }: { onBack: () => void }) {
-  const [budgets, setBudgets] = useState<BudgetItem[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<{ categoryId: string; current: number | null } | null>(null);
-  const [limitInput, setLimitInput] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const [{ data: b }, { data: c }] = await Promise.all([
-      api.get('/budgets'),
-      api.get('/categories'),
-    ]);
-    setBudgets(Array.isArray(b) ? b : []);
-    const cats = Array.isArray(c) ? c : [];
-    setCategories(cats.filter((cat: Category) => cat.routing_type === 'NONE'));
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  async function saveBudget() {
-    if (!editing) return;
-    setSaving(true);
-    const paisa = Math.round(parseFloat(limitInput) * 100);
-    if (isNaN(paisa) || paisa <= 0) { setSaving(false); return; }
-    await api.put(`/budgets/${editing.categoryId}`, { monthly_limit_paisa: paisa }).catch(() => {});
-    setSaving(false);
-    setEditing(null);
-    load();
-  }
-
-  async function removeBudget(categoryId: string) {
-    await api.delete(`/budgets/${categoryId}`).catch(() => {});
-    load();
-  }
-
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', font: 'var(--t-body)' }}>← Back</button>
-        <h1 style={{ font: 'var(--t-page)', margin: 0 }}>Budgets</h1>
-      </div>
-
-      {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: 'var(--fg-muted)' }}>Loading…</div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {categories.map((cat) => {
-            const b = budgets.find((x) => x.category_id === cat.id);
-            const isEditing = editing?.categoryId === cat.id;
-            const color = !b ? 'var(--fg-muted)' : b.state === 'over' ? 'var(--danger)' : b.state === 'warn' ? 'var(--warn)' : 'var(--ok)';
-
-            return (
-              <div key={cat.id} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: b ? 10 : 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: cat.colorHex }} />
-                    <span style={{ font: 'var(--t-body)', fontWeight: 600 }}>{cat.name}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {b && (
-                      <button onClick={() => removeBudget(cat.id)} style={{ font: 'var(--t-caption)', color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer' }}>
-                        Remove
-                      </button>
-                    )}
-                    <button
-                      onClick={() => { setEditing({ categoryId: cat.id, current: b?.monthly_limit_paisa ?? null }); setLimitInput(b ? String(b.monthly_limit_paisa / 100) : ''); }}
-                      style={{ font: 'var(--t-caption)', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}
-                    >
-                      {b ? 'Edit' : 'Set limit'}
-                    </button>
-                  </div>
-                </div>
-
-                {b && (
-                  <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <span style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>{fmt(b.spent_paisa)} / {fmt(b.monthly_limit_paisa)}</span>
-                      <span style={{ font: 'var(--t-caption)', color }}>{b.pct}%</span>
-                    </div>
-                    <div style={{ height: 8, background: 'var(--bg-sunken)', borderRadius: 4, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${Math.min(b.pct, 100)}%`, background: color, borderRadius: 4, transition: 'width 0.3s' }} />
-                    </div>
-                  </>
-                )}
-
-                {isEditing && (
-                  <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input
-                      type="number" min="0.01" step="0.01" placeholder="Monthly limit (৳)"
-                      value={limitInput} onChange={(e) => setLimitInput(e.target.value)}
-                      style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)' }}
-                    />
-                    <button onClick={saveBudget} disabled={saving} style={{ padding: '7px 14px', background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
-                      {saving ? '…' : 'Save'}
-                    </button>
-                    <button onClick={() => setEditing(null)} style={{ padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: 'pointer' }}>Cancel</button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}

@@ -30,7 +30,7 @@ export async function ensureTaxYear(userId: string, fy: string) {
     ],
     salary_exemption: { numerator: 1, denominator: 3, cap_paisa: 50000000 },
     rebate: { income_rate_bps: 300, investment_rate_bps: 1000, max_paisa: 100000000 },
-    investment_caps_paisa: { dps: 12000000, sanchaypatra: 50000000, stocks: null, insurance: null, others: null },
+    investment_caps_paisa: { dps: 12000000, sanchaypatra: 50000000, stocks: null, insurance: null, others: null, universal_pension: null },
     minimum_tax_paisa: 500000,
     early_filing: { rate_bps: 500, max_paisa: 200000, deadline_mmdd: '09-30' },
   };
@@ -110,6 +110,8 @@ export async function buildTaxInput(userId: string, fy: string): Promise<TaxInpu
     stocks: Number(taxInv?.stocksPaisa ?? 0),
     insurance: Number(taxInv?.insurancePaisa ?? 0),
     others: Number(taxInv?.othersPaisa ?? 0),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    universal_pension: Number((taxInv as any)?.universalPensionPaisa ?? 0),
   };
 
   // Tax payments assigned to this FY

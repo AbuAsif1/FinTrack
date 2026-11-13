@@ -7,6 +7,7 @@ import { MoneyInput } from '@/components/ui/MoneyInput';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SummaryTile } from '@/components/ui/SummaryTile';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -532,17 +533,11 @@ export default function IncomePage() {
 
   return (
     <div>
-      {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ font: 'var(--t-page)', margin: 0 }}>Income</h1>
-        <button
-          type="button"
-          onClick={openAddModal}
-          style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', font: 'var(--t-body)' }}
-        >
-          + Add Income Entry
-        </button>
-      </div>
+      <PageHeader
+        eyebrow="Salary, bonus and more"
+        title="Income"
+        description="Track every source of income by month and fiscal year."
+      />
 
       {/* YTD Summary Tiles */}
       {summary && (
@@ -574,8 +569,8 @@ export default function IncomePage() {
       ) : summary?.months.length === 0 ? (
         <EmptyState heading="No income entries" body="Add your first income entry to start tracking." />
       ) : (
-        <div style={{ background: 'var(--bg-surface)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 32 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div className="table-scroll" style={{ background: 'var(--bg-surface)', borderRadius: 10, border: '1px solid var(--border)', marginBottom: 32 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 540 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-sunken)' }}>
                 <th style={{ padding: '12px 16px', textAlign: 'left', font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>Month</th>
@@ -705,8 +700,8 @@ export default function IncomePage() {
         {holidayEntries.length === 0 ? (
           <EmptyState heading="No holiday support entries" body="Track your holiday support payments here." />
         ) : (
-          <div style={{ background: 'var(--bg-surface)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div className="table-scroll" style={{ background: 'var(--bg-surface)', borderRadius: 10, border: '1px solid var(--border)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-sunken)' }}>
                   <th style={{ padding: '10px 16px', textAlign: 'left', font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>Date</th>

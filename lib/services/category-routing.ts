@@ -79,14 +79,15 @@ async function computeSavingsBalance(accountId: string, userId: string): Promise
     where: { savingsAccountId: accountId, userId, isDeleted: false },
     _sum: { amountPaisa: true },
   });
-  let deposit = 0n, interest = 0n, withdrawal = 0n;
+  let deposit = 0n, interest = 0n, withdrawal = 0n, spending = 0n;
   for (const r of txSums) {
     const a = r._sum.amountPaisa ?? 0n;
     if (r.type === 'SAVINGS_DEPOSIT') deposit = a;
     else if (r.type === 'SAVINGS_INTEREST') interest = a;
     else if (r.type === 'SAVINGS_WITHDRAWAL') withdrawal = a;
+    else if (r.type === 'NONE') spending = a;
   }
-  return Number(acct.openingBalancePaisa) + Number(deposit) + Number(interest) - Number(withdrawal);
+  return Number(acct.openingBalancePaisa) + Number(deposit) + Number(interest) - Number(withdrawal) - Number(spending);
 }
 
 async function computeRunningBalance(loanPersonId: string, userId: string): Promise<number> {
@@ -292,6 +293,17 @@ export class CategoryRoutingService {
       throw new RoutingError(422, 'ROUTING_NOT_IMPLEMENTED', 'This routing type is not yet supported');
     }
 
+    // Bank account deduction: when payment_method=BANK and a savings_account_id is provided
+    let bankAccountId: string | null = null;
+    if (input.payment_method === 'BANK' && input.savings_account_id) {
+      await validateSavingsAccount(input.savings_account_id, this.userId, input.date);
+      const balance = await computeSavingsBalance(input.savings_account_id, this.userId);
+      if (input.amount_paisa > balance) {
+        throw new RoutingError(422, 'INSUFFICIENT_BALANCE', `Spending amount exceeds account balance (${balance} paisa available)`);
+      }
+      bankAccountId = input.savings_account_id;
+    }
+
     const tx = await prisma.transaction.create({
       data: {
         userId: this.userId,
@@ -301,11 +313,22 @@ export class CategoryRoutingService {
         categoryId: input.category_id,
         type: category.routingType,
         paymentMethod: input.payment_method,
+        savingsAccountId: bankAccountId,
         idempotencyKey: input.idempotency_key,
         importBatchId: input.import_batch_id ?? null,
       },
       include: { category: true },
     });
+
+    if (bankAccountId) {
+      const acct = await prisma.savingsAccount.findUnique({ where: { id: bankAccountId } });
+      const newBalance = await computeSavingsBalance(bankAccountId, this.userId);
+      return {
+        duplicate: false,
+        transaction: txToJson(tx),
+        routing: { type: 'BANK_DEDUCT', account: { id: bankAccountId, name: acct?.name ?? '', balance_paisa: newBalance } },
+      };
+    }
     return { duplicate: false, transaction: txToJson(tx) };
   }
 

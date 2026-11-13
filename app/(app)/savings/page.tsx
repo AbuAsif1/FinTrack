@@ -6,6 +6,7 @@ import { Amount } from '@/components/ui/Amount';
 import { MoneyInput } from '@/components/ui/MoneyInput';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { SummaryTile } from '@/components/ui/SummaryTile';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 
@@ -608,17 +609,11 @@ export default function SavingsPage() {
 
   return (
     <div>
-      {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ font: 'var(--t-page)', margin: 0 }}>Savings & DPS</h1>
-        <button
-          type="button"
-          onClick={() => { setEditAccount(null); setModalOpen(true); }}
-          style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', font: 'var(--t-body)' }}
-        >
-          + Add Account
-        </button>
-      </div>
+      <PageHeader
+        eyebrow="Savings accounts and DPS"
+        title="Savings & DPS"
+        description="Balance overview and DPS maturity tracking across all your accounts."
+      />
 
       {loading ? (
         <div style={{ color: 'var(--fg-muted)', padding: '24px 0' }}>Loading…</div>

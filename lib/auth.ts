@@ -69,27 +69,30 @@ export function generateRawToken(): string {
 }
 
 export function setRefreshCookie(headers: Headers, rawToken: string): void {
-  const cookie = [
+  // Omit Secure in development so the cookie works on HTTP localhost in E2E tests.
+  // Playwright Chromium does not reliably send Secure cookies on HTTP even with
+  // the localhost exception when cookies are set via client-side XHR.
+  const parts = [
     `${REFRESH_COOKIE}=${rawToken}`,
     `HttpOnly`,
-    `Secure`,
+    ...(process.env.NODE_ENV === 'production' ? [`Secure`] : []),
     `SameSite=Strict`,
     `Path=/`,
     `Max-Age=${REFRESH_MAX_AGE}`,
-  ].join('; ');
-  headers.append('Set-Cookie', cookie);
+  ];
+  headers.append('Set-Cookie', parts.join('; '));
 }
 
 export function clearRefreshCookie(headers: Headers): void {
-  const cookie = [
+  const parts = [
     `${REFRESH_COOKIE}=`,
     `HttpOnly`,
-    `Secure`,
+    ...(process.env.NODE_ENV === 'production' ? [`Secure`] : []),
     `SameSite=Strict`,
     `Path=/`,
     `Max-Age=0`,
-  ].join('; ');
-  headers.append('Set-Cookie', cookie);
+  ];
+  headers.append('Set-Cookie', parts.join('; '));
 }
 
 export function getRefreshTokenFromCookie(req: Request): string | null {
@@ -104,6 +107,11 @@ export function getRefreshTokenFromCookie(req: Request): string | null {
 export function checkOrigin(req: Request): void {
   const origin = req.headers.get('origin');
   if (!origin) return; // absent = same-origin browser request; allow
+  // In development allow any localhost origin regardless of port so E2E tests
+  // work when the dev server starts on a different port than APP_URL.
+  if (process.env.NODE_ENV !== 'production') {
+    if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) return;
+  }
   const appOrigin = process.env.APP_URL ?? '';
   if (appOrigin && origin !== appOrigin) {
     throw new AuthError(403, 'INVALID_ORIGIN');

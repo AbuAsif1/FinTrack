@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,25 @@ interface TaxInvestments {
   stocks_paisa: number;
   insurance_paisa: number;
   others_paisa: number;
+  universal_pension_paisa: number;
+}
+
+interface TaxYearConfig {
+  slabs: Array<{ width_paisa: number | null; rate_bps: number }>;
+  salary_exemption: { numerator: number; denominator: number; cap_paisa: number };
+  rebate: { income_rate_bps: number; investment_rate_bps: number; max_paisa: number };
+  investment_caps_paisa: { dps: number | null; sanchaypatra: number | null; stocks: number | null; insurance: number | null; others: number | null; universal_pension?: number | null };
+  minimum_tax_paisa: number;
+  early_filing: { rate_bps: number; max_paisa: number; deadline_mmdd: string } | null;
+}
+
+interface TaxYearRecord {
+  id: string;
+  fiscal_year: string;
+  config: TaxYearConfig;
+  is_provisional: boolean;
+  filed_on: string | null;
+  is_locked: boolean;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -111,7 +131,7 @@ function OverviewTab({
   fy: string;
   onInvestmentsChange: () => void;
 }) {
-  const [invEdit, setInvEdit] = useState<{ stocks: string; insurance: string; others: string } | null>(null);
+  const [invEdit, setInvEdit] = useState<{ stocks: string; insurance: string; others: string; universal_pension: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
   const remaining = result.remaining_tax_paisa;
@@ -126,6 +146,7 @@ function OverviewTab({
       stocks_paisa: Math.round(parseFloat(invEdit.stocks || '0') * 100),
       insurance_paisa: Math.round(parseFloat(invEdit.insurance || '0') * 100),
       others_paisa: Math.round(parseFloat(invEdit.others || '0') * 100),
+      universal_pension_paisa: Math.round(parseFloat(invEdit.universal_pension || '0') * 100),
     }).catch(() => {});
     setSaving(false);
     setInvEdit(null);
@@ -211,6 +232,7 @@ function OverviewTab({
                 stocks: String(investments.stocks_paisa / 100),
                 insurance: String(investments.insurance_paisa / 100),
                 others: String(investments.others_paisa / 100),
+                universal_pension: String(investments.universal_pension_paisa / 100),
               })}
               style={{ font: 'var(--t-caption)', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}
             >
@@ -220,7 +242,7 @@ function OverviewTab({
         </div>
         {invEdit ? (
           <div>
-            {(['stocks', 'insurance', 'others'] as const).map((k) => (
+            {(['stocks', 'insurance', 'others', 'universal_pension'] as const).map((k) => (
               <label key={k} style={{ display: 'block', marginBottom: 8 }}>
                 <div style={{ font: 'var(--t-label)', marginBottom: 4, textTransform: 'capitalize' }}>{k} (৳)</div>
                 <input
@@ -243,6 +265,7 @@ function OverviewTab({
             <Row label="Stocks" value={fmt(investments.stocks_paisa)} />
             <Row label="Insurance" value={fmt(investments.insurance_paisa)} />
             <Row label="Other Investments" value={fmt(investments.others_paisa)} />
+            <Row label="Universal Pension Scheme" value={fmt(investments.universal_pension_paisa)} />
             {result.further_investment_for_max_rebate_paisa > 0 && (
               <div style={{ marginTop: 10, font: 'var(--t-caption)', color: 'var(--accent)' }}>
                 Need {fmt(result.further_investment_for_max_rebate_paisa)} more for maximum rebate
@@ -271,8 +294,8 @@ function InvestmentsTab({ result }: { result: TaxResult }) {
 
   return (
     <div>
-      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr 100px 100px 100px', gap: 0, padding: '10px 16px', background: 'var(--bg-raised)', borderBottom: '2px solid var(--border)' }}>
+      <div className="table-scroll" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr 100px 100px', gap: 0, padding: '10px 16px', background: 'var(--bg-raised)', borderBottom: '2px solid var(--border)' }}>
           {['INVESTMENT', 'INVESTED / CAP', 'ELIGIBLE', 'REBATE'].map((h) => (
             <div key={h} style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>{h}</div>
           ))}
@@ -384,9 +407,368 @@ function CompareTab({ fy }: { fy: string }) {
   );
 }
 
+// ── Settings Tab ────────────────────────────────────────────────────────────
+
+type SlabEdit = { width_taka: string; rate_pct: string };
+type ParamsEdit = {
+  exemption_num: string; exemption_den: string; exemption_cap: string;
+  rebate_income_pct: string; rebate_inv_pct: string; rebate_max: string;
+  cap_dps: string; cap_sanch: string; cap_stocks: string; cap_insurance: string; cap_others: string; cap_ups: string;
+  min_tax: string;
+  has_ef: boolean; ef_rate_pct: string; ef_max: string; ef_deadline: string;
+};
+
+function configToEdit(cfg: TaxYearConfig): { slabs: SlabEdit[]; params: ParamsEdit } {
+  return {
+    slabs: cfg.slabs.map(s => ({
+      width_taka: s.width_paisa === null ? '' : String(s.width_paisa / 100),
+      rate_pct: String(s.rate_bps / 100),
+    })),
+    params: {
+      exemption_num: String(cfg.salary_exemption.numerator),
+      exemption_den: String(cfg.salary_exemption.denominator),
+      exemption_cap: String(cfg.salary_exemption.cap_paisa / 100),
+      rebate_income_pct: String(cfg.rebate.income_rate_bps / 100),
+      rebate_inv_pct: String(cfg.rebate.investment_rate_bps / 100),
+      rebate_max: String(cfg.rebate.max_paisa / 100),
+      cap_dps: cfg.investment_caps_paisa.dps === null ? '' : String(cfg.investment_caps_paisa.dps / 100),
+      cap_sanch: cfg.investment_caps_paisa.sanchaypatra === null ? '' : String(cfg.investment_caps_paisa.sanchaypatra / 100),
+      cap_stocks: cfg.investment_caps_paisa.stocks === null ? '' : String(cfg.investment_caps_paisa.stocks / 100),
+      cap_insurance: cfg.investment_caps_paisa.insurance === null ? '' : String(cfg.investment_caps_paisa.insurance / 100),
+      cap_others: cfg.investment_caps_paisa.others === null ? '' : String(cfg.investment_caps_paisa.others / 100),
+      cap_ups: (() => { const v = (cfg.investment_caps_paisa as Record<string, number | null | undefined>).universal_pension; return v == null ? '' : String(v / 100); })(),
+      min_tax: String(cfg.minimum_tax_paisa / 100),
+      has_ef: cfg.early_filing !== null,
+      ef_rate_pct: cfg.early_filing ? String(cfg.early_filing.rate_bps / 100) : '0.5',
+      ef_max: cfg.early_filing ? String(cfg.early_filing.max_paisa / 100) : '2000',
+      ef_deadline: cfg.early_filing?.deadline_mmdd ?? '09-30',
+    },
+  };
+}
+
+function editToConfig(slabs: SlabEdit[], p: ParamsEdit): TaxYearConfig {
+  const toPaisa = (s: string) => s === '' ? null : Math.round(parseFloat(s) * 100);
+  const toBps = (s: string) => Math.round(parseFloat(s) * 100);
+  return {
+    slabs: slabs.map((s, i) => ({
+      width_paisa: i === slabs.length - 1 ? null : Math.round(parseFloat(s.width_taka) * 100),
+      rate_bps: toBps(s.rate_pct),
+    })),
+    salary_exemption: {
+      numerator: parseInt(p.exemption_num, 10),
+      denominator: parseInt(p.exemption_den, 10),
+      cap_paisa: Math.round(parseFloat(p.exemption_cap) * 100),
+    },
+    rebate: {
+      income_rate_bps: toBps(p.rebate_income_pct),
+      investment_rate_bps: toBps(p.rebate_inv_pct),
+      max_paisa: Math.round(parseFloat(p.rebate_max) * 100),
+    },
+    investment_caps_paisa: {
+      dps: toPaisa(p.cap_dps),
+      sanchaypatra: toPaisa(p.cap_sanch),
+      stocks: toPaisa(p.cap_stocks),
+      insurance: toPaisa(p.cap_insurance),
+      others: toPaisa(p.cap_others),
+      universal_pension: toPaisa(p.cap_ups),
+    },
+    minimum_tax_paisa: Math.round(parseFloat(p.min_tax) * 100),
+    early_filing: p.has_ef ? {
+      rate_bps: toBps(p.ef_rate_pct),
+      max_paisa: Math.round(parseFloat(p.ef_max) * 100),
+      deadline_mmdd: p.ef_deadline,
+    } : null,
+  };
+}
+
+function SettingsInput({
+  label, value, onChange, suffix, placeholder,
+}: { label: string; value: string; onChange: (v: string) => void; suffix?: string; placeholder?: string }) {
+  return (
+    <label style={{ display: 'block' }}>
+      <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 3 }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <input
+          type="number" min="0" step="any" value={value} placeholder={placeholder}
+          onChange={e => onChange(e.target.value)}
+          style={{ width: '100%', padding: '6px 9px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
+        />
+        {suffix && <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', whiteSpace: 'nowrap' }}>{suffix}</span>}
+      </div>
+    </label>
+  );
+}
+
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, marginTop: 20, paddingBottom: 6, borderBottom: '1px solid var(--border)' }}>
+      {children}
+    </div>
+  );
+}
+
+function SettingsTab({
+  fy,
+  taxYear,
+  onSaved,
+}: {
+  fy: string;
+  taxYear: TaxYearRecord | null;
+  onSaved: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [editSlabs, setEditSlabs] = useState<SlabEdit[]>([]);
+  const [editParams, setEditParams] = useState<ParamsEdit | null>(null);
+
+  if (!taxYear) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--fg-muted)' }}>No settings found for FY{fy}.</div>;
+
+  const cfg = taxYear.config;
+  const locked = taxYear.is_locked;
+
+  function startEdit() {
+    const { slabs, params } = configToEdit(cfg);
+    setEditSlabs(slabs);
+    setEditParams(params);
+    setEditing(true);
+    setError(null);
+  }
+
+  function cancelEdit() {
+    setEditing(false);
+    setError(null);
+  }
+
+  async function save() {
+    if (!editParams) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await api.put(`/tax-years/${fy}`, editToConfig(editSlabs, editParams));
+      setEditing(false);
+      onSaved();
+    } catch {
+      setError('Save failed — check the values and try again.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function setParam<K extends keyof ParamsEdit>(key: K, val: ParamsEdit[K]) {
+    setEditParams(p => p ? { ...p, [key]: val } : p);
+  }
+
+  function setSlab(i: number, field: keyof SlabEdit, val: string) {
+    setEditSlabs(slabs => slabs.map((s, idx) => idx === i ? { ...s, [field]: val } : s));
+  }
+
+  function addSlab() {
+    setEditSlabs(slabs => [
+      ...slabs.slice(0, -1),
+      { width_taka: '', rate_pct: '0' },
+      slabs[slabs.length - 1],
+    ]);
+  }
+
+  function removeSlab(i: number) {
+    if (editSlabs.length <= 2) return;
+    setEditSlabs(slabs => slabs.filter((_, idx) => idx !== i));
+  }
+
+  // ── Slab range display helper ─────────────────────────────────────────────
+  function slabRangeLabel(slabs: Array<{ width_paisa: number | null }>, idx: number) {
+    let floor = 0;
+    for (let i = 0; i < idx; i++) floor += slabs[i].width_paisa ?? 0;
+    const to = slabs[idx].width_paisa;
+    const fromStr = floor === 0 ? '৳0' : '৳' + (floor / 100).toLocaleString('en-IN');
+    const toStr = to !== null ? '৳' + ((floor + to) / 100).toLocaleString('en-IN') : 'above';
+    return `${fromStr} – ${toStr}`;
+  }
+
+  if (editing && editParams) {
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+          <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>Editing FY{fy} tax parameters</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={cancelEdit} style={{ padding: '7px 14px', border: '1px solid var(--border)', borderRadius: 7, background: 'transparent', cursor: 'pointer', font: 'var(--t-body)' }}>Cancel</button>
+            <button onClick={save} disabled={saving} style={{ padding: '7px 14px', border: 'none', borderRadius: 7, background: 'var(--accent)', color: 'var(--accent-fg)', cursor: 'pointer', font: 'var(--t-body)' }}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+        {error && <div style={{ color: 'var(--danger)', font: 'var(--t-caption)', marginBottom: 10 }}>{error}</div>}
+
+        {/* ── Tax Slabs ─────────────────────────────────────────────────── */}
+        <SectionLabel>Tax Slabs</SectionLabel>
+        <div className="table-scroll" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 32px', gap: 0, padding: '8px 14px', background: 'var(--bg-raised)', borderBottom: '1px solid var(--border)' }}>
+            {['Slab width (৳)', 'Rate (%)', ''].map(h => (
+              <div key={h} style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>{h}</div>
+            ))}
+          </div>
+          {editSlabs.map((s, i) => {
+            const isLast = i === editSlabs.length - 1;
+            return (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 160px 32px', gap: 8, padding: '8px 14px', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
+                {isLast ? (
+                  <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>Remaining income</div>
+                ) : (
+                  <input
+                    type="number" min="1" step="1" value={s.width_taka} placeholder="Width in ৳"
+                    onChange={e => setSlab(i, 'width_taka', e.target.value)}
+                    style={{ padding: '6px 9px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', width: '100%', boxSizing: 'border-box' }}
+                  />
+                )}
+                <input
+                  type="number" min="0" max="100" step="0.5" value={s.rate_pct}
+                  onChange={e => setSlab(i, 'rate_pct', e.target.value)}
+                  style={{ padding: '6px 9px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
+                />
+                {!isLast && editSlabs.length > 2 ? (
+                  <button onClick={() => removeSlab(i)} style={{ padding: '4px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', font: '14px/1 sans-serif' }}>✕</button>
+                ) : <div />}
+              </div>
+            );
+          })}
+          <div style={{ padding: '8px 14px' }}>
+            <button onClick={addSlab} style={{ font: 'var(--t-caption)', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}>+ Add slab</button>
+          </div>
+        </div>
+
+        {/* ── Salary Exemption ──────────────────────────────────────────── */}
+        <SectionLabel>Salary Exemption</SectionLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          <SettingsInput label="Numerator" value={editParams.exemption_num} onChange={v => setParam('exemption_num', v)} />
+          <SettingsInput label="Denominator" value={editParams.exemption_den} onChange={v => setParam('exemption_den', v)} />
+          <SettingsInput label="Cap" value={editParams.exemption_cap} onChange={v => setParam('exemption_cap', v)} suffix="৳" />
+        </div>
+
+        {/* ── Tax Rebate ────────────────────────────────────────────────── */}
+        <SectionLabel>Tax Rebate on Investment</SectionLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          <SettingsInput label="Income rate" value={editParams.rebate_income_pct} onChange={v => setParam('rebate_income_pct', v)} suffix="% of gross income" />
+          <SettingsInput label="Investment rate" value={editParams.rebate_inv_pct} onChange={v => setParam('rebate_inv_pct', v)} suffix="% of investment" />
+          <SettingsInput label="Maximum rebate" value={editParams.rebate_max} onChange={v => setParam('rebate_max', v)} suffix="৳" />
+        </div>
+
+        {/* ── Investment Caps ───────────────────────────────────────────── */}
+        <SectionLabel>Investment Caps for Rebate (৳, blank = no cap)</SectionLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          <SettingsInput label="DPS" value={editParams.cap_dps} onChange={v => setParam('cap_dps', v)} placeholder="No cap" />
+          <SettingsInput label="Sanchaypatra" value={editParams.cap_sanch} onChange={v => setParam('cap_sanch', v)} placeholder="No cap" />
+          <SettingsInput label="Stocks" value={editParams.cap_stocks} onChange={v => setParam('cap_stocks', v)} placeholder="No cap" />
+          <SettingsInput label="Insurance" value={editParams.cap_insurance} onChange={v => setParam('cap_insurance', v)} placeholder="No cap" />
+          <SettingsInput label="Others" value={editParams.cap_others} onChange={v => setParam('cap_others', v)} placeholder="No cap" />
+          <SettingsInput label="Universal Pension Scheme" value={editParams.cap_ups} onChange={v => setParam('cap_ups', v)} placeholder="No cap" />
+        </div>
+
+        {/* ── Minimum Tax & Early Filing ────────────────────────────────── */}
+        <SectionLabel>Other Parameters</SectionLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+          <SettingsInput label="Minimum tax" value={editParams.min_tax} onChange={v => setParam('min_tax', v)} suffix="৳" />
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}>
+            <input type="checkbox" checked={editParams.has_ef} onChange={e => setParam('has_ef', e.target.checked)} />
+            <span style={{ font: 'var(--t-body)' }}>Early filing rebate</span>
+          </label>
+          {editParams.has_ef && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 10 }}>
+              <SettingsInput label="Rebate rate" value={editParams.ef_rate_pct} onChange={v => setParam('ef_rate_pct', v)} suffix="% of net tax" />
+              <SettingsInput label="Maximum" value={editParams.ef_max} onChange={v => setParam('ef_max', v)} suffix="৳" />
+              <label style={{ display: 'block' }}>
+                <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 3 }}>Deadline (MM-DD)</div>
+                <input
+                  type="text" value={editParams.ef_deadline} placeholder="09-30"
+                  onChange={e => setParam('ef_deadline', e.target.value)}
+                  style={{ width: '100%', padding: '6px 9px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
+                />
+              </label>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Read-only view ─────────────────────────────────────────────────────────
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>
+          {taxYear.is_provisional ? '⚠ Provisional — confirm after verifying with NBR Finance Act' : '✓ Confirmed'}
+        </div>
+        {!locked && (
+          <button onClick={startEdit} style={{ font: 'var(--t-caption)', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>Edit</button>
+        )}
+      </div>
+
+      <SectionLabel>Tax Slabs</SectionLabel>
+      <div className="table-scroll" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', padding: '8px 16px', background: 'var(--bg-raised)', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>Income range</div>
+          <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', textAlign: 'right' }}>Rate</div>
+        </div>
+        {cfg.slabs.map((slab, i) => (
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 100px', padding: '10px 16px', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
+            <div style={{ font: 'var(--t-body)' }}>{slabRangeLabel(cfg.slabs, i)}</div>
+            <div style={{ font: 'var(--t-data)', textAlign: 'right', fontWeight: 600, color: slab.rate_bps === 0 ? 'var(--ok)' : 'var(--fg-primary)' }}>
+              {(slab.rate_bps / 100).toFixed(0)}%
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <SectionLabel>Key Parameters</SectionLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+        {[
+          ['Salary exemption', `${cfg.salary_exemption.numerator}/${cfg.salary_exemption.denominator} of salary, max ৳${(cfg.salary_exemption.cap_paisa / 100).toLocaleString('en-IN')}`],
+          ['Rebate on investment', `${(cfg.rebate.investment_rate_bps / 100).toFixed(0)}%, max ৳${(cfg.rebate.max_paisa / 100).toLocaleString('en-IN')}`],
+          ['Minimum tax', `৳${(cfg.minimum_tax_paisa / 100).toLocaleString('en-IN')}`],
+          cfg.early_filing
+            ? ['Early filing rebate', `${(cfg.early_filing.rate_bps / 100).toFixed(1)}% up to ৳${(cfg.early_filing.max_paisa / 100).toLocaleString('en-IN')} by ${cfg.early_filing.deadline_mmdd}`]
+            : ['Early filing rebate', 'None'],
+        ].map(([label, value]) => (
+          <div key={label} style={{ background: 'var(--bg-raised)', borderRadius: 8, padding: '12px 14px' }}>
+            <div style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)', marginBottom: 4 }}>{label}</div>
+            <div style={{ font: 'var(--t-body)', fontWeight: 500 }}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      <SectionLabel>Investment Caps for Rebate</SectionLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
+        {([
+          ['DPS', cfg.investment_caps_paisa.dps],
+          ['Sanchaypatra', cfg.investment_caps_paisa.sanchaypatra],
+          ['Stocks', cfg.investment_caps_paisa.stocks],
+          ['Insurance', cfg.investment_caps_paisa.insurance],
+          ['Others', cfg.investment_caps_paisa.others],
+          ['Universal Pension Scheme', (cfg.investment_caps_paisa as Record<string, number | null | undefined>).universal_pension ?? null],
+        ] as [string, number | null][]).map(([label, cap]) => (
+          <div key={label} style={{ background: 'var(--bg-raised)', borderRadius: 6, padding: '10px 12px' }}>
+            <div style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)', marginBottom: 2 }}>{label}</div>
+            <div style={{ font: 'var(--t-body)' }}>
+              {cap === null ? 'No cap' : '৳' + (cap / 100).toLocaleString('en-IN')}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {locked && (
+        <div style={{ marginTop: 16, font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>
+          Settings are locked because this fiscal year has been filed.
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ──────────────────────────────────────────────────────────────
 
-const TABS = ['Overview', 'Investments', 'Forecast', 'Compare Years'] as const;
+const TABS = ['Overview', 'Investments', 'Forecast', 'Compare Years', 'Settings'] as const;
 type Tab = typeof TABS[number];
 
 export default function TaxPage() {
@@ -394,7 +776,8 @@ export default function TaxPage() {
   const [fy, setFy] = useState(fys[0]);
   const [tab, setTab] = useState<Tab>('Overview');
   const [result, setResult] = useState<TaxResult | null>(null);
-  const [investments, setInvestments] = useState<TaxInvestments>({ stocks_paisa: 0, insurance_paisa: 0, others_paisa: 0 });
+  const [investments, setInvestments] = useState<TaxInvestments>({ stocks_paisa: 0, insurance_paisa: 0, others_paisa: 0, universal_pension_paisa: 0 });
+  const [taxYear, setTaxYear] = useState<TaxYearRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [filing, setFiling] = useState(false);
@@ -402,12 +785,14 @@ export default function TaxPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [sumRes, invRes] = await Promise.all([
+    const [sumRes, invRes, tyRes] = await Promise.all([
       api.get(`/tax/summary?fiscal_year=${fy}`).catch(() => null),
       api.get(`/tax-investments/${fy}`).catch(() => null),
+      api.get(`/tax-years/${fy}`).catch(() => null),
     ]);
     if (sumRes) setResult(sumRes.data);
     if (invRes) setInvestments(invRes.data);
+    if (tyRes) setTaxYear(tyRes.data);
     setLoading(false);
   }, [fy]);
 
@@ -441,42 +826,36 @@ export default function TaxPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ font: 'var(--t-page)', margin: '0 0 4px' }}>Tax Dashboard</h1>
-          <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>
-            Data: {months}/{totalMonths} months
-            <div style={{ display: 'inline-block', width: 100, height: 6, background: 'var(--bg-sunken)', borderRadius: 3, marginLeft: 8, verticalAlign: 'middle' }}>
-              <div style={{ height: '100%', width: `${dataProgress}%`, background: 'var(--accent)', borderRadius: 3 }} />
-            </div>
-            {' '}{dataProgress}%
+      <PageHeader
+        eyebrow="Bangladesh NBR · fiscal year Jul–Jun"
+        title="Tax Dashboard"
+        description={`Data: ${months}/${totalMonths} months · ${dataProgress}% complete`}
+        actions={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <select
+              value={fy} onChange={(e) => setFy(e.target.value)}
+              style={{ padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 8, font: 'var(--t-body)', background: 'var(--bg-sunken)' }}
+            >
+              {fys.map((f) => <option key={f} value={f}>FY{f}</option>)}
+            </select>
+            {result && !result.is_locked && result.is_provisional && (
+              <button onClick={confirm} disabled={confirming} className="btn-secondary" style={{ borderColor: 'var(--warn)', color: 'var(--warn)', background: 'var(--warn-bg)' }}>
+                {confirming ? '…' : 'Confirm Settings'}
+              </button>
+            )}
+            {result && !result.is_locked && (
+              <button onClick={fileReturn} disabled={filing} className="btn-primary">
+                {filing ? 'Filing…' : 'Mark Filed'}
+              </button>
+            )}
+            {result?.is_locked && (
+              <button onClick={reopen} disabled={reopening} className="btn-secondary">
+                {reopening ? '…' : 'Reopen'}
+              </button>
+            )}
           </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <select
-            value={fy} onChange={(e) => setFy(e.target.value)}
-            style={{ padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 8, font: 'var(--t-body)', background: 'var(--bg-sunken)' }}
-          >
-            {fys.map((f) => <option key={f} value={f}>FY{f}</option>)}
-          </select>
-          {result && !result.is_locked && result.is_provisional && (
-            <button onClick={confirm} disabled={confirming} style={{ padding: '7px 14px', border: '1px solid var(--warn)', borderRadius: 8, background: 'var(--warn-bg)', color: 'var(--warn)', cursor: 'pointer', font: 'var(--t-caption)' }}>
-              {confirming ? '…' : 'Confirm Settings'}
-            </button>
-          )}
-          {result && !result.is_locked && (
-            <button onClick={fileReturn} disabled={filing} style={{ padding: '7px 14px', background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 8, cursor: 'pointer', font: 'var(--t-body)' }}>
-              {filing ? 'Filing…' : 'Mark Filed'}
-            </button>
-          )}
-          {result?.is_locked && (
-            <button onClick={reopen} disabled={reopening} style={{ padding: '7px 14px', border: '1px solid var(--border)', borderRadius: 8, background: 'transparent', cursor: 'pointer', font: 'var(--t-caption)' }}>
-              {reopening ? '…' : 'Reopen'}
-            </button>
-          )}
-        </div>
-      </div>
+        }
+      />
 
       {/* Notices */}
       {result?.is_provisional && !result.is_locked && (
@@ -515,6 +894,8 @@ export default function TaxPage() {
 
       {loading ? (
         <div style={{ padding: 60, textAlign: 'center', color: 'var(--fg-muted)' }}>Loading…</div>
+      ) : tab === 'Settings' ? (
+        <SettingsTab fy={fy} taxYear={taxYear} onSaved={load} />
       ) : !result ? (
         <div style={{ padding: 60, textAlign: 'center', color: 'var(--fg-muted)' }}>No tax data for this year yet.</div>
       ) : (

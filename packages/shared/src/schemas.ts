@@ -28,6 +28,7 @@ const investmentCapsSchema = z.object({
   stocks: z.number().int().positive().nullable(),
   insurance: z.number().int().positive().nullable(),
   others: z.number().int().positive().nullable(),
+  universal_pension: z.number().int().positive().nullable().optional().default(null),
 });
 
 const earlyFilingSchema = z.object({

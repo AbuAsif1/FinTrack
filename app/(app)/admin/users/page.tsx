@@ -46,7 +46,7 @@ export default function AdminUsersPage() {
   const { data, refetch } = useQuery({
     queryKey: ['admin-users', q, status, role, page],
     queryFn: () => api.get<{ data: UserRow[]; total: number; page: number; page_size: number }>(
-      `/api/v1/admin/users?${params}`
+      `/admin/users?${params}`
     ).then((r) => r.data),
   });
 
@@ -55,7 +55,7 @@ export default function AdminUsersPage() {
     setCreateError('');
     setCreating(true);
     try {
-      await api.post('/api/v1/admin/users', { name: createName, email: createEmail, role: createRole });
+      await api.post('/admin/users', { name: createName, email: createEmail, role: createRole });
       setShowCreate(false);
       setCreateName(''); setCreateEmail(''); setCreateRole('USER');
       refetch();
@@ -117,8 +117,8 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Table */}
-      <div style={{ background: 'var(--bg-surface)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div className="table-scroll" style={{ background: 'var(--bg-surface)', borderRadius: 12, border: '1px solid var(--border)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)' }}>
               {['Name', 'Email', 'Role', 'Status', 'Joined', 'Last payment'].map((h) => (

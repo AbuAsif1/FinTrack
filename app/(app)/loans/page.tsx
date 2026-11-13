@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface LoanPerson {
   id: string;
   name: string;
-  balance_paisa: number;
-  entry_count: number;
+  running_balance_paisa: number;
 }
 
 interface LoanEntry {
@@ -17,18 +17,18 @@ interface LoanEntry {
   direction: 'GIVEN' | 'RECEIVED';
   amount_paisa: number;
   date: string;
-  reason?: string;
-  return_due_date?: string;
+  description: string;
+  payment_method: string;
+  reason?: string | null;
+  return_due_date?: string | null;
   running_balance_paisa: number;
   is_settlement: boolean;
   loan_person_id: string;
 }
 
 interface LoanSummary {
-  they_owe_me_paisa: number;
-  they_owe_me_count: number;
-  i_owe_them_paisa: number;
-  i_owe_them_count: number;
+  owed_to_me_paisa: number;
+  i_owe_paisa: number;
   net_paisa: number;
 }
 
@@ -60,12 +60,13 @@ function balanceBg(paisa: number) {
 }
 
 function balanceLabel(person: LoanPerson) {
-  if (person.balance_paisa > 0) return `${person.name} owes you ${fmt(person.balance_paisa)}`;
-  if (person.balance_paisa < 0) return `You owe ${person.name} ${fmt(person.balance_paisa)}`;
+  const b = person.running_balance_paisa;
+  if (b > 0) return `${person.name} owes you ${fmt(b)}`;
+  if (b < 0) return `You owe ${person.name} ${fmt(b)}`;
   return 'Settled';
 }
 
-function dueSoonStatus(returnDueDate?: string): 'overdue' | 'due_soon' | null {
+function dueSoonStatus(returnDueDate?: string | null): 'overdue' | 'due_soon' | null {
   if (!returnDueDate) return null;
   const today = new Date(todayIso());
   const due = new Date(returnDueDate);
@@ -128,10 +129,13 @@ function AddEntryModal({
       loanPersonId = createRes.data.id;
     }
 
+    const description = form.reason
+      || (form.direction === 'GIVEN' ? `Loan given to ${form.person_name.trim()}` : `Loan received from ${form.person_name.trim()}`);
     const body: Record<string, unknown> = {
       direction: form.direction,
       amount_paisa: amountPaisa,
       date: form.date,
+      description,
       payment_method: form.payment_method,
       idempotency_key: crypto.randomUUID(),
     };
@@ -256,22 +260,18 @@ function SettleUpModal({
   onSettled: () => void;
 }) {
   const [settling, setSettling] = useState(false);
-  const direction = person.balance_paisa > 0 ? 'RECEIVED' : 'GIVEN';
-  const absAmount = Math.abs(person.balance_paisa);
+  const direction = person.running_balance_paisa > 0 ? 'RECEIVED' : 'GIVEN';
+  const absAmount = Math.abs(person.running_balance_paisa);
 
   async function settle() {
     setSettling(true);
-    await fetch(`/api/v1/loan-persons/${person.id}/settle`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        amount_paisa: absAmount,
-        direction,
-        date: todayIso(),
-        payment_method: 'CASH',
-        idempotency_key: crypto.randomUUID(),
-      }),
-    });
+    await api.post(`/loan-persons/${person.id}/settle`, {
+      amount_paisa: absAmount,
+      direction,
+      date: todayIso(),
+      payment_method: 'CASH',
+      idempotency_key: crypto.randomUUID(),
+    }).catch(() => null);
     onSettled();
   }
 
@@ -311,49 +311,110 @@ function EditEntryModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [reason, setReason] = useState(entry.reason ?? '');
-  const [returnDue, setReturnDue] = useState(entry.return_due_date?.slice(0, 10) ?? '');
+  const [form, setForm] = useState({
+    amount: (entry.amount_paisa / 100).toFixed(2),
+    date: entry.date.slice(0, 10),
+    description: entry.description ?? '',
+    payment_method: entry.payment_method ?? 'CASH',
+    reason: entry.reason ?? '',
+    return_due_date: entry.return_due_date?.slice(0, 10) ?? '',
+  });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
 
   async function save() {
-    setSaving(true);
-    await fetch(`/api/v1/loan-persons/${personId}/entries/${entry.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason, return_due_date: returnDue || null }),
-    });
-    onSaved();
+    const amountPaisa = Math.round(parseFloat(form.amount) * 100);
+    if (isNaN(amountPaisa) || amountPaisa <= 0) {
+      setError('Enter a valid amount.');
+      return;
+    }
+    setSaving(true); setError('');
+    try {
+      await api.patch(`/loan-persons/${personId}/entries/${entry.id}`, {
+        amount_paisa: amountPaisa,
+        date: form.date,
+        description: form.description || undefined,
+        payment_method: form.payment_method,
+        reason: form.reason || null,
+        return_due_date: form.return_due_date || null,
+      });
+      onSaved();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to save.';
+      setError(msg);
+    } finally { setSaving(false); }
   }
 
   async function del() {
+    if (!confirm('Delete this loan entry?')) return;
     setSaving(true);
-    await fetch(`/api/v1/loan-persons/${personId}/entries/${entry.id}`, { method: 'DELETE' });
-    onSaved();
+    try {
+      await api.delete(`/loan-persons/${personId}/entries/${entry.id}`);
+      onSaved();
+    } catch { setError('Failed to delete.'); setSaving(false); }
   }
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6,
+    font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box',
+  };
+
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }}>
-      <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 24, maxWidth: 440, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-        <h3 style={{ font: 'var(--t-section)', marginBottom: 16 }}>Edit Loan Entry</h3>
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Reason</div>
-          <input
-            type="text" value={reason} onChange={(e) => setReason(e.target.value)}
-            style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
-          />
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 28, maxWidth: 520, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+        <h3 style={{ font: 'var(--t-section)', marginBottom: 20 }}>Edit Loan Entry</h3>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <label>
+            <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Amount (৳)</div>
+            <input type="number" step="0.01" min="0.01" required value={form.amount} onChange={set('amount')} style={inputStyle} />
+          </label>
+          <label>
+            <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Date</div>
+            <input type="date" required value={form.date} onChange={set('date')} style={inputStyle} />
+          </label>
         </div>
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Return due date</div>
-          <input
-            type="date" value={returnDue} onChange={(e) => setReturnDue(e.target.value)}
-            style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
-          />
+
+        <label style={{ display: 'block', marginBottom: 12 }}>
+          <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Description</div>
+          <input type="text" value={form.description} onChange={set('description')} style={inputStyle} />
+        </label>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <label>
+            <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Payment method</div>
+            <select value={form.payment_method} onChange={set('payment_method')} style={inputStyle}>
+              {['CASH', 'BANK', 'BKASH', 'NAGAD', 'ROCKET', 'CARD'].map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </label>
+          <label>
+            <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Return due date</div>
+            <input type="date" value={form.return_due_date} onChange={set('return_due_date')} style={inputStyle} />
+          </label>
         </div>
+
+        <label style={{ display: 'block', marginBottom: 20 }}>
+          <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Reason (optional)</div>
+          <input type="text" value={form.reason} onChange={set('reason')} style={inputStyle} />
+        </label>
+
+        {error && <div style={{ color: 'var(--danger)', font: 'var(--t-caption)', marginBottom: 10 }}>{error}</div>}
+
         <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
-          <button onClick={del} disabled={saving} style={{ padding: '8px 14px', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Delete</button>
+          <button onClick={del} disabled={saving} style={{ padding: '8px 14px', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+            Delete
+          </button>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={onClose} style={{ padding: '8px 14px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: 'pointer' }}>Cancel</button>
-            <button onClick={save} disabled={saving} style={{ padding: '8px 14px', background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Save</button>
+            <button onClick={save} disabled={saving} style={{ padding: '8px 14px', background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 6, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+              {saving ? 'Saving…' : 'Save changes'}
+            </button>
           </div>
         </div>
       </div>
@@ -379,9 +440,9 @@ function DetailPanel({
 
   const loadEntries = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/v1/loan-persons/${person.id}/entries`);
-    if (!res.ok) { setLoading(false); return; }
-    const data = await res.json();
+    const res = await api.get(`/loan-persons/${person.id}/entries`).catch(() => null);
+    if (!res) { setLoading(false); return; }
+    const data = res.data;
     setEntries(Array.isArray(data) ? data : data.entries ?? []);
     setLoading(false);
   }, [person.id]);
@@ -394,12 +455,12 @@ function DetailPanel({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <div>
           <div style={{ font: 'var(--t-section)', marginBottom: 4 }}>{person.name}</div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: balanceBg(person.balance_paisa), color: balanceColor(person.balance_paisa), padding: '4px 12px', borderRadius: 999, font: 'var(--t-caption)', fontWeight: 600 }}>
-            {person.balance_paisa >= 0 ? '+' : '−'}{fmt(person.balance_paisa)} · {balanceLabel(person)}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: balanceBg(person.running_balance_paisa), color: balanceColor(person.running_balance_paisa), padding: '4px 12px', borderRadius: 999, font: 'var(--t-caption)', fontWeight: 600 }}>
+            {person.running_balance_paisa >= 0 ? '+' : '−'}{fmt(person.running_balance_paisa)} · {balanceLabel(person)}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {person.balance_paisa !== 0 && (
+          {person.running_balance_paisa !== 0 && (
             <button
               onClick={() => setSettling(true)}
               style={{ padding: '7px 14px', background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 8, cursor: 'pointer', font: 'var(--t-body)' }}
@@ -417,7 +478,7 @@ function DetailPanel({
       </div>
 
       {/* Entry table */}
-      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+      <div className="table-scroll" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--fg-muted)', font: 'var(--t-body)' }}>Loading…</div>
         ) : entries.length === 0 ? (
@@ -518,7 +579,7 @@ export default function LoansPage() {
     if (persRes) {
       const list: LoanPerson[] = Array.isArray(persRes.data) ? persRes.data : [];
       setPersons(list);
-      if (!selectedPersonId && list.length > 0) setSelectedPersonId(list[0].id);
+      if (!selectedPersonId && list.length > 0) setSelectedPersonId((list as LoanPerson[])[0].id);
     }
     setLoading(false);
   }, []);
@@ -529,30 +590,25 @@ export default function LoansPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <h1 style={{ font: 'var(--t-page)', margin: 0 }}>Borrow & Loans</h1>
-        <button
-          onClick={() => { setAddForPersonId(null); setShowAddModal(true); }}
-          style={{ padding: '8px 16px', background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 8, cursor: 'pointer', font: 'var(--t-body)' }}
-        >
-          + Add Loan Entry
-        </button>
-      </div>
+      <PageHeader
+        eyebrow="Informal loans, clearly tracked"
+        title="Borrow & Loans"
+        description="Per-person running balances for informal lending between friends."
+      />
 
       {/* Summary Tiles */}
       {summary && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
           <SummaryTile
             label="THEY OWE ME"
-            value={fmt(summary.they_owe_me_paisa)}
-            sub={`${summary.they_owe_me_count} ${summary.they_owe_me_count === 1 ? 'person' : 'people'}`}
+            value={fmt(summary.owed_to_me_paisa)}
+            sub={`${persons.filter(p => p.running_balance_paisa > 0).length} people`}
             color="var(--ok)"
           />
           <SummaryTile
             label="I OWE THEM"
-            value={fmt(summary.i_owe_them_paisa)}
-            sub={`${summary.i_owe_them_count} ${summary.i_owe_them_count === 1 ? 'person' : 'people'}`}
+            value={fmt(summary.i_owe_paisa)}
+            sub={`${persons.filter(p => p.running_balance_paisa < 0).length} people`}
             color="var(--danger)"
           />
           <SummaryTile
@@ -570,7 +626,7 @@ export default function LoansPage() {
         <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
           {/* Person List */}
           <div style={{ width: 300, flexShrink: 0 }}>
-            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+            <div className="table-scroll" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
               {persons.length === 0 ? (
                 <div style={{ padding: 24, textAlign: 'center', color: 'var(--fg-muted)', font: 'var(--t-body)' }}>
                   No loan records yet.
@@ -590,14 +646,13 @@ export default function LoansPage() {
                   >
                     <div>
                       <div style={{ font: 'var(--t-body)', fontWeight: 600 }}>{p.name}</div>
-                      <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>{p.entry_count} entries</div>
                     </div>
                     <span style={{
                       font: 'var(--t-caption)', fontWeight: 600, padding: '3px 10px', borderRadius: 999,
-                      background: balanceBg(p.balance_paisa),
-                      color: balanceColor(p.balance_paisa),
+                      background: balanceBg(p.running_balance_paisa),
+                      color: balanceColor(p.running_balance_paisa),
                     }}>
-                      {p.balance_paisa === 0 ? '৳0.00' : (p.balance_paisa > 0 ? '+' : '−') + fmt(p.balance_paisa)}
+                      {p.running_balance_paisa === 0 ? '৳0.00' : (p.running_balance_paisa > 0 ? '+' : '−') + fmt(p.running_balance_paisa)}
                     </span>
                   </div>
                 ))

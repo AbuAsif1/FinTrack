@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -17,8 +18,8 @@ interface Me {
 interface Category {
   id: string;
   name: string;
-  colorHex: string;
-  routingType: string;
+  color_hex: string;
+  routing_type: string;
   _count?: { transactions: number };
 }
 
@@ -203,7 +204,7 @@ function CategoriesSection() {
     setError('');
     try {
       await api.patch(`/categories/${cat.id}`, { name: editName, color_hex: editColor });
-      setCategories((prev) => prev.map((c) => c.id === cat.id ? { ...c, name: editName, colorHex: editColor } : c));
+      setCategories((prev) => prev.map((c) => c.id === cat.id ? { ...c, name: editName, color_hex: editColor } : c));
       setEditId(null);
     } catch {
       setError('Failed to save.');
@@ -263,7 +264,7 @@ function CategoriesSection() {
                       <input type="color" value={editColor} onChange={(e) => setEditColor(e.target.value)} style={{ width: 28, height: 28, border: 'none', cursor: 'pointer' }} />
                     </div>
                   </td>
-                  <td style={{ padding: '8px 12px' }}><RoutingChip type={cat.routingType} /></td>
+                  <td style={{ padding: '8px 12px' }}><RoutingChip type={cat.routing_type} /></td>
                   <td style={{ padding: '8px 0', textAlign: 'right' }}>
                     <button onClick={() => saveEdit(cat)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', font: 'var(--t-caption)', marginRight: 8 }}>Save</button>
                     <button onClick={() => setEditId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', font: 'var(--t-caption)' }}>Cancel</button>
@@ -272,14 +273,14 @@ function CategoriesSection() {
               ) : (
                 <>
                   <td style={{ padding: '10px 0' }}>
-                    <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: cat.colorHex, marginRight: 8 }} />
+                    <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: cat.color_hex, marginRight: 8 }} />
                     {cat.name}
                   </td>
-                  <td style={{ padding: '10px 12px' }}><RoutingChip type={cat.routingType} /></td>
+                  <td style={{ padding: '10px 12px' }}><RoutingChip type={cat.routing_type} /></td>
                   <td style={{ padding: '10px 0', textAlign: 'right' }}>
-                    {cat.routingType === 'NONE' ? (
+                    {cat.routing_type === 'NONE' ? (
                       <button
-                        onClick={() => { setEditId(cat.id); setEditName(cat.name); setEditColor(cat.colorHex); }}
+                        onClick={() => { setEditId(cat.id); setEditName(cat.name); setEditColor(cat.color_hex); }}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', font: 'var(--t-caption)' }}
                       >
                         Edit
@@ -314,8 +315,12 @@ export default function SettingsPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 760 }}>
-      <h1 style={{ font: 'var(--t-page)', margin: 0 }}>Settings</h1>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PageHeader
+        eyebrow="Preferences and data"
+        title="Settings"
+        description="Profile, appearance, categories, tax years, import and export."
+      />
 
       <ProfileSection me={me} onSignOut={signOut} />
       <AppearanceSection />

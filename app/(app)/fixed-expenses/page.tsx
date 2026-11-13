@@ -7,6 +7,7 @@ import { MoneyInput } from '@/components/ui/MoneyInput';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SUGGESTED_FIXED_EXPENSES } from '@fintrack/shared';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -545,20 +546,11 @@ export default function FixedExpensesPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h1 style={{ font: 'var(--t-page)', margin: 0 }}>Fixed Expenses</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {templates.length === 0 && (
-            <button type="button" onClick={() => setSetupOpen(true)} style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid var(--accent)', background: 'transparent', cursor: 'pointer', font: 'var(--t-body)', color: 'var(--accent)' }}>
-              Set up defaults
-            </button>
-          )}
-          <button type="button" onClick={() => { setEditTemplate(null); setTemplateModalOpen(true); }} style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', font: 'var(--t-body)' }}>
-            + Add Fixed Expense
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Monthly commitments"
+        title="Fixed Expenses"
+        description="Track your recurring payments and mark them as paid each month."
+      />
 
       {loading ? (
         <div style={{ color: 'var(--fg-muted)' }}>Loading…</div>
@@ -612,7 +604,7 @@ export default function FixedExpensesPage() {
 
           {!showYearView ? (
             /* Monthly checklist */
-            <div style={{ background: 'var(--bg-surface)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 24 }}>
+            <div className="table-scroll" style={{ background: 'var(--bg-surface)', borderRadius: 10, border: '1px solid var(--border)', marginBottom: 24 }}>
               <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', font: 'var(--t-label)', color: 'var(--fg-secondary)', textTransform: 'uppercase' }}>
                 This Month — {formatMonthShort(currentMonth)}
               </div>

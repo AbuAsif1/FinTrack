@@ -397,9 +397,10 @@ model TaxInvestment {
   id              String   @id @default(cuid())
   userId          String   @map("user_id")
   fiscalYear      String   @map("fiscal_year")
-  stocksPaisa     BigInt   @default(0) @map("stocks_paisa")
-  insurancePaisa  BigInt   @default(0) @map("insurance_paisa")
-  othersPaisa     BigInt   @default(0) @map("others_paisa")
+  stocksPaisa            BigInt   @default(0) @map("stocks_paisa")
+  insurancePaisa         BigInt   @default(0) @map("insurance_paisa")
+  othersPaisa            BigInt   @default(0) @map("others_paisa")
+  universalPensionPaisa  BigInt   @default(0) @map("universal_pension_paisa")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 

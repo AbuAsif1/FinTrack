@@ -18,6 +18,7 @@ export const taxYearConfigs: Record<string, TaxYearConfigData> = {
       stocks: 50000000,
       insurance: null,
       others: null,
+      universal_pension: null,
     },
     minimum_tax_paisa: 500000,
     early_filing: null,
@@ -40,6 +41,7 @@ export const taxYearConfigs: Record<string, TaxYearConfigData> = {
       stocks: 50000000,
       insurance: null,
       others: null,
+      universal_pension: null,
     },
     minimum_tax_paisa: 500000,
     early_filing: { rate_bps: 500, max_paisa: 2500000, deadline_mmdd: '09-30' },
@@ -63,6 +65,7 @@ export const taxYearConfigs: Record<string, TaxYearConfigData> = {
       stocks: 50000000,
       insurance: null,
       others: null,
+      universal_pension: null,
     },
     minimum_tax_paisa: 500000,
     early_filing: { rate_bps: 500, max_paisa: 2500000, deadline_mmdd: '09-30' },
@@ -73,7 +76,7 @@ export interface TaxYearConfigData {
   slabs: { width_paisa: number | null; rate_bps: number }[];
   salary_exemption: { numerator: number; denominator: number; cap_paisa: number };
   rebate: { income_rate_bps: number; investment_rate_bps: number; max_paisa: number };
-  investment_caps_paisa: Record<'dps' | 'sanchaypatra' | 'stocks' | 'insurance' | 'others', number | null>;
+  investment_caps_paisa: Record<'dps' | 'sanchaypatra' | 'stocks' | 'insurance' | 'others' | 'universal_pension', number | null>;
   minimum_tax_paisa: number;
   early_filing: { rate_bps: number; max_paisa: number; deadline_mmdd: string } | null;
 }

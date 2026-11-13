@@ -5,6 +5,7 @@ import { defineConfig, devices } from '@playwright/test';
  * Usage: pnpm test:e2e:happy
  */
 export default defineConfig({
+  globalSetup:    './e2e/global-setup.ts',
   testDir:        './e2e',
   testMatch:      '**/happy-path.spec.ts',
   fullyParallel:  false,

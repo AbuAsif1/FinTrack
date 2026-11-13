@@ -54,24 +54,25 @@ export async function GET(req: Request) {
     _sum: { amountPaisa: true },
   });
 
-  // Build a map: accountId → { SAVINGS_DEPOSIT: n, SAVINGS_INTEREST: n, SAVINGS_WITHDRAWAL: n }
-  const sumMap = new Map<string, { DEPOSIT: bigint; INTEREST: bigint; WITHDRAWAL: bigint }>();
+  // Build a map: accountId → { DEPOSIT, INTEREST, WITHDRAWAL, SPENDING }
+  const sumMap = new Map<string, { DEPOSIT: bigint; INTEREST: bigint; WITHDRAWAL: bigint; SPENDING: bigint }>();
   for (const row of txSums) {
     if (!row.savingsAccountId) continue;
     if (!sumMap.has(row.savingsAccountId)) {
-      sumMap.set(row.savingsAccountId, { DEPOSIT: 0n, INTEREST: 0n, WITHDRAWAL: 0n });
+      sumMap.set(row.savingsAccountId, { DEPOSIT: 0n, INTEREST: 0n, WITHDRAWAL: 0n, SPENDING: 0n });
     }
     const entry = sumMap.get(row.savingsAccountId)!;
     const amount = row._sum.amountPaisa ?? 0n;
     if (row.type === 'SAVINGS_DEPOSIT') entry.DEPOSIT = amount;
     else if (row.type === 'SAVINGS_INTEREST') entry.INTEREST = amount;
     else if (row.type === 'SAVINGS_WITHDRAWAL') entry.WITHDRAWAL = amount;
+    else if (row.type === 'NONE') entry.SPENDING = amount;
   }
 
   const balances = new Map<string, number>();
   for (const acct of accounts) {
-    const sums = sumMap.get(acct.id) ?? { DEPOSIT: 0n, INTEREST: 0n, WITHDRAWAL: 0n };
-    const balance = Number(acct.openingBalancePaisa) + Number(sums.DEPOSIT) + Number(sums.INTEREST) - Number(sums.WITHDRAWAL);
+    const sums = sumMap.get(acct.id) ?? { DEPOSIT: 0n, INTEREST: 0n, WITHDRAWAL: 0n, SPENDING: 0n };
+    const balance = Number(acct.openingBalancePaisa) + Number(sums.DEPOSIT) + Number(sums.INTEREST) - Number(sums.WITHDRAWAL) - Number(sums.SPENDING);
     balances.set(acct.id, balance);
   }
 

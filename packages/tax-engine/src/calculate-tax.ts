@@ -14,7 +14,7 @@ export type TaxInput = {
   fiscalYear: string;
   config: TaxYearConfig;
   incomeEntries: TaxIncomeEntry[];
-  investments: Record<'dps' | 'sanchaypatra' | 'stocks' | 'insurance' | 'others', number>;
+  investments: Record<'dps' | 'sanchaypatra' | 'stocks' | 'insurance' | 'others' | 'universal_pension', number>;
   taxPaymentsPaisa: number;
   filedOn: string | null;
   asOf: string;
@@ -27,7 +27,7 @@ export type SlabBreakdown = {
 };
 
 export type InvestmentBreakdown = {
-  category: 'dps' | 'sanchaypatra' | 'stocks' | 'insurance' | 'others';
+  category: 'dps' | 'sanchaypatra' | 'stocks' | 'insurance' | 'others' | 'universal_pension';
   invested: number;
   cap: number | null;
   eligible: number;
@@ -155,13 +155,13 @@ export function calculateTax(input: TaxInput): TaxResult {
   }
 
   // --- Step 5: Eligible Investment ---
-  const categories = ['dps', 'sanchaypatra', 'stocks', 'insurance', 'others'] as const;
+  const categories = ['dps', 'sanchaypatra', 'stocks', 'insurance', 'others', 'universal_pension'] as const;
   const investmentBreakdown: InvestmentBreakdown[] = [];
   let eligibleInvestmentPaisa = 0;
 
   for (const cat of categories) {
     const invested = investments[cat] ?? 0;
-    const cap = config.investment_caps_paisa[cat];
+    const cap = (config.investment_caps_paisa as Record<string, number | null | undefined>)[cat] ?? null;
     const eligible = cap !== null ? Math.min(invested, cap) : invested;
     investmentBreakdown.push({ category: cat, invested, cap, eligible });
     eligibleInvestmentPaisa += eligible;

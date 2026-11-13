@@ -9,7 +9,7 @@
  * income/transactions added in earlier scenarios forward to later ones).
  */
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page, type Locator } from '@playwright/test';
 
 // ── Credentials (match scripts/e2e-seed.ts) ───────────────────────────────
 
@@ -18,19 +18,42 @@ const PASSWORD = 'E2ETest1234!';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
+/**
+ * Properly fills a React-controlled input (type="month", type="date", etc.)
+ * by using the native input value setter + bubbling events so React's
+ * synthetic onChange handler fires even when the browser's custom UI would
+ * otherwise intercept keyboard events.
+ */
+async function fillControlledInput(locator: Locator, value: string) {
+  await locator.evaluate((el: HTMLInputElement, val) => {
+    const proto = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    proto?.set?.call(el, val);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }, value);
+}
+
+async function waitForReady(page: Page) {
+  // AppLayout renders <header> only after tryRestoreSession() succeeds (ready=true).
+  // waitForLoadState('networkidle') resolves before React hydrates, so we wait for
+  // the structural signal instead. Next.js inline scripts make body-textContent
+  // checks unreliable.
+  await page.locator('header').waitFor({ timeout: 20_000 });
+  await page.waitForLoadState('networkidle');
+}
+
 async function signIn(page: Page) {
-  // Programmatic login: page.request shares the page's cookie jar, so the
-  // Set-Cookie (refresh_token) from this POST is available on the next goto.
+  // Programmatic login: page.request shares the page's cookie jar.
+  // lib/auth.ts omits Secure in development so the cookie is sent by the browser's
+  // native XHR (tryRestoreSession) as well as navigations.
   const resp = await page.request.post('/api/v1/auth/login', {
     data: { email: EMAIL, password: PASSWORD },
     headers: { 'Content-Type': 'application/json' },
   });
   if (!resp.ok()) throw new Error(`Login API failed: ${resp.status()} ${await resp.text()}`);
 
-  // Navigate to the app — the cookie is now in the jar, middleware allows through,
-  // layout calls tryRestoreSession() which exchanges it for an access token.
   await page.goto('/');
-  await page.waitForLoadState('networkidle');
+  await waitForReady(page);
 }
 
 /** Current month in YYYY-MM format (the seed data targets this month). */
@@ -57,6 +80,13 @@ test('S01 — Sign in → dashboard shows first-run checklist', async ({ page })
   await expect(page.locator('h1, h2').filter({ hasText: /dashboard|welcome|fintrack/i }).first())
     .toBeVisible({ timeout: 10_000 });
 
+  // The dashboard data fetch can race with tryRestoreSession on first load.
+  // If the error banner appears, reload once to give the now-set token a clean shot.
+  if (await page.getByText(/failed to load dashboard/i).isVisible().catch(() => false)) {
+    await page.reload();
+    await waitForReady(page);
+  }
+
   // First-run checklist is visible (no income yet)
   await expect(page.getByText(/add this month.*income|add.*salary|first income/i).first())
     .toBeVisible({ timeout: 8_000 });
@@ -74,6 +104,7 @@ test('S02 — Add salary → income table, dashboard tiles and tax all update', 
 
   // ── 2a: Navigate to Income page ──
   await page.goto('/income');
+  await waitForReady(page);
   await expect(page.getByRole('heading', { name: 'Income' })).toBeVisible({ timeout: 8_000 });
 
   // ── 2b: Open "Add Income Entry" modal ──
@@ -81,8 +112,10 @@ test('S02 — Add salary → income table, dashboard tiles and tax all update', 
   await expect(page.getByRole('heading', { name: /add income entry/i })).toBeVisible({ timeout: 6_000 });
 
   // ── 2c: Fill the form ──
-  // Month: pick the current month so the dashboard period "This Month" shows income
-  await page.locator('input[type="month"]').fill(currentYM());
+  // Month: use the native setter to trigger React's synthetic onChange on the
+  // controlled input — Playwright's .fill() on type="month" does not reliably
+  // fire the React onChange event due to Chrome's custom date-picker UI.
+  await fillControlledInput(page.locator('input[type="month"]'), currentYM());
 
   // Income Type: defaults to Salary — no change needed
   // Gross Amount: ৳90,000 → type as "90000" into the MoneyInput
@@ -103,7 +136,7 @@ test('S02 — Add salary → income table, dashboard tiles and tax all update', 
 
   // ── 2f: Dashboard reflects the income ──
   await page.goto('/');
-  await page.waitForLoadState('networkidle');
+  await waitForReady(page);
   // Dashboard now has real data — first-run checklist should be gone
   await expect(page.getByText(/in.hand income/i).first()).toBeVisible({ timeout: 8_000 });
   // Tiles show non-zero In-Hand Income
@@ -111,6 +144,7 @@ test('S02 — Add salary → income table, dashboard tiles and tax all update', 
 
   // ── 2g: Tax page loads — heading visible
   await page.goto('/tax');
+  await waitForReady(page);
   await expect(page.locator('h1')).toBeVisible({ timeout: 8_000 });
 });
 
@@ -163,13 +197,15 @@ test('S03 — Add Dining spending → transactions list, dashboard total and bud
 
   // ── 3d: Dashboard — Total Spending is non-zero ──
   await page.goto('/');
-  await page.waitForLoadState('networkidle');
+  await waitForReady(page);
   await expect(page.getByText(/total spending/i).first()).toBeVisible({ timeout: 8_000 });
 
   // ── 3e: Budgets page shows Dining bar with progress ──
   await page.goto('/budgets');
+  await waitForReady(page);
   await expect(page.locator('h1')).toBeVisible({ timeout: 8_000 });
-  await expect(page.getByText(/dining/i).first()).toBeVisible({ timeout: 6_000 });
+  // Scope to <span> elements in main to avoid matching hidden <option> elements in filter selects
+  await expect(page.locator('main span').getByText(/dining/i).first()).toBeVisible({ timeout: 6_000 });
   // The budget bar or percentage text should be visible
   await expect(page.getByText(/5,000|budget/i).first()).toBeVisible({ timeout: 6_000 });
 });
@@ -183,6 +219,7 @@ test('S04 — DPS payment → savings balance increases, NOT counted as spending
 
   // ── 4a: Navigate to Savings page — note balance before ──
   await page.goto('/savings');
+  await waitForReady(page);
   await expect(page.locator('h1')).toBeVisible({ timeout: 8_000 });
   await expect(page.getByText(/city bank dps 10k/i)).toBeVisible({ timeout: 6_000 });
 
@@ -211,13 +248,13 @@ test('S04 — DPS payment → savings balance increases, NOT counted as spending
 
   // ── 4c: Savings page — City Bank DPS 10k balance is now ৳10,000 ──
   await page.goto('/savings');
-  await page.waitForLoadState('networkidle');
+  await waitForReady(page);
   await expect(page.getByText(/city bank dps 10k/i)).toBeVisible({ timeout: 6_000 });
   await expect(page.getByText(/10,000\.00|৳10,000/i).first()).toBeVisible({ timeout: 6_000 });
 
   // ── 4d: Tax page — DPS shows up in investment breakdown ──
   await page.goto('/tax');
-  await page.waitForLoadState('networkidle');
+  await waitForReady(page);
   await expect(page.locator('h1')).toBeVisible({ timeout: 6_000 });
   // The investments / rebate section should be visible
   await expect(page.getByText(/rebate|investment|dps/i).first()).toBeVisible({ timeout: 6_000 });
@@ -232,6 +269,7 @@ test('S05 — Mark Mess Rent as Paid → instance status becomes Paid, transacti
 
   // ── 5a: Navigate to Fixed Expenses ──
   await page.goto('/fixed-expenses');
+  await waitForReady(page);
   await expect(page.getByRole('heading', { name: 'Fixed Expenses' })).toBeVisible({ timeout: 8_000 });
 
   // The "This Month" checklist should show Mess Rent
@@ -258,7 +296,7 @@ test('S05 — Mark Mess Rent as Paid → instance status becomes Paid, transacti
 
   // ── 5e: Transaction appears in Transactions list ──
   await page.goto('/transactions');
-  await page.waitForLoadState('networkidle');
+  await waitForReady(page);
   await expect(page.getByText(/mess rent/i).first()).toBeVisible({ timeout: 6_000 });
 });
 
@@ -271,10 +309,8 @@ test('S06 — Loan Given to Sohel → running balance shown → settle up clears
 
   // ── 6a: Navigate to Loans page ──
   await page.goto('/loans');
+  await waitForReady(page);
   await expect(page.locator('h1')).toBeVisible({ timeout: 8_000 });
-  // Wait for the persons API to finish so AddEntryModal has a populated datalist
-  // (Sohel has zero entries so the person-list panel shows "No loan records yet." — don't wait for his name)
-  await page.waitForLoadState('networkidle');
 
   // ── 6b: Add Loan Entry — ৳5,000 given to Sohel ──
   await page.getByRole('button', { name: /\+ add entry|\+ add loan/i }).first().click();
@@ -300,12 +336,12 @@ test('S06 — Loan Given to Sohel → running balance shown → settle up clears
 
   // ── 6d: Dashboard loan summary updates ──
   await page.goto('/');
-  await page.waitForLoadState('networkidle');
+  await waitForReady(page);
   await expect(page.getByText(/people owe you/i)).toBeVisible({ timeout: 8_000 });
 
   // ── 6e: Return to Loans and Settle Up ──
   await page.goto('/loans');
-  await page.waitForLoadState('networkidle');
+  await waitForReady(page);
 
   // Click "Settle Up" on Sohel's card
   await page.getByRole('button', { name: /settle up/i }).first().click();
@@ -329,7 +365,7 @@ test('S07 — Tax Payment of ৳20,000 → Tax Paid increases, Remaining Tax dro
 
   // Check the tax page BEFORE so we can observe the change
   await page.goto('/tax');
-  await page.waitForLoadState('networkidle');
+  await waitForReady(page);
   await expect(page.locator('h1')).toBeVisible({ timeout: 8_000 });
 
   // ── 7a: Add Tax Payment transaction ──
@@ -350,7 +386,7 @@ test('S07 — Tax Payment of ৳20,000 → Tax Paid increases, Remaining Tax dro
 
   // ── 7b: Tax page — Tax Paid now includes our ৳20,000 ──
   await page.goto('/tax');
-  await page.waitForLoadState('networkidle');
+  await waitForReady(page);
   await expect(page.getByText(/tds.*tax payments|tax situation|overpaid/i).first()).toBeVisible({ timeout: 8_000 });
   // The ৳20,000 TDS from income + ৳20,000 tax payment = ৳25,000 total paid
   await expect(page.getByText(/25,000\.00|20,000/i).first()).toBeVisible({ timeout: 6_000 });
@@ -364,6 +400,7 @@ test('S08 — History page shows salary month as entered with income and spendin
   await signIn(page);
 
   await page.goto('/history');
+  await waitForReady(page);
   await expect(page.locator('h1')).toBeVisible({ timeout: 8_000 });
 
   // The month we entered salary for (Oct 2025 or current)
@@ -382,7 +419,7 @@ test('S09 — Period selector: switching to "This Tax Year" shows cumulative tot
   await signIn(page);
 
   await page.goto('/');
-  await page.waitForLoadState('networkidle');
+  await waitForReady(page);
   await expect(page.getByRole('button', { name: /this month/i })).toBeVisible({ timeout: 8_000 });
 
   // Switch to "This Tax Year"

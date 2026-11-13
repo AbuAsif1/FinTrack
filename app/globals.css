@@ -12,8 +12,8 @@
   --fg-secondary:#4B5563;
   --fg-muted:    #9CA3AF;
 
-  --accent:      #3A5FCD;
-  --accent-hover:#2D4FB8;
+  --accent:      #6366F1;
+  --accent-hover:#4F46E5;
   --accent-fg:   #FFFFFF;
 
   --ok:          #15803D;
@@ -25,9 +25,9 @@
   --neutral:     #374151;
   --neutral-bg:  #F3F4F6;
 
-  --income:      #0369A1;
-  --spending:    #9333EA;
-  --savings:     #15803D;
+  --income:      #22C55E;
+  --spending:    #F97316;
+  --savings:     #3B82F6;
   --tax:         #B45309;
 
   /* Typography */
@@ -56,8 +56,8 @@
     --fg-primary:  #F1F3FC;
     --fg-secondary:#9BA3BC;
     --fg-muted:    #4B5363;
-    --accent:      #6B8CF5;
-    --accent-hover:#8AA3F7;
+    --accent:      #818CF8;
+    --accent-hover:#6366F1;
     --accent-fg:   #0F1117;
     --ok:          #4ADE80;
     --ok-bg:       #052E16;
@@ -67,9 +67,9 @@
     --danger-bg:   #2D0000;
     --neutral:     #9CA3AF;
     --neutral-bg:  #1F2937;
-    --income:      #38BDF8;
-    --spending:    #C084FC;
-    --savings:     #4ADE80;
+    --income:      #4ADE80;
+    --spending:    #FB923C;
+    --savings:     #60A5FA;
     --tax:         #FCD34D;
   }
 }
@@ -79,12 +79,12 @@
   --bg-raised:   #252835;
   --bg-sunken:   #0D0F18;
   --border:      #2E3148;
-  --border-focus:#6B8CF5;
+  --border-focus:#818CF8;
   --fg-primary:  #F1F3FC;
   --fg-secondary:#9BA3BC;
   --fg-muted:    #4B5363;
-  --accent:      #6B8CF5;
-  --accent-hover:#8AA3F7;
+  --accent:      #818CF8;
+  --accent-hover:#6366F1;
   --accent-fg:   #0F1117;
   --ok:          #4ADE80;
   --ok-bg:       #052E16;
@@ -94,9 +94,9 @@
   --danger-bg:   #2D0000;
   --neutral:     #9CA3AF;
   --neutral-bg:  #1F2937;
-  --income:      #38BDF8;
-  --spending:    #C084FC;
-  --savings:     #4ADE80;
+  --income:      #4ADE80;
+  --spending:    #FB923C;
+  --savings:     #60A5FA;
   --tax:         #FCD34D;
 }
 
@@ -109,6 +109,49 @@ body {
   margin: 0;
   overflow-x: hidden;
 }
+
+/* Skeleton loading pulse */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+/* Action button styles */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: 8px;
+  font: var(--t-label);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 150ms;
+}
+.btn-primary:hover { background: var(--accent-hover); }
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--bg-surface);
+  color: var(--fg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: var(--t-label);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 150ms, border-color 150ms;
+}
+.btn-secondary:hover { background: var(--bg-raised); }
 
 /* Ensure buttons / links meet 44px tap target on mobile */
 button, [role="button"], a {
@@ -129,15 +172,90 @@ button, [role="button"], a {
 .sidebar-desktop {
   display: contents;
 }
+/* Desktop-only: shown on desktop, hidden on mobile */
+.desktop-only {
+  display: block;
+}
 /* Bottom nav: hidden on desktop, shown on mobile */
 .bottom-nav-mobile {
-  display: none;
+  display: none !important;
 }
 @media (max-width: 767px) {
   .sidebar-desktop {
     display: none;
   }
-  .bottom-nav-mobile {
-    display: block;
+  .desktop-only {
+    display: none;
   }
+  .bottom-nav-mobile {
+    display: flex !important;
+  }
+}
+
+/* ── Responsive layout ───────────────────────────────────── */
+
+/* Desktop-only sticky top action bar (Add Expenses + bell) */
+.app-topbar {
+  display: none;
+  flex-shrink: 0;
+}
+@media (min-width: 768px) {
+  .app-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 0 24px;
+    height: 52px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+/* Hide an element on mobile only */
+@media (max-width: 767px) {
+  .hidden-mobile { display: none !important; }
+}
+
+/* Main content area */
+.main-content {
+  flex: 1;
+  padding: 28px 32px 80px;
+  width: 100%;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* Page header: title left, actions right — stacks on mobile */
+.page-hdr {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+/* Responsive grid layouts */
+.r-tiles   { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+.r-halves  { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.r-main    { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+.r-content { display: grid; grid-template-columns: 5fr 7fr; gap: 20px; }
+
+/* Horizontal scroll container for data tables */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ── Mobile (<768px) ─────────────────────────────────────── */
+@media (max-width: 767px) {
+  .main-content { padding: 16px 16px 96px; }
+  .page-hdr { flex-direction: column; align-items: flex-start; }
+  .r-tiles   { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .r-halves, .r-main, .r-content { grid-template-columns: 1fr; gap: 16px; }
+}
+
+/* ── Tablet (768–1023px) ─────────────────────────────────── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .main-content { padding: 20px 20px 80px; }
+  .r-tiles   { grid-template-columns: repeat(2, 1fr); }
+  .r-main    { grid-template-columns: 3fr 2fr; }
+  .r-content { grid-template-columns: 1fr 1fr; }
 }

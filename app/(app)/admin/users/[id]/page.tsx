@@ -38,12 +38,12 @@ export default function AdminUserDetailPage() {
 
   const { data: user, isLoading } = useQuery({
     queryKey: ['admin-user', id],
-    queryFn: () => api.get<UserDetail>(`/api/v1/admin/users/${id}`).then((r) => r.data),
+    queryFn: () => api.get<UserDetail>(`/admin/users/${id}`).then((r) => r.data),
   });
 
   const { data: payments, refetch: refetchPayments } = useQuery({
     queryKey: ['admin-user-payments', id],
-    queryFn: () => api.get<Payment[]>(`/api/v1/admin/users/${id}/payments`).then((r) => r.data),
+    queryFn: () => api.get<Payment[]>(`/admin/users/${id}/payments`).then((r) => r.data),
   });
 
   // Name/email edit
@@ -84,7 +84,7 @@ export default function AdminUserDetailPage() {
     setEditError('');
     setEditing(true);
     try {
-      await api.patch(`/api/v1/admin/users/${id}`, {
+      await api.patch(`/admin/users/${id}`, {
         ...(editName && { name: editName }),
         ...(editEmail && { email: editEmail }),
       });
@@ -99,7 +99,7 @@ export default function AdminUserDetailPage() {
 
   async function handleDeactivate() {
     try {
-      await api.post(`/api/v1/admin/users/${id}/deactivate`, {
+      await api.post(`/admin/users/${id}/deactivate`, {
         ...(deactivateMode === 'until' && { until: deactivateUntil }),
         ...(deactivateReason && { reason: deactivateReason }),
       });
@@ -112,7 +112,7 @@ export default function AdminUserDetailPage() {
 
   async function handleReactivate() {
     try {
-      await api.post(`/api/v1/admin/users/${id}/reactivate`, {});
+      await api.post(`/admin/users/${id}/reactivate`, {});
       qc.invalidateQueries({ queryKey: ['admin-user', id] });
     } catch (err: any) {
       alert(err.response?.data?.code ?? 'Error reactivating');
@@ -121,7 +121,7 @@ export default function AdminUserDetailPage() {
 
   async function handleResendVerify() {
     try {
-      await api.post(`/api/v1/admin/users/${id}/resend-verification`, {});
+      await api.post(`/admin/users/${id}/resend-verification`, {});
       alert('Verification email sent');
     } catch (err: any) {
       alert(err.response?.data?.code ?? 'Error');
@@ -130,7 +130,7 @@ export default function AdminUserDetailPage() {
 
   async function handleSendPwReset() {
     try {
-      await api.post(`/api/v1/admin/users/${id}/send-password-reset`, {});
+      await api.post(`/admin/users/${id}/send-password-reset`, {});
       alert('Password reset email sent');
     } catch (err: any) {
       alert(err.response?.data?.code ?? 'Error');
@@ -144,7 +144,7 @@ export default function AdminUserDetailPage() {
     }
     setDeleting(true);
     try {
-      await api.delete(`/api/v1/admin/users/${id}`, { data: { email: deleteEmail } });
+      await api.delete(`/admin/users/${id}`, { data: { email: deleteEmail } });
       router.push('/admin/users');
     } catch (err: any) {
       setDeleteError(err.response?.data?.code ?? 'Error deleting user');
@@ -157,7 +157,7 @@ export default function AdminUserDetailPage() {
     setPmtError('');
     setAddingPmt(true);
     try {
-      await api.post(`/api/v1/admin/users/${id}/payments`, {
+      await api.post(`/admin/users/${id}/payments`, {
         paid_on: pmtPaidOn,
         amount_paisa: parseInt(pmtAmount, 10),
         covers_until: pmtCoversUntil,
