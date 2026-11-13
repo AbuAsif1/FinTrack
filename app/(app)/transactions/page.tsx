@@ -255,6 +255,7 @@ export default function TransactionsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [savingsAccounts, setSavingsAccounts] = useState<SavingsAccount[]>([]);
   const [loanPersons, setLoanPersons] = useState<LoanPerson[]>([]);
+  const [fixedExpenses, setFixedExpenses] = useState<{ id: string; name: string; standard_amount_paisa: number; due_day: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -329,6 +330,7 @@ export default function TransactionsPage() {
     api.get('/categories').then(({ data }) => setCategories(Array.isArray(data) ? data : [])).catch(() => {});
     api.get('/savings-accounts').then(({ data }) => setSavingsAccounts(Array.isArray(data) ? data : (data?.accounts ?? []))).catch(() => {});
     api.get('/loan-persons').then(({ data }) => setLoanPersons(Array.isArray(data) ? data : [])).catch(() => {});
+    api.get('/fixed-expenses').then(({ data }) => setFixedExpenses(Array.isArray(data) ? data : [])).catch(() => {});
   }, []);
 
   function clearFilters() {
@@ -446,7 +448,7 @@ export default function TransactionsPage() {
                 onClick={() => { setEditing(null); setShowModal(true); }}
                 style={{ padding: '10px 20px', background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 8, cursor: 'pointer', opacity: isOnline ? 1 : 0.5 }}
               >
-                + Add Spending
+                + Add Expenses
               </button>
             </div>
           ) : (
@@ -555,6 +557,7 @@ export default function TransactionsPage() {
           categories={categories}
           savingsAccounts={savingsAccounts}
           loanPersons={loanPersons}
+          fixedExpenses={fixedExpenses}
           editing={editing as EditingTransaction | null}
           onClose={() => { setShowModal(false); setEditing(null); }}
           onSaved={() => {
