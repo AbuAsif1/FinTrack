@@ -178,35 +178,167 @@ A personal finance web application built for a salaried professional in Banglade
 
 ---
 
-## Getting Started
+## Setup Guide
+
+### Prerequisites
+
+Install the following tools before cloning the project. See `requirements.txt` for exact version requirements.
+
+| Tool | Minimum version | Install |
+|---|---|---|
+| **Node.js** | 20.x LTS | https://nodejs.org |
+| **pnpm** | 9.x | `npm install -g pnpm` |
+| **PostgreSQL** | 14.x | https://postgresql.org — or use [Neon](https://neon.tech) (free) |
+
+> **Windows users:** Use [nvm-windows](https://github.com/coreybutler/nvm-windows) to manage Node versions. Make sure PostgreSQL's `bin` folder is on your PATH or use pgAdmin to create databases.
+
+---
+
+### Step 1 — Clone the repository
 
 ```bash
-# Install dependencies
+git clone https://github.com/AbuAsif1/FinTrack.git
+cd FinTrack
+```
+
+---
+
+### Step 2 — Install dependencies
+
+```bash
 pnpm install
+```
 
-# Set up environment variables
+This installs all packages for the main app and the internal `packages/` workspace (tax-engine, shared types).
+
+---
+
+### Step 3 — Create the database
+
+**Option A — Local PostgreSQL**
+
+```sql
+-- Run in psql or pgAdmin
+CREATE DATABASE fintrack_bd;
+CREATE DATABASE fintrack_bd_test;   -- for running tests
+```
+
+**Option B — Neon (hosted, free tier)**
+
+1. Sign up at https://neon.tech
+2. Create a project — Neon gives you one database with a connection string.
+3. Create a second branch or database named `fintrack_bd_test` for tests.
+
+---
+
+### Step 4 — Configure environment variables
+
+```bash
 cp .env.example .env.local
-# Edit .env.local with your DATABASE_URL, JWT_SECRET, RESEND_API_KEY, etc.
+```
 
-# Run database migrations and seed
-pnpm prisma migrate dev
-pnpm prisma db seed
+Open `.env.local` and fill in every value:
 
-# Start the development server
+| Variable | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | Yes | PostgreSQL connection string — e.g. `postgresql://user:pass@localhost:5432/fintrack_bd` |
+| `TEST_DATABASE_URL` | For tests | Separate DB used by Vitest and Playwright — e.g. `postgresql://user:pass@localhost:5432/fintrack_bd_test` |
+| `JWT_SECRET` | Yes | Any long random string — e.g. run `openssl rand -hex 32` |
+| `APP_URL` | Yes | `http://localhost:3000` for local dev |
+| `RESEND_API_KEY` | For emails | Get a free key at https://resend.com — set to `disabled` to skip emails locally |
+| `EMAIL_FROM` | For emails | Sender address — e.g. `FinTrack BD <noreply@yourdomain.com>` |
+| `SIGNUP_MODE` | Yes | `open` lets anyone register; `closed` blocks registration (use `open` for local dev) |
+| `SEED_USER_EMAIL` | Yes | Email for the first admin account created by the seed script |
+| `SEED_USER_PASSWORD` | Yes | Password for the seed admin (min 10 characters) |
+| `SEED_USER_NAME` | Yes | Display name for the seed admin |
+| `SENTRY_DSN` | Optional | Error tracking — leave commented out for local dev |
+
+**Tip — generate a JWT secret on Windows (PowerShell):**
+```powershell
+-join ((1..64) | ForEach-Object { '{0:x}' -f (Get-Random -Max 16) })
+```
+
+---
+
+### Step 5 — Run database migrations and seed
+
+```bash
+# Apply all Prisma migrations to your database
+pnpm db:migrate
+
+# Seed: creates the admin account and three default Fiscal Years
+pnpm db:seed
+```
+
+After seeding, the admin account uses the email and password you set in `SEED_USER_EMAIL` / `SEED_USER_PASSWORD`.
+
+---
+
+### Step 6 — Start the development server
+
+```bash
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### Running Tests
+Sign in with your seed credentials. If email verification is required (Resend key is set), check your inbox; otherwise the seed account is pre-verified.
+
+---
+
+### Step 7 — (Optional) Create additional users
 
 ```bash
-# Integration tests (Vitest)
-pnpm test
-
-# E2E smoke flows (Playwright)
-pnpm test:e2e
+# Interactive prompt: name, email, password, role
+pnpm user:create
 ```
+
+---
+
+## Running Tests
+
+### Integration tests (Vitest)
+
+```bash
+pnpm test                  # run all unit and integration tests
+pnpm test:watch            # watch mode
+pnpm test:coverage         # with coverage report
+pnpm test:tax              # tax-engine package only
+```
+
+> Requires `TEST_DATABASE_URL` to be set in `.env.local`.
+
+### End-to-end tests (Playwright)
+
+```bash
+# First time only: download browser binaries
+pnpm exec playwright install
+
+# Run all E2E tests
+pnpm test:e2e
+
+# Happy-path smoke suite only
+pnpm test:e2e:happy
+```
+
+---
+
+## Useful Scripts
+
+| Script | What it does |
+|---|---|
+| `pnpm dev` | Start dev server on http://localhost:3000 |
+| `pnpm build` | Production build |
+| `pnpm start` | Serve the production build locally |
+| `pnpm typecheck` | TypeScript type-check without emitting |
+| `pnpm lint` | ESLint |
+| `pnpm db:migrate` | Apply pending Prisma migrations (dev) |
+| `pnpm db:migrate:deploy` | Apply migrations in production (no prompt) |
+| `pnpm db:seed` | Create seed admin and default fiscal years |
+| `pnpm db:generate` | Re-generate Prisma client after schema changes |
+| `pnpm user:create` | Create a new user/admin interactively |
+| `pnpm user:reset-password` | Reset any user's password from the CLI |
+| `pnpm user:set-role` | Promote or demote a user to/from admin |
 
 ---
 
@@ -216,7 +348,7 @@ pnpm test:e2e
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string |
 | `TEST_DATABASE_URL` | Separate database for tests |
-| `JWT_SECRET` | Signs access tokens |
+| `JWT_SECRET` | Signs access tokens (HS256 JWT) |
 | `APP_URL` | Base URL used in email links |
 | `RESEND_API_KEY` | Sending emails via Resend |
 | `EMAIL_FROM` | Sender address for emails |

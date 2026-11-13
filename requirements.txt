@@ -1,0 +1,53 @@
+# FinTrack BD — System Requirements
+# ===================================
+# These are the SYSTEM-LEVEL tools you need installed before running the project.
+# Node package dependencies are managed by pnpm and listed in package.json.
+#
+# Install in the order listed below.
+
+# ── Runtime ──────────────────────────────────────────────────────────────────
+Node.js        >= 20.0.0    https://nodejs.org/en/download
+                            (LTS recommended — tested on v20.x and v22.x)
+
+pnpm           >= 9.0.0     https://pnpm.io/installation
+                            Install after Node: npm install -g pnpm@latest
+
+# ── Database ─────────────────────────────────────────────────────────────────
+PostgreSQL     >= 14.0      https://www.postgresql.org/download
+                            OR use a hosted service (Neon, Supabase, Railway)
+                            Neon (free tier): https://neon.tech
+
+# ── Optional (for email sending) ─────────────────────────────────────────────
+Resend account            https://resend.com
+                            Free tier supports 3 000 emails/month.
+                            Without a Resend key, email verification and
+                            password-reset flows will not send emails.
+                            Set RESEND_API_KEY=disabled to skip in development.
+
+# ── Optional (for E2E tests only) ────────────────────────────────────────────
+Playwright browsers  latest   Installed automatically via: pnpm exec playwright install
+
+# ── Optional (for production deployment) ─────────────────────────────────────
+Vercel CLI     latest        https://vercel.com/docs/cli
+                             npm install -g vercel
+
+# ── Node package versions (key dependencies) ─────────────────────────────────
+# These are installed automatically by `pnpm install`.
+# Listed here for reference.
+next                14.2.14
+react               18.3.x
+react-dom           18.3.x
+typescript          5.6.x
+prisma              5.19.x
+@prisma/client      5.19.x
+zod                 3.23.x
+jose                5.9.x
+axios               1.7.x
+recharts            2.12.x
+@tanstack/react-query  5.56.x
+react-hook-form     7.53.x
+next-pwa            5.6.x
+resend              4.0.x
+bcryptjs            2.4.x
+vitest              2.1.x
+@playwright/test    1.47.x
