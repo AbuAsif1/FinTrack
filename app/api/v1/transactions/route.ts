@@ -8,12 +8,15 @@ const PaymentMethodEnum = z.enum(['CASH', 'BKASH', 'BANK', 'CARD']);
 
 const createSchema = z.object({
   amount_paisa: z.number().int().positive(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  for_month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
   description: z.string().min(1),
   category_id: z.string().min(1),
   payment_method: PaymentMethodEnum,
   idempotency_key: z.string().min(1),
   savings_account_id: z.string().optional(),
+  bank_account_id: z.string().optional(),
+  fixed_expense_id: z.string().optional(),
   loan_person_id: z.string().optional(),
   loan_person_name: z.string().optional(),
   return_due_date: z.string().optional(),
@@ -35,11 +38,15 @@ function txRow(tx: {
   idempotencyKey: string;
   createdAt: Date;
   updatedAt: Date;
+  fixedExpenseInstance?: { month: Date } | null;
 }) {
   return {
     id: tx.id,
     amount_paisa: Number(tx.amountPaisa),
     date: tx.date.toISOString().slice(0, 10),
+    for_month: tx.fixedExpenseInstance?.month
+      ? tx.fixedExpenseInstance.month.toISOString().slice(0, 7)
+      : null,
     description: tx.description,
     category_id: tx.categoryId,
     category_name: tx.category.name,
@@ -98,8 +105,8 @@ export async function GET(req: Request) {
     prisma.transaction.count({ where }),
     prisma.transaction.findMany({
       where,
-      include: { category: true },
-      orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+      include: { category: true, fixedExpenseInstance: { select: { month: true } } },
+      orderBy: [{ createdAt: 'desc' }],
       skip: (page - 1) * page_size,
       take: page_size,
     }),
@@ -121,7 +128,8 @@ export async function POST(req: Request) {
 
   try {
     const svc = new CategoryRoutingService(user.id);
-    const result = await svc.create(r.data);
+    const today = new Date().toISOString().slice(0, 10);
+    const result = await svc.create({ ...r.data, date: r.data.date ?? today });
     if (result.duplicate) {
       return Response.json({ code: 'DUPLICATE', transaction: result.transaction }, { status: 409 });
     }

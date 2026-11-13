@@ -30,6 +30,11 @@ export interface CreateTxInput {
   is_settlement?: boolean;
   // Tax routing
   tax_fiscal_year?: string;
+  // Bank account funding a savings deposit (BANK payment); its balance is reduced
+  bank_account_id?: string;
+  // Fixed expense being paid and the month (YYYY-MM) of the installment; may differ from the payment date
+  fixed_expense_id?: string;
+  for_month?: string;
   // Import
   import_batch_id?: string;
 }
@@ -88,7 +93,12 @@ async function computeSavingsBalance(accountId: string, userId: string): Promise
     else if (r.type === 'SAVINGS_WITHDRAWAL') withdrawal = a;
     else if (r.type === 'NONE') spending = a;
   }
-  return Number(acct.openingBalancePaisa) + Number(deposit) + Number(interest) - Number(withdrawal) - Number(spending);
+  const funded = await prisma.transaction.aggregate({
+    where: { bankSourceId: accountId, userId, isDeleted: false },
+    _sum: { amountPaisa: true },
+  });
+  const fundedOut = funded._sum.amountPaisa ?? 0n;
+  return Number(acct.openingBalancePaisa) + Number(deposit) + Number(interest) - Number(withdrawal) - Number(spending) - Number(fundedOut);
 }
 
 async function computeRunningBalance(loanPersonId: string, userId: string): Promise<number> {
@@ -198,6 +208,21 @@ export class CategoryRoutingService {
         }
       }
 
+      let bankSourceId: string | null = null;
+      if (category.routingType === 'SAVINGS_DEPOSIT' && input.payment_method === 'BANK' && input.bank_account_id) {
+        if (input.bank_account_id === input.savings_account_id) {
+          throw new RoutingError(422, 'VALIDATION_ERROR', 'Bank account and savings account must be different');
+        }
+        await validateSavingsAccount(input.bank_account_id, this.userId, input.date);
+        const bankBalance = await computeSavingsBalance(input.bank_account_id, this.userId);
+        if (input.amount_paisa > bankBalance) {
+          throw new RoutingError(422, 'INSUFFICIENT_BALANCE', `Amount exceeds bank account balance (${bankBalance} paisa available)`);
+        }
+        bankSourceId = input.bank_account_id;
+      }
+
+      await this.assertInstanceUnpaid(input.fixed_expense_id, input.for_month);
+
       const tx = await prisma.transaction.create({
         data: {
           userId: this.userId,
@@ -208,6 +233,7 @@ export class CategoryRoutingService {
           type: category.routingType,
           paymentMethod: input.payment_method,
           savingsAccountId: input.savings_account_id,
+          bankSourceId,
           idempotencyKey: input.idempotency_key,
           importBatchId: input.import_batch_id ?? null,
         },
@@ -215,7 +241,7 @@ export class CategoryRoutingService {
       });
 
       const newBalance = await computeSavingsBalance(input.savings_account_id, this.userId);
-      await this.autoLinkFixedExpense(tx.id, input.category_id, input.date, input.amount_paisa);
+      await this.autoLinkFixedExpense(tx.id, input.category_id, input.date, input.amount_paisa, input.for_month, input.fixed_expense_id);
       return {
         duplicate: false,
         transaction: txToJson(tx),
@@ -257,7 +283,7 @@ export class CategoryRoutingService {
       });
 
       const newBalance = await computeRunningBalance(result.person.id, this.userId);
-      await this.autoLinkFixedExpense(result.transaction.id, input.category_id, input.date, input.amount_paisa);
+      await this.autoLinkFixedExpense(result.transaction.id, input.category_id, input.date, input.amount_paisa, input.for_month, input.fixed_expense_id);
       return {
         duplicate: false,
         transaction: txToJson(result.transaction),
@@ -284,7 +310,7 @@ export class CategoryRoutingService {
         },
         include: { category: true },
       });
-      await this.autoLinkFixedExpense(tx.id, input.category_id, input.date, input.amount_paisa);
+      await this.autoLinkFixedExpense(tx.id, input.category_id, input.date, input.amount_paisa, input.for_month, input.fixed_expense_id);
       return {
         duplicate: false,
         transaction: txToJson(tx),
@@ -308,6 +334,8 @@ export class CategoryRoutingService {
       bankAccountId = input.savings_account_id;
     }
 
+    await this.assertInstanceUnpaid(input.fixed_expense_id, input.for_month);
+
     const tx = await prisma.transaction.create({
       data: {
         userId: this.userId,
@@ -324,7 +352,7 @@ export class CategoryRoutingService {
       include: { category: true },
     });
 
-    await this.autoLinkFixedExpense(tx.id, input.category_id, input.date, input.amount_paisa);
+    await this.autoLinkFixedExpense(tx.id, input.category_id, input.date, input.amount_paisa, input.for_month, input.fixed_expense_id);
 
     if (bankAccountId) {
       const acct = await prisma.savingsAccount.findUnique({ where: { id: bankAccountId } });
@@ -338,23 +366,59 @@ export class CategoryRoutingService {
     return { duplicate: false, transaction: txToJson(tx) };
   }
 
+  private async assertInstanceUnpaid(fixedExpenseId?: string, forMonth?: string): Promise<void> {
+    if (!fixedExpenseId || !forMonth) return;
+    const existing = await prisma.fixedExpenseInstance.findFirst({
+      where: { userId: this.userId, fixedExpenseId, month: toDbDate(forMonth + '-01') },
+      include: { fixedExpense: { select: { name: true } } },
+    });
+    if (existing && (existing.status === 'PAID' || existing.transactionId)) {
+      throw new RoutingError(409, 'ALREADY_PAID', `${existing.fixedExpense.name} is already paid for ${forMonth}`);
+    }
+  }
+
   private async autoLinkFixedExpense(
     txId: string,
     categoryId: string,
     txDate: string,
     actualAmountPaisa: number,
+    forMonth?: string,
+    fixedExpenseId?: string,
   ): Promise<void> {
-    const month = txDate.slice(0, 7);
+    const month = forMonth ?? txDate.slice(0, 7);
     await ensureInstances(this.userId, month);
-    const instance = await prisma.fixedExpenseInstance.findFirst({
-      where: {
-        userId: this.userId,
-        status: 'PENDING',
-        transactionId: null,
-        month: toDbDate(month + '-01'),
-        fixedExpense: { categoryId },
-      },
-    });
+
+    let instance;
+    if (fixedExpenseId) {
+      const tmpl = await prisma.fixedExpense.findFirst({ where: { id: fixedExpenseId, userId: this.userId } });
+      if (!tmpl) return;
+      // User explicitly chose this month, so create the instance even if it falls outside the template's range
+      const [y, m] = month.split('-').map(Number);
+      const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      const dueDay = String(Math.min(tmpl.dueDay, lastDay)).padStart(2, '0');
+      instance = await prisma.fixedExpenseInstance.upsert({
+        where: { fixedExpenseId_month: { fixedExpenseId, month: toDbDate(month + '-01') } },
+        create: {
+          userId: this.userId,
+          fixedExpenseId,
+          month: toDbDate(month + '-01'),
+          dueDate: toDbDate(`${month}-${dueDay}`),
+          standardAmountPaisa: tmpl.standardAmountPaisa,
+        },
+        update: {},
+      });
+      if (instance.transactionId) return;
+    } else {
+      instance = await prisma.fixedExpenseInstance.findFirst({
+        where: {
+          userId: this.userId,
+          status: 'PENDING',
+          transactionId: null,
+          month: toDbDate(month + '-01'),
+          fixedExpense: { categoryId },
+        },
+      });
+    }
     if (!instance) return;
     await prisma.fixedExpenseInstance.update({
       where: { id: instance.id },

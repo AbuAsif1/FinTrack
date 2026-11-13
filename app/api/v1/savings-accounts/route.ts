@@ -69,10 +69,21 @@ export async function GET(req: Request) {
     else if (row.type === 'NONE') entry.SPENDING = amount;
   }
 
+  // Savings deposits funded from a bank account reduce that bank's balance
+  const fundedSums = await prisma.transaction.groupBy({
+    by: ['bankSourceId'],
+    where: { userId: user.id, isDeleted: false, bankSourceId: { not: null } },
+    _sum: { amountPaisa: true },
+  });
+  const fundedMap = new Map<string, bigint>();
+  for (const row of fundedSums) {
+    if (row.bankSourceId) fundedMap.set(row.bankSourceId, row._sum.amountPaisa ?? 0n);
+  }
+
   const balances = new Map<string, number>();
   for (const acct of accounts) {
     const sums = sumMap.get(acct.id) ?? { DEPOSIT: 0n, INTEREST: 0n, WITHDRAWAL: 0n, SPENDING: 0n };
-    const balance = Number(acct.openingBalancePaisa) + Number(sums.DEPOSIT) + Number(sums.INTEREST) - Number(sums.WITHDRAWAL) - Number(sums.SPENDING);
+    const balance = Number(acct.openingBalancePaisa) + Number(sums.DEPOSIT) + Number(sums.INTEREST) - Number(sums.WITHDRAWAL) - Number(sums.SPENDING) - Number(fundedMap.get(acct.id) ?? 0n);
     balances.set(acct.id, balance);
   }
 

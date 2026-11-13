@@ -211,6 +211,8 @@ model Transaction {
   type             RoutingType
   paymentMethod    PaymentMethod @map("payment_method")
   savingsAccountId String?       @map("savings_account_id")
+  // Bank account that funded a savings deposit (e.g. DPS paid by BANK); its balance is reduced by this amount
+  bankSourceId     String?       @map("bank_source_id")
   taxFiscalYear    String?       @map("tax_fiscal_year")
   idempotencyKey   String        @map("idempotency_key")
   importBatchId    String?       @map("import_batch_id")
@@ -221,7 +223,8 @@ model Transaction {
 
   user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   category             Category              @relation(fields: [categoryId], references: [id])
-  savingsAccount       SavingsAccount?       @relation(fields: [savingsAccountId], references: [id])
+  savingsAccount       SavingsAccount?       @relation("TxSavingsAccount", fields: [savingsAccountId], references: [id])
+  bankSource           SavingsAccount?       @relation("TxBankSource", fields: [bankSourceId], references: [id])
   loanEntry            LoanEntry?
   fixedExpenseInstance FixedExpenseInstance?
 
@@ -248,9 +251,10 @@ model SavingsAccount {
   updatedAt              DateTime            @updatedAt @map("updated_at")
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions  Transaction[]
-  fixedExpenses FixedExpense[]
-  incomeEntries IncomeEntry[]
+  transactions           Transaction[] @relation("TxSavingsAccount")
+  bankSourceTransactions Transaction[] @relation("TxBankSource")
+  fixedExpenses          FixedExpense[]
+  incomeEntries          IncomeEntry[]
 
   @@map("savings_accounts")
 }

@@ -330,10 +330,10 @@ export default function IncomePage() {
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-sunken)' }}>
                 <th style={{ padding: '12px 16px', textAlign: 'left', font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>Month</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right', font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>Salary</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right', font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>Bonus / PS</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right', font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>TDS</th>
                 <th style={{ padding: '12px 16px', textAlign: 'right', font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>In-Hand</th>
+                <th style={{ padding: '12px 16px', textAlign: 'right', font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>TDS</th>
+                <th style={{ padding: '12px 16px', textAlign: 'right', font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>Bonus & Other</th>
+                <th style={{ padding: '12px 16px', textAlign: 'right', font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>Gross</th>
                 <th style={{ padding: '12px 16px', textAlign: 'center', font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>Status</th>
               </tr>
             </thead>
@@ -346,19 +346,22 @@ export default function IncomePage() {
                     style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer', background: expandedMonth === row.month ? 'var(--bg-sunken)' : undefined }}
                   >
                     <td style={{ padding: '12px 16px', font: 'var(--t-body)' }}>{formatMonth(row.month)}</td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right', font: 'var(--t-body)' }}>
-                      {row.by_type['SALARY'] ? <Amount paisa={row.by_type['SALARY']} /> : '—'}
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right', font: 'var(--t-body)' }}>
-                      {(row.by_type['PROFIT_SHARE'] ?? 0) + (row.by_type['EID_BONUS'] ?? 0) > 0
-                        ? <Amount paisa={(row.by_type['PROFIT_SHARE'] ?? 0) + (row.by_type['EID_BONUS'] ?? 0)} />
-                        : '—'}
+                    <td style={{ padding: '12px 16px', textAlign: 'right', font: 'var(--t-body)', fontWeight: 600 }}>
+                      {row.in_hand_paisa > 0 ? <Amount paisa={row.in_hand_paisa} /> : '—'}
                     </td>
                     <td style={{ padding: '12px 16px', textAlign: 'right', font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>
                       {row.tds_paisa > 0 ? <Amount paisa={row.tds_paisa} /> : '—'}
                     </td>
+                    <td style={{ padding: '12px 16px', textAlign: 'right', font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>
+                      {(() => {
+                        const bonusOther = Object.entries(row.by_type)
+                          .filter(([t]) => t !== 'SALARY')
+                          .reduce((s, [, v]) => s + v, 0);
+                        return bonusOther > 0 ? <Amount paisa={bonusOther} /> : '—';
+                      })()}
+                    </td>
                     <td style={{ padding: '12px 16px', textAlign: 'right', font: 'var(--t-body)', fontWeight: 600 }}>
-                      {row.in_hand_paisa > 0 ? <Amount paisa={row.in_hand_paisa} /> : '—'}
+                      {row.gross_paisa > 0 ? <Amount paisa={row.gross_paisa} /> : '—'}
                     </td>
                     <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                       {row.status === 'ENTERED' ? (
@@ -410,14 +413,14 @@ export default function IncomePage() {
               <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--bg-sunken)' }}>
                 <td style={{ padding: '12px 16px', font: 'var(--t-label)', fontWeight: 700 }}>TOTAL</td>
                 <td style={{ padding: '12px 16px', textAlign: 'right', font: 'var(--t-body)', fontWeight: 700 }}>
-                  {summary?.totals.gross_paisa ? <Amount paisa={summary.totals.gross_paisa} /> : '—'}
+                  {summary?.totals.in_hand_paisa ? <Amount paisa={summary.totals.in_hand_paisa} /> : '—'}
                 </td>
-                <td />
                 <td style={{ padding: '12px 16px', textAlign: 'right', font: 'var(--t-body)' }}>
                   {summary?.totals.tds_paisa ? <Amount paisa={summary.totals.tds_paisa} /> : '—'}
                 </td>
+                <td />
                 <td style={{ padding: '12px 16px', textAlign: 'right', font: 'var(--t-body)', fontWeight: 700 }}>
-                  {summary?.totals.in_hand_paisa ? <Amount paisa={summary.totals.in_hand_paisa} /> : '—'}
+                  {summary?.totals.gross_paisa ? <Amount paisa={summary.totals.gross_paisa} /> : '—'}
                 </td>
                 <td />
               </tr>
@@ -433,7 +436,7 @@ export default function IncomePage() {
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             {summary.salary_history.map((h) => (
               <div key={h.month} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px' }}>
-                <div style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>{formatMonth(h.month + '-01')}</div>
+                <div style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>{formatMonth(h.month)}</div>
                 <div style={{ font: 'var(--t-body)', fontWeight: 600 }}><Amount paisa={h.gross_paisa} /></div>
               </div>
             ))}

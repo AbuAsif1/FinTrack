@@ -15,17 +15,20 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'));
   const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('page_size') ?? '50')));
 
+  const where = {
+    userId: user.id,
+    isDeleted: false,
+    OR: [{ savingsAccountId: params.id }, { bankSourceId: params.id }],
+  };
   const [transactions, total] = await Promise.all([
     prisma.transaction.findMany({
-      where: { savingsAccountId: params.id, userId: user.id, isDeleted: false },
+      where,
       include: { category: true },
-      orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [{ createdAt: 'desc' }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
-    prisma.transaction.count({
-      where: { savingsAccountId: params.id, userId: user.id, isDeleted: false },
-    }),
+    prisma.transaction.count({ where }),
   ]);
 
   return Response.json({

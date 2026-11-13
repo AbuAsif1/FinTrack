@@ -166,15 +166,15 @@ function MonthPopup({
   onChange: (v: string) => void;
   onClose: () => void;
 }) {
-  const curYear = today().y;
-  const curMIdx = today().m;
+  const t = today();
   const selParts = value ? value.split('-').map(Number) : null;
+  const [viewY, setViewY] = useState(selParts?.[0] ?? t.y);
   const selY = selParts?.[0];
   const selMIdx = selParts ? selParts[1] - 1 : null;
 
   function pick(mIdx: number) {
     const mm = String(mIdx + 1).padStart(2, '0');
-    onChange(`${curYear}-${mm}`);
+    onChange(`${viewY}-${mm}`);
     onClose();
   }
 
@@ -188,15 +188,19 @@ function MonthPopup({
       userSelect: 'none',
       width: 240,
     }}>
-      {/* Fixed year header */}
-      <div style={{ textAlign: 'center', font: '600 15px var(--font-space-grotesk, system-ui)', color: 'var(--fg-primary)', marginBottom: 14 }}>
-        <span style={{ color: 'var(--accent)' }}>{curYear}</span>
+      {/* Year navigation */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <button type="button" onClick={() => setViewY(y => y - 1)} style={navBtn}>{'‹'}</button>
+        <span style={{ font: '600 15px var(--font-space-grotesk, system-ui)', color: 'var(--fg-primary)' }}>
+          <span style={{ color: 'var(--accent)' }}>{viewY}</span>
+        </span>
+        <button type="button" onClick={() => setViewY(y => y + 1)} style={navBtn}>{'›'}</button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
         {MONTHS_SHORT.map((name, i) => {
-          const isSelected = selY === curYear && selMIdx === i;
-          const isCurrent = i === curMIdx;
+          const isSelected = selY === viewY && selMIdx === i;
+          const isCurrent = i === t.m && viewY === t.y;
           return (
             <button
               key={name}

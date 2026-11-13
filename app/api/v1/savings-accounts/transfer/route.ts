@@ -18,7 +18,11 @@ async function computeBalance(accountId: string, userId: string): Promise<number
     else if (r.type === 'SAVINGS_WITHDRAWAL') withdrawal = a;
     else if (r.type === 'NONE') spending = a;
   }
-  return Number(acct.openingBalancePaisa) + Number(deposit) + Number(interest) - Number(withdrawal) - Number(spending);
+  const funded = await prisma.transaction.aggregate({
+    where: { bankSourceId: accountId, userId, isDeleted: false },
+    _sum: { amountPaisa: true },
+  });
+  return Number(acct.openingBalancePaisa) + Number(deposit) + Number(interest) - Number(withdrawal) - Number(spending) - Number(funded._sum.amountPaisa ?? 0n);
 }
 
 export async function POST(req: Request) {

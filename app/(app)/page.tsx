@@ -614,7 +614,7 @@ export default function DashboardPage() {
                       {tx.description.charAt(0).toUpperCase()}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ font: 'var(--t-body)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ font: 'var(--t-body)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={tx.description}>
                         {tx.description}
                       </div>
                       <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginTop: 1 }}>

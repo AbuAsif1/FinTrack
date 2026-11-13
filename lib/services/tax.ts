@@ -61,6 +61,7 @@ export async function buildTaxInput(userId: string, fy: string): Promise<TaxInpu
   const incomeRows = await prisma.incomeEntry.findMany({
     where: {
       userId,
+      isDeleted: false,
       month: { gte: fyStart, lt: fyEnd },
     },
   });
@@ -73,31 +74,38 @@ export async function buildTaxInput(userId: string, fy: string): Promise<TaxInpu
     is_taxable: r.isTaxable,
   }));
 
-  // DPS deposits this FY via savings accounts (SAVINGS_DEPOSIT transactions)
-  const dpsTxs = await prisma.transaction.aggregate({
+  // DPS deposits this FY — via SAVINGS_DEPOSIT to DPS accounts OR any category named "dps"
+  const dpsTxRows = await prisma.transaction.findMany({
     where: {
       userId,
       isDeleted: false,
-      type: 'SAVINGS_DEPOSIT',
       date: { gte: fyStart, lt: fyEnd },
-      savingsAccount: { type: 'DPS' },
+      OR: [
+        { type: 'SAVINGS_DEPOSIT', savingsAccount: { type: 'DPS' } },
+        { category: { name: { contains: 'dps', mode: 'insensitive' } } },
+      ],
     },
-    _sum: { amountPaisa: true },
+    select: { id: true, amountPaisa: true },
   });
-  const dpsPaisa = Number(dpsTxs._sum.amountPaisa ?? 0);
+  // Deduplicate by id (a row matching both OR branches would otherwise be counted twice)
+  const dpsPaisa = [...new Map(dpsTxRows.map((r) => [r.id, r])).values()]
+    .reduce((sum, r) => sum + Number(r.amountPaisa), 0);
 
-  // Sanchaypatra deposits this FY
-  const sanchTxs = await prisma.transaction.aggregate({
+  // Sanchaypatra deposits this FY — via SAVINGS_DEPOSIT to SANCHAYPATRA accounts OR category name
+  const sanchTxRows = await prisma.transaction.findMany({
     where: {
       userId,
       isDeleted: false,
-      type: 'SAVINGS_DEPOSIT',
       date: { gte: fyStart, lt: fyEnd },
-      savingsAccount: { type: 'SANCHAYPATRA' },
+      OR: [
+        { type: 'SAVINGS_DEPOSIT', savingsAccount: { type: 'SANCHAYPATRA' } },
+        { category: { name: { contains: 'sanchaypatra', mode: 'insensitive' } } },
+      ],
     },
-    _sum: { amountPaisa: true },
+    select: { id: true, amountPaisa: true },
   });
-  const sanchPaisa = Number(sanchTxs._sum.amountPaisa ?? 0);
+  const sanchPaisa = [...new Map(sanchTxRows.map((r) => [r.id, r])).values()]
+    .reduce((sum, r) => sum + Number(r.amountPaisa), 0);
 
   // Manual tax investments
   const taxInv = await prisma.taxInvestment.findUnique({

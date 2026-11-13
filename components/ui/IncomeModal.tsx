@@ -139,11 +139,13 @@ export function IncomeModal({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const salaryGross = (actualPaisa ?? 0) + (bonusPaisa ?? 0) + (otherPaisa ?? 0);
-  const otherGross = amountPaisa ?? 0;
-  const gross = category === 'SALARY' ? salaryGross : otherGross;
+  // User enters in-hand (net received); gross = in-hand + TDS
+  const inHandPortion = category === 'SALARY'
+    ? (actualPaisa ?? 0) + (bonusPaisa ?? 0) + (otherPaisa ?? 0)
+    : (amountPaisa ?? 0);
   const tds = tdsPaisa ?? 0;
-  const tdsExceedsGross = tds > gross && gross > 0;
+  const gross = inHandPortion + tds;
+  const tdsExceedsGross = false; // gross = inHand + TDS, so TDS can never exceed gross
 
   useEffect(() => {
     if (!open) return;
@@ -159,17 +161,18 @@ export function IncomeModal({
       setEarnedPeriod(editEntry.earned_period ?? '');
       setSavingsAccountId(editEntry.savings_account_id ?? '');
       if (isSal) {
-        setActualPaisa(editEntry.gross_paisa);
+        // gross stored = in-hand + TDS; reconstruct in-hand for display
+        setActualPaisa(editEntry.gross_paisa - editEntry.tds_paisa);
         setBonusPaisa(null); setOtherPaisa(null);
       } else {
         setIncomeType(editEntry.income_type);
-        setAmountPaisa(editEntry.gross_paisa);
+        setAmountPaisa(editEntry.gross_paisa - editEntry.tds_paisa);
         setActualPaisa(null); setBonusPaisa(null); setOtherPaisa(null);
       }
     } else if (prefillFromLatestSalary) {
       setCategory('SALARY');
       setMonth(prefillMonth ?? '');
-      setActualPaisa(prefillFromLatestSalary.gross_paisa);
+      setActualPaisa(prefillFromLatestSalary.gross_paisa - (prefillFromLatestSalary.tds_paisa || 0));
       setBonusPaisa(null); setOtherPaisa(null);
       setTdsPaisa(prefillFromLatestSalary.tds_paisa || null);
       setIsTaxable(true);
@@ -194,7 +197,6 @@ export function IncomeModal({
   async function handleSave() {
     if (!month) { setError('Month is required'); return; }
     if (gross === 0) { setError('Amount is required'); return; }
-    if (tdsExceedsGross) { setError('TDS cannot exceed gross amount'); return; }
     if (tds < 0) { setError('TDS cannot be negative'); return; }
 
     const finalIncomeType = category === 'SALARY' ? 'SALARY' : incomeType;
@@ -271,9 +273,9 @@ export function IncomeModal({
         {/* SALARY MODE */}
         {isSalary ? (
           <>
-            <FieldLabel label="Actual Amount Received (৳)">
+            <FieldLabel label="In-Hand Salary (৳)">
               <MoneyInput value={actualPaisa} onChange={setActualPaisa} id="actual-paisa" />
-              <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>Basic salary / net credited amount</span>
+              <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>Net amount credited to your account (after TDS deduction)</span>
             </FieldLabel>
             <FieldLabel label="TDS Amount (৳)">
               <MoneyInput value={tdsPaisa} onChange={setTdsPaisa} id="tds-paisa-salary" />
@@ -355,9 +357,6 @@ export function IncomeModal({
           </div>
         )}
 
-        {tdsExceedsGross && (
-          <div style={{ color: 'var(--danger)', font: 'var(--t-caption)' }}>TDS cannot exceed gross amount</div>
-        )}
         {error && <div style={{ color: 'var(--danger)', font: 'var(--t-caption)' }}>{error}</div>}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>

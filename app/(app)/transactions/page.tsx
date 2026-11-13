@@ -14,6 +14,8 @@ interface Transaction {
   id: string;
   amount_paisa: number;
   date: string;
+  created_at: string;
+  for_month?: string | null;
   description: string;
   category_id: string;
   category: Category;
@@ -34,9 +36,16 @@ function fmt(paisa: number) {
   return '৳' + (paisa / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function fmtDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+function fmtPaidOn(createdAt: string) {
+  const t = new Date(createdAt);
+  const datePart = t.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const timePart = t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  return { datePart, timePart };
+}
+
+function fmtForMonth(yyyyMm: string) {
+  const [y, m] = yyyyMm.split('-');
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
 }
 
 const PAYMENT_METHODS = ['CASH', 'BANK', 'BKASH', 'NAGAD', 'ROCKET', 'CARD'];
@@ -449,40 +458,50 @@ export default function TransactionsPage() {
           ) : (
             <>
               {/* Table Header */}
-              <div style={{ display: 'grid', gridTemplateColumns: '36px 90px 1fr 160px 90px 180px 56px', gap: 0, borderBottom: '2px solid var(--border)', padding: '10px 16px', background: 'var(--bg-raised)', minWidth: 620 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '36px 150px 90px 160px 1fr 180px 56px', gap: 0, borderBottom: '2px solid var(--border)', padding: '10px 16px', background: 'var(--bg-raised)', minWidth: 680 }}>
                 <div>
                   <input type="checkbox" checked={selected.size === transactions.length && transactions.length > 0} onChange={() => selected.size === transactions.length ? clearSelect() : selectAll()} />
                 </div>
-                <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>DATE</div>
-                <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>DESCRIPTION</div>
                 <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>CATEGORY</div>
                 <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>METHOD</div>
+                <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>PAID ON</div>
+                <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>DESCRIPTION</div>
                 <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', textAlign: 'right' }}>AMOUNT</div>
                 <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', textAlign: 'center' }}>ACTION</div>
               </div>
 
               {/* Rows */}
-              {transactions.map((tx) => (
+              {transactions.map((tx) => {
+                const { datePart, timePart } = fmtPaidOn(tx.created_at ?? tx.date);
+                return (
                 <div key={tx.id}>
                   <div
-                    style={{ display: 'grid', gridTemplateColumns: '36px 90px 1fr 160px 90px 180px 56px', gap: 0, padding: '12px 16px', borderBottom: '1px solid var(--border)', minWidth: 620 }}
+                    style={{ display: 'grid', gridTemplateColumns: '36px 150px 90px 160px 1fr 180px 56px', gap: 0, padding: '12px 16px', borderBottom: '1px solid var(--border)', minWidth: 680 }}
                   >
                     <div>
                       <input type="checkbox" checked={selected.has(tx.id)} onChange={() => toggleSelect(tx.id)} />
                     </div>
-                    <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>{fmtDate(tx.date)}</div>
-                    <div style={{ font: 'var(--t-body)', color: 'var(--fg-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.description}</div>
                     {(() => {
                       const cat = tx.category?.name ? tx.category : categories.find(c => c.id === tx.category_id);
                       const catColor = cat?.colorHex ?? (cat as any)?.color_hex ?? '#D1D5DB';
                       return (
-                        <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: catColor, marginRight: 6 }} />
+                        <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={cat?.name}>
+                          <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: catColor, marginRight: 6, flexShrink: 0 }} />
                           {cat?.name ?? '—'}
                         </div>
                       );
                     })()}
                     <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>{tx.payment_method}</div>
+                    <div>
+                      <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)', whiteSpace: 'nowrap' }}>{datePart}</div>
+                      <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', whiteSpace: 'nowrap' }}>{timePart}</div>
+                      {tx.for_month && (
+                        <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', whiteSpace: 'nowrap', marginTop: 2 }}>
+                          For: {fmtForMonth(tx.for_month)}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ font: 'var(--t-body)', color: 'var(--fg-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={tx.description}>{tx.description}</div>
                     <div style={{ font: 'var(--t-data)', color: 'var(--danger)', textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                       −{fmt(tx.amount_paisa)}
                     </div>
@@ -513,7 +532,8 @@ export default function TransactionsPage() {
                   </div>
                   <RoutingRow routing={tx.routing} />
                 </div>
-              ))}
+                );
+              })}
 
               {/* Pagination */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '12px 16px', borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>

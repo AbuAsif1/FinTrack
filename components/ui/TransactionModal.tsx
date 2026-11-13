@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import api from '@/lib/api';
-import { DatePicker } from '@/components/ui/DatePicker';
+import { DatePicker, MonthPicker } from '@/components/ui/DatePicker';
 
 export interface Category {
   id: string;
@@ -30,6 +31,8 @@ export interface FixedExpenseTemplate {
   due_day: number;
   category_id?: string;
   category?: { id: string; name: string; routing_type: string };
+  savings_account_id?: string | null;
+  savings_account?: { id: string; name: string } | null;
 }
 
 export interface EditingTransaction {
@@ -58,10 +61,12 @@ interface SelectOption {
 interface Form {
   amount_paisa: string;
   date: string;
+  paying_for_month: string;
   description: string;
   category_id: string;
   payment_method: string;
   savings_account_id: string;
+  bank_account_id: string;
   loan_person_name: string;
   loan_direction: string;
   loan_reason: string;
@@ -99,7 +104,10 @@ function SearchableSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [dropRect, setDropRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const selected = options.find((o) => o.value === value);
@@ -108,10 +116,11 @@ function SearchableSelect({
     ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
     : options;
 
-  // Close on outside click
+  // Close on outside click (checks both trigger and portal dropdown)
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (!containerRef.current?.contains(target) && !dropdownRef.current?.contains(target)) {
         setOpen(false);
         setQuery('');
       }
@@ -120,7 +129,28 @@ function SearchableSelect({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Keep portal position in sync when the page scrolls or resizes
+  useEffect(() => {
+    if (!open) return;
+    function update() {
+      if (triggerRef.current) {
+        const r = triggerRef.current.getBoundingClientRect();
+        setDropRect({ top: r.bottom + 2, left: r.left, width: r.width });
+      }
+    }
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [open]);
+
   function handleOpen() {
+    if (triggerRef.current) {
+      const r = triggerRef.current.getBoundingClientRect();
+      setDropRect({ top: r.bottom + 2, left: r.left, width: r.width });
+    }
     setOpen(true);
     setQuery('');
     setTimeout(() => inputRef.current?.focus(), 0);
@@ -148,7 +178,6 @@ function SearchableSelect({
     ...style,
   };
 
-  // Group options by their group property
   const groups = Array.from(new Set(options.map((o) => o.group ?? ''))).filter(Boolean);
   const hasGroups = groups.length > 0;
 
@@ -172,11 +201,9 @@ function SearchableSelect({
       ));
     }
 
-    // Grouped rendering
     const ungrouped = filtered.filter((o) => !o.group);
     const result: React.ReactNode[] = [];
 
-    // Ungrouped first
     ungrouped.forEach((o) => {
       result.push(
         <div
@@ -200,7 +227,7 @@ function SearchableSelect({
       const groupOptions = filtered.filter((o) => o.group === group);
       if (groupOptions.length === 0) return;
       result.push(
-        <div key={`group-${group}`} style={{ padding: '6px 12px 2px', font: 'var(--t-label)', color: 'var(--fg-muted)', borderTop: ungrouped.length > 0 || result.length > 0 ? '1px solid var(--border)' : 'none', marginTop: 4 }}>
+        <div key={`group-${group}`} style={{ padding: '6px 12px 2px', font: 'var(--t-label)', color: 'var(--fg-muted)', borderTop: result.length > 0 ? '1px solid var(--border)' : 'none', marginTop: 4 }}>
           {group}
         </div>
       );
@@ -227,10 +254,62 @@ function SearchableSelect({
     return result;
   }
 
+  // Render dropdown via portal to escape modal's overflow:auto clipping
+  const dropdownPortal =
+    open && dropRect
+      ? createPortal(
+          <div
+            ref={dropdownRef}
+            role="listbox"
+            style={{
+              position: 'fixed',
+              top: dropRect.top,
+              left: dropRect.left,
+              width: dropRect.width,
+              zIndex: 9999,
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+              maxHeight: 280,
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Search categories…"
+                style={{
+                  width: '100%', padding: '6px 10px', border: '1px solid var(--border)',
+                  borderRadius: 5, font: 'var(--t-body)', background: 'var(--bg-sunken)',
+                  outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+            </div>
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {filtered.length === 0 ? (
+                <div style={{ padding: '12px', font: 'var(--t-caption)', color: 'var(--fg-muted)', textAlign: 'center' }}>
+                  No matches for &ldquo;{query}&rdquo;
+                </div>
+              ) : (
+                renderOptions()
+              )}
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
-      {/* Trigger */}
       <div
+        ref={triggerRef}
         role="combobox"
         aria-expanded={open}
         aria-haspopup="listbox"
@@ -244,48 +323,7 @@ function SearchableSelect({
         </span>
         <span style={{ color: 'var(--fg-muted)', fontSize: 11, marginLeft: 6, flexShrink: 0 }}>▾</span>
       </div>
-
-      {/* Dropdown */}
-      {open && (
-        <div
-          role="listbox"
-          style={{
-            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999,
-            background: 'var(--bg-surface)', border: '1px solid var(--border)',
-            borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-            marginTop: 2, maxHeight: 280, overflow: 'hidden',
-            display: 'flex', flexDirection: 'column',
-          }}
-        >
-          {/* Search input */}
-          <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Search categories…"
-              style={{
-                width: '100%', padding: '6px 10px', border: '1px solid var(--border)',
-                borderRadius: 5, font: 'var(--t-body)', background: 'var(--bg-sunken)',
-                outline: 'none', boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          {/* Options list */}
-          <div style={{ overflowY: 'auto', flex: 1 }}>
-            {filtered.length === 0 ? (
-              <div style={{ padding: '12px', font: 'var(--t-caption)', color: 'var(--fg-muted)', textAlign: 'center' }}>
-                No matches for "{query}"
-              </div>
-            ) : (
-              renderOptions()
-            )}
-          </div>
-        </div>
-      )}
+      {dropdownPortal}
     </div>
   );
 }
@@ -312,13 +350,17 @@ export function TransactionModal({
   onRequestConfirm?: (proceed: () => Promise<void>, cancel: () => void) => void;
 }) {
   const isEdit = !!editing;
+  const currentMonth = new Date().toISOString().slice(0, 7);
+
   const [form, setForm] = useState<Form>(() => ({
     amount_paisa: editing ? String(editing.amount_paisa / 100) : '',
     date: editing ? editing.date.slice(0, 10) : todayIso(),
+    paying_for_month: currentMonth,
     description: editing?.description ?? '',
     category_id: editing?.category_id ?? '',
     payment_method: editing?.payment_method ?? 'CASH',
     savings_account_id: editing?.routing?.savings_account?.id ?? '',
+    bank_account_id: '',
     loan_person_name: editing?.routing?.loan_person?.name ?? '',
     loan_direction: editing?.routing?.direction ?? 'GIVEN',
     loan_reason: '',
@@ -345,9 +387,14 @@ export function TransactionModal({
   const isTax = routingType === 'TAX';
   const savingsOnly = savingsAccounts.filter((a) => a.type === 'SAVINGS');
 
-  // Build options for the searchable category select
+  // Hide categories already covered by a fixed expense template (only when adding new)
+  const fixedExpenseCategoryIds = isEdit
+    ? new Set<string>()
+    : new Set(fixedExpenses.flatMap((fe) => [fe.category_id, fe.category?.id]).filter((id): id is string => !!id));
+
+  // Category options: regular categories + Fixed Expenses (single entry) + Transfer
   const categoryOptions: SelectOption[] = [
-    ...categories.map((c) => ({ value: c.id, label: c.name })),
+    ...categories.filter((c) => !fixedExpenseCategoryIds.has(c.id)).map((c) => ({ value: c.id, label: c.name })),
     ...(!isEdit ? [{ value: '__FIXED_EXPENSE__', label: 'Fixed Expenses', group: 'Special' }] : []),
     ...(!isEdit && savingsOnly.length >= 2 ? [{ value: '__TRANSFER__', label: 'Transfer between accounts', group: 'Special' }] : []),
   ];
@@ -361,7 +408,10 @@ export function TransactionModal({
     const val = e.target.value;
     setForm((f) => {
       const next = { ...f, [k]: val };
-      if (k === 'payment_method' && val !== 'BANK') next.savings_account_id = '';
+      if (k === 'payment_method' && val !== 'BANK') {
+        next.savings_account_id = isFixedExpenseMode && isSavings ? f.savings_account_id : '';
+        next.bank_account_id = '';
+      }
       return next;
     });
   };
@@ -373,6 +423,7 @@ export function TransactionModal({
       transfer_from_id: '',
       transfer_to_id: '',
       savings_account_id: '',
+      bank_account_id: '',
       fixed_expense_id: '',
     }));
   }
@@ -411,6 +462,19 @@ export function TransactionModal({
       return;
     }
 
+    // For non-savings BANK: require savings_account_id (the bank source)
+    if (!isTransfer && form.payment_method === 'BANK' && !isSavings && !isLoan && !isTax && savingsOnly.length > 0 && !form.savings_account_id) {
+      setError('Please select a bank account for BANK payment.');
+      setSaving(false);
+      return;
+    }
+    // For savings BANK (DPS fixed expense): require bank_account_id
+    if (!isTransfer && form.payment_method === 'BANK' && isSavings && isFixedExpenseMode && savingsOnly.length > 0 && !form.bank_account_id) {
+      setError('Please select the bank account you are transferring from.');
+      setSaving(false);
+      return;
+    }
+
     const doSave = async () => {
       try {
         if (isTransfer) {
@@ -423,15 +487,22 @@ export function TransactionModal({
           });
         } else {
           const categoryIdToSend = isFixedExpenseMode && effectiveCategoryId ? effectiveCategoryId : form.category_id;
+          // For fixed expenses: send today as date (so opening-date validation passes),
+          // and for_month separately (so autoLink targets the right instance).
+          // For edits: use stored date. For new regular expenses: omit date — backend defaults to today.
+          const dateToSend = isEdit ? form.date : undefined;
+          const forMonthToSend = isFixedExpenseMode && !isEdit ? form.paying_for_month : undefined;
           const body: Record<string, unknown> = {
             amount_paisa: amountPaisa,
-            date: form.date,
             description: form.description,
             category_id: categoryIdToSend,
             payment_method: form.payment_method,
             idempotency_key: form.idempotency_key,
+            ...(dateToSend ? { date: dateToSend } : {}),
+            ...(forMonthToSend ? { for_month: forMonthToSend, fixed_expense_id: form.fixed_expense_id } : {}),
           };
           if (isSavings && form.savings_account_id) body.savings_account_id = form.savings_account_id;
+          if (isSavings && form.payment_method === 'BANK' && form.bank_account_id) body.bank_account_id = form.bank_account_id;
           if (!isSavings && !isLoan && !isTax && form.payment_method === 'BANK' && form.savings_account_id) {
             body.savings_account_id = form.savings_account_id;
           }
@@ -475,17 +546,181 @@ export function TransactionModal({
         </h2>
 
         <form onSubmit={submit}>
-          {/* Amount + Date */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-            <label>
-              <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Amount (৳)</div>
-              <input type="number" step="0.01" min="0.01" required value={form.amount_paisa} onChange={set('amount_paisa')} style={inputStyle} />
-            </label>
-            <label>
+          {/* ── Section 1: What are you paying for? ──────────────────────── */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ font: 'var(--t-label)', color: 'var(--fg-muted)', marginBottom: 8, letterSpacing: '0.04em' }}>
+              WHAT
+            </div>
+
+            {/* Category */}
+            <div style={{ marginBottom: form.category_id ? 0 : 12 }}>
+              <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Category</div>
+              <SearchableSelect
+                options={categoryOptions}
+                value={form.category_id}
+                onChange={setCategoryId}
+                placeholder="Select category…"
+              />
+            </div>
+
+            {/* Fixed Expense step 2 — immediately after Category */}
+            {isFixedExpenseMode && (
+              <div style={{ marginLeft: 14, paddingLeft: 12, borderLeft: '2px solid var(--accent)', marginTop: 10, marginBottom: 4 }}>
+                <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 6, fontWeight: 600 }}>
+                  Step 2 — Which fixed expense?
+                </div>
+                {fixedExpenses.length === 0 ? (
+                  <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>
+                    No fixed expenses set up yet. Add them on the Fixed Expenses page first.
+                  </div>
+                ) : (
+                  <>
+                    <select
+                      required
+                      value={form.fixed_expense_id}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        const tmpl = fixedExpenses.find((t) => t.id === id);
+                        setForm((f) => ({
+                          ...f,
+                          fixed_expense_id: id,
+                          ...(tmpl ? {
+                            amount_paisa: String(tmpl.standard_amount_paisa / 100),
+                            description: tmpl.name,
+                            savings_account_id: tmpl.savings_account_id ?? '',
+                          } : {}),
+                        }));
+                      }}
+                      style={inputStyle}
+                    >
+                      <option value="">Select fixed expense…</option>
+                      {fixedExpenses.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                          {t.category ? ` (${t.category.name})` : ''}
+                          {` — ৳${(t.standard_amount_paisa / 100).toLocaleString('en-IN', { minimumFractionDigits: 0 })}`}
+                          {` — day ${t.due_day}`}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Paying for Month — only shown after a template is selected */}
+                    {selectedFixedTemplate && (
+                      <label style={{ display: 'block', marginTop: 10 }}>
+                        <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Paying for Month</div>
+                        <MonthPicker
+                          value={form.paying_for_month}
+                          onChange={(v) => setForm((f) => ({ ...f, paying_for_month: v }))}
+                          placeholder="Select month…"
+                        />
+                        <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginTop: 4 }}>
+                          Which month&apos;s {selectedFixedTemplate.name} is this? You can pay a past month.
+                        </div>
+                      </label>
+                    )}
+
+                    {selectedFixedTemplate?.savings_account && isSavings && (
+                      <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginTop: 6 }}>
+                        Deposits into <strong>{selectedFixedTemplate.savings_account.name}</strong>
+                      </div>
+                    )}
+                    {selectedFixedTemplate && (
+                      <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginTop: 6 }}>
+                        Amount pre-filled from template. Adjust below if actual amount differs.
+                        {selectedFixedTemplate.category && <> Category: <strong>{selectedFixedTemplate.category.name}</strong>.</>}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Section 2: How are you paying? ───────────────────────────── */}
+          {!isFixedExpenseMode && !isTransfer && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ font: 'var(--t-label)', color: 'var(--fg-muted)', marginBottom: 8, letterSpacing: '0.04em' }}>
+                HOW
+              </div>
+
+              {/* Payment Method */}
+              <div style={{ marginBottom: form.payment_method === 'BANK' && !isSavings && !isLoan && !isTax && !isTransfer ? 0 : 12 }}>
+                <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Payment Method</div>
+                <select value={form.payment_method} onChange={set('payment_method')} style={inputStyle}>
+                  {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+
+              {/* Bank Account step 2 — immediately after Payment Method when BANK */}
+              {!isTransfer && form.payment_method === 'BANK' && !isSavings && !isLoan && !isTax && (
+                <div style={{ marginLeft: 14, paddingLeft: 12, borderLeft: '2px solid var(--ok)', marginTop: 10, marginBottom: 4 }}>
+                  <div style={{ font: 'var(--t-caption)', color: 'var(--ok)', marginBottom: 6, fontWeight: 600 }}>
+                    Step 2 — Which bank account to deduct from?
+                  </div>
+                  {savingsOnly.length === 0 ? (
+                    <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-sunken)' }}>
+                      No bank accounts set up yet. Add one on the Savings page first.
+                    </div>
+                  ) : (
+                    <select required value={form.savings_account_id} onChange={set('savings_account_id')} style={inputStyle}>
+                      <option value="">Select bank account…</option>
+                      {savingsOnly.map((a) => (
+                        <option key={a.id} value={a.id}>{a.name} · {fmt(a.balance_paisa)}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Fixed Expense: HOW section (payment method + bank step-2) */}
+          {isFixedExpenseMode && selectedFixedTemplate && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ font: 'var(--t-label)', color: 'var(--fg-muted)', marginBottom: 8, letterSpacing: '0.04em' }}>
+                HOW
+              </div>
+              <div style={{ marginBottom: form.payment_method === 'BANK' ? 0 : 12 }}>
+                <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Payment Method</div>
+                <select value={form.payment_method} onChange={set('payment_method')} style={inputStyle}>
+                  {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              {/* Bank step-2: show for BANK regardless of savings routing */}
+              {form.payment_method === 'BANK' && (
+                <div style={{ marginLeft: 14, paddingLeft: 12, borderLeft: '2px solid var(--ok)', marginTop: 10, marginBottom: 4 }}>
+                  <div style={{ font: 'var(--t-caption)', color: 'var(--ok)', marginBottom: 6, fontWeight: 600 }}>
+                    Step 2 — Which bank account to deduct from?
+                  </div>
+                  {savingsOnly.length === 0 ? (
+                    <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-sunken)' }}>
+                      No bank accounts set up yet. Add one on the Savings page first.
+                    </div>
+                  ) : (
+                    <select
+                      required
+                      value={isSavings ? form.bank_account_id : form.savings_account_id}
+                      onChange={isSavings ? set('bank_account_id') : set('savings_account_id')}
+                      style={inputStyle}
+                    >
+                      <option value="">Select bank account…</option>
+                      {savingsOnly.map((a) => (
+                        <option key={a.id} value={a.id}>{a.name} · {fmt(a.balance_paisa)}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Edit mode: show date field for editing */}
+          {isEdit && (
+            <label style={{ display: 'block', marginBottom: 12 }}>
               <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Date</div>
               <DatePicker value={form.date} onChange={(v) => set('date')({ target: { value: v } } as React.ChangeEvent<HTMLInputElement>)} />
             </label>
-          </div>
+          )}
 
           {/* Description */}
           <label style={{ display: 'block', marginBottom: 12 }}>
@@ -499,77 +734,6 @@ export function TransactionModal({
               style={inputStyle}
             />
           </label>
-
-          {/* Category + Payment Method */}
-          <div style={{ display: 'grid', gridTemplateColumns: isTransfer ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 12 }}>
-            <div>
-              <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Category</div>
-              <SearchableSelect
-                options={categoryOptions}
-                value={form.category_id}
-                onChange={setCategoryId}
-                placeholder="Select category…"
-              />
-            </div>
-            {!isTransfer && (
-              <label>
-                <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Payment Method</div>
-                <select value={form.payment_method} onChange={set('payment_method')} style={inputStyle}>
-                  {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </label>
-            )}
-          </div>
-
-          {/* Fixed Expense mode */}
-          {isFixedExpenseMode && (
-            <div style={{ background: 'rgba(99,102,241,0.07)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '12px 14px', marginBottom: 12 }}>
-              <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 8, fontWeight: 600 }}>
-                Which fixed expense is this payment for?
-              </div>
-              {fixedExpenses.length === 0 ? (
-                <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>
-                  No fixed expenses set up yet. Add them on the Fixed Expenses page first.
-                </div>
-              ) : (
-                <>
-                  <select
-                    required
-                    value={form.fixed_expense_id}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      const tmpl = fixedExpenses.find((t) => t.id === id);
-                      setForm((f) => ({
-                        ...f,
-                        fixed_expense_id: id,
-                        ...(tmpl ? {
-                          amount_paisa: String(tmpl.standard_amount_paisa / 100),
-                          description: tmpl.name,
-                        } : {}),
-                      }));
-                    }}
-                    style={inputStyle}
-                  >
-                    <option value="">Select fixed expense…</option>
-                    {fixedExpenses.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                        {t.category ? ` (${t.category.name})` : ''}
-                        {` — ৳${(t.standard_amount_paisa / 100).toLocaleString('en-IN', { minimumFractionDigits: 0 })}`}
-                        {` — day ${t.due_day}`}
-                      </option>
-                    ))}
-                  </select>
-                  {selectedFixedTemplate && (
-                    <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginTop: 6 }}>
-                      Amount and description pre-filled. Adjust above if the actual amount differs.
-                      {selectedFixedTemplate.category && <> Category: <strong>{selectedFixedTemplate.category.name}</strong>.</>}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
 
           {/* Transfer */}
           {isTransfer && (
@@ -600,23 +764,8 @@ export function TransactionModal({
             </div>
           )}
 
-          {/* Bank account deduction */}
-          {!isTransfer && !isFixedExpenseMode && form.payment_method === 'BANK' && !isSavings && !isLoan && !isTax && savingsOnly.length > 0 && (
-            <div style={{ background: 'rgba(21,128,61,0.08)', borderLeft: '3px solid var(--ok)', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
-              <div style={{ font: 'var(--t-caption)', color: 'var(--ok)', marginBottom: 6 }}>
-                Deduct from bank account (optional)
-              </div>
-              <select value={form.savings_account_id} onChange={set('savings_account_id')} style={inputStyle}>
-                <option value="">— Don't deduct from account —</option>
-                {savingsOnly.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name} · {fmt(a.balance_paisa)}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Savings routing */}
-          {!isTransfer && isSavings && (
+          {/* Savings routing — only for direct category selection, not fixed expenses (savings account auto-filled from template) */}
+          {!isTransfer && isSavings && !isFixedExpenseMode && (
             <div style={{ background: 'rgba(58,95,205,0.08)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
               <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 6 }}>
                 This will {routingType === 'SAVINGS_DEPOSIT' ? 'deposit into' : 'withdraw from'} your savings account.
@@ -670,6 +819,18 @@ export function TransactionModal({
               </div>
             </div>
           )}
+
+          {/* Amount — last */}
+          <label style={{ display: 'block', marginBottom: 16 }}>
+            <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Amount (৳)</div>
+            <input
+              type="number" step="0.01" min="0.01" required
+              value={form.amount_paisa}
+              onChange={set('amount_paisa')}
+              placeholder="0.00"
+              style={inputStyle}
+            />
+          </label>
 
           {error && <div style={{ color: 'var(--danger)', font: 'var(--t-caption)', marginBottom: 10 }}>{error}</div>}
 

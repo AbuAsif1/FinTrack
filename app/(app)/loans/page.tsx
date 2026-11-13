@@ -510,7 +510,7 @@ function DetailPanel({
                   <div style={{ font: 'var(--t-data)', color: entry.direction === 'GIVEN' ? 'var(--danger)' : 'var(--ok)', fontVariantNumeric: 'tabular-nums' }}>
                     {entry.direction === 'GIVEN' ? '−' : '+'}{fmt(entry.amount_paisa)}
                   </div>
-                  <div style={{ font: 'var(--t-body)', color: entry.is_settlement ? 'var(--ok)' : 'var(--fg-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ font: 'var(--t-body)', color: entry.is_settlement ? 'var(--ok)' : 'var(--fg-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={entry.is_settlement ? 'Settlement' : (entry.reason ?? undefined)}>
                     {entry.is_settlement ? '✓ Settlement' : (entry.reason ?? '—')}
                   </div>
                   <div style={{ font: 'var(--t-data)', color: balanceColor(entry.running_balance_paisa), fontVariantNumeric: 'tabular-nums' }}>

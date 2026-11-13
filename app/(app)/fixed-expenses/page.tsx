@@ -38,7 +38,10 @@ interface FixedExpenseInstance {
 }
 
 interface Category { id: string; name: string; routing_type: string; }
-interface SavingsAccount { id: string; name: string; }
+interface SavingsAccount { id: string; name: string; type: string; }
+
+// A deposit fixed expense pays INTO a DPS-style account; regular SAVINGS accounts are the payer, not the destination
+const isDepositTarget = (a: SavingsAccount) => a.type !== 'SAVINGS';
 
 // ── Status config ──────────────────────────────────────────────────────────
 
@@ -316,10 +319,10 @@ function SetupModal({ open, onClose, onDone, categories, savingsAccounts, existi
               {selected[idx] && item.routing_type_hint === 'SAVINGS_DEPOSIT' && (
                 <div style={{ marginTop: 8, paddingLeft: 26 }}>
                   <label style={{ font: 'var(--t-caption)', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    Savings Account
+                    Deposit into (DPS account)
                     <select value={dpsAccounts[idx] ?? ''} onChange={e => setDpsAccounts(p => ({ ...p, [idx]: e.target.value }))} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-sunken)', color: 'var(--fg-primary)' }}>
-                      <option value="">Select account…</option>
-                      {savingsAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                      <option value="">Select DPS account…</option>
+                      {savingsAccounts.filter(isDepositTarget).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                     </select>
                   </label>
                 </div>
@@ -355,12 +358,14 @@ function TemplateModal({ open, onClose, onSaved, edit, categories, savingsAccoun
     if (!open) return;
     if (edit) {
       setName(edit.name); setStandardAmountPaisa(edit.standard_amount_paisa); setDueDay(edit.due_day);
-      setCategoryId(edit.category.id); setSavingsAccountId(edit.savings_account?.id ?? '');
+      setCategoryId(edit.category.id);
+      const linked = savingsAccounts.find(a => a.id === edit.savings_account?.id);
+      setSavingsAccountId(linked && isDepositTarget(linked) ? linked.id : '');
     } else {
       setName(''); setStandardAmountPaisa(null); setDueDay(1); setCategoryId(''); setSavingsAccountId('');
     }
     setError(null);
-  }, [open, edit]);
+  }, [open, edit, savingsAccounts]);
 
   const selectedCat = categories.find(c => c.id === categoryId);
   const needsSavingsAccount = selectedCat?.routing_type === 'SAVINGS_DEPOSIT';
@@ -407,11 +412,14 @@ function TemplateModal({ open, onClose, onSaved, edit, categories, savingsAccoun
         )}
         {needsSavingsAccount && (
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4, font: 'var(--t-body)' }}>
-            Savings Account (required for DPS)
+            Deposit into (DPS account)
             <select value={savingsAccountId} onChange={e => setSavingsAccountId(e.target.value)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-sunken)', color: 'var(--fg-primary)' }}>
-              <option value="">Select account…</option>
-              {savingsAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              <option value="">Select DPS account…</option>
+              {savingsAccounts.filter(isDepositTarget).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
+            <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>
+              The account that receives the installment. Choose the paying bank when you record each payment.
+            </span>
           </label>
         )}
         {error && <div style={{ color: 'var(--danger)', font: 'var(--t-caption)' }}>{error}</div>}
@@ -602,7 +610,7 @@ export default function FixedExpensesPage() {
 
                       {/* Name + due day */}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ font: 'var(--t-body)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inst.template_name}</div>
+                        <div style={{ font: 'var(--t-body)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={inst.template_name}>{inst.template_name}</div>
                         <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>Due day {new Date(inst.due_date).getDate()}</div>
                       </div>
 

@@ -190,24 +190,38 @@ function OverviewTab({
       {/* TDS Reconciliation */}
       <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, marginBottom: 24 }}>
         <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 12 }}>TAX SITUATION</div>
+
+        {/* Net tax */}
         <Row label="Net Tax Payable" value={fmt(result.net_tax_payable_paisa)} bold />
-        <div style={{ marginTop: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>TDS + Tax Payments</span>
-            <span style={{ font: 'var(--t-data)', fontVariantNumeric: 'tabular-nums' }}>{fmt(result.tax_paid_paisa)}</span>
+
+        {/* Already Paid breakdown */}
+        <div style={{ margin: '10px 0 4px', padding: '10px 12px', borderRadius: 8, background: 'var(--bg-sunken)', border: '1px solid var(--border)' }}>
+          <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 8 }}>ALREADY PAID</div>
+          <Row label="TDS deducted from salary" value={fmt(result.tds_paisa)} color={result.tds_paisa > 0 ? 'var(--ok)' : 'var(--fg-muted)'} />
+          <Row label="Advance / self-assessment tax" value={fmt(result.tax_payments_paisa)} color={result.tax_payments_paisa > 0 ? 'var(--ok)' : 'var(--fg-muted)'} />
+          <div style={{ borderTop: '1px solid var(--border)', margin: '6px 0' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ font: 'var(--t-body)', fontWeight: 600 }}>Total Paid</span>
+            <span style={{ font: 'var(--t-data)', fontVariantNumeric: 'tabular-nums', color: 'var(--ok)', fontWeight: 600 }}>{fmt(result.tax_paid_paisa)}</span>
           </div>
           <ProgressBar pct={tdsProgress} color={remaining < 0 ? 'var(--ok)' : tdsProgress >= 90 ? 'var(--ok)' : tdsProgress >= 70 ? 'var(--warn)' : 'var(--accent)'} />
+          <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginTop: 4 }}>
+            {tdsProgress}% of net tax covered
+          </div>
         </div>
-        <div style={{ marginTop: 8 }}>
+
+        {/* Remaining */}
+        <div style={{ marginTop: 10 }}>
           {remaining < 0 ? (
-            <Row label="Overpaid" value={`+${fmt(Math.abs(remaining))}`} color="var(--ok)" bold />
+            <Row label="Overpaid (refundable)" value={`+${fmt(Math.abs(remaining))}`} color="var(--ok)" bold />
           ) : (
-            <Row label="Remaining Tax" value={fmt(remaining)} color={remaining > 0 ? 'var(--warn)' : 'var(--ok)'} bold />
+            <Row label="Remaining to Pay" value={fmt(remaining)} color={remaining > 0 ? 'var(--warn)' : 'var(--ok)'} bold />
           )}
         </div>
+
         {result.remaining_salary_months > 0 && result.suggested_monthly_tds_paisa != null && result.suggested_monthly_tds_paisa > 0 && (
           <div style={{ marginTop: 8, font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>
-            {result.remaining_salary_months} salary month{result.remaining_salary_months > 1 ? 's' : ''} remaining · Suggested TDS: {fmt(result.suggested_monthly_tds_paisa)}/mo
+            {result.remaining_salary_months} salary month{result.remaining_salary_months > 1 ? 's' : ''} remaining · Suggested TDS/mo: {fmt(result.suggested_monthly_tds_paisa)}
           </div>
         )}
         {result.early_filing_rebate_applied_paisa > 0 && (
@@ -289,34 +303,45 @@ function Row({ label, value, color, bold }: { label: string; value: string; colo
 
 // ── Investments Tab ─────────────────────────────────────────────────────────
 
+const COL_INV = '1fr 1fr 150px 130px';
+const COL_INV_MIN = 580;
+
 function InvestmentsTab({ result }: { result: TaxResult }) {
   const rebate_pct = result.tax_rebate_paisa > 0 ? (result.tax_rebate_paisa / result.eligible_investment_paisa * 100).toFixed(0) : '0';
 
   return (
     <div>
       <div className="table-scroll" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr 100px 100px', gap: 0, padding: '10px 16px', background: 'var(--bg-raised)', borderBottom: '2px solid var(--border)' }}>
-          {['INVESTMENT', 'INVESTED / CAP', 'ELIGIBLE', 'REBATE'].map((h) => (
-            <div key={h} style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>{h}</div>
-          ))}
+        <div style={{ display: 'grid', gridTemplateColumns: COL_INV, gap: 0, padding: '10px 16px', background: 'var(--bg-raised)', borderBottom: '2px solid var(--border)', minWidth: COL_INV_MIN }}>
+          <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>INVESTMENT</div>
+          <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>INVESTED / CAP</div>
+          <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', textAlign: 'right' }}>ELIGIBLE</div>
+          <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', textAlign: 'right' }}>REBATE (10%)</div>
         </div>
-        {result.investment_breakdown.map((inv) => (
-          <div key={inv.category} style={{ display: 'grid', gridTemplateColumns: '160px 1fr 100px 100px', padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ font: 'var(--t-body)', textTransform: 'capitalize' }}>{inv.category.replace('_', ' ')}</div>
-            <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>
-              {fmt(inv.invested)}{inv.cap ? ` / ${fmt(inv.cap)}` : ' / no cap'}
+        {result.investment_breakdown.map((inv) => {
+          const investedCap = `${fmt(inv.invested)}${inv.cap ? ` / ${fmt(inv.cap)}` : ' / no cap'}`;
+          return (
+            <div key={inv.category} style={{ display: 'grid', gridTemplateColumns: COL_INV, padding: '12px 16px', borderBottom: '1px solid var(--border)', minWidth: COL_INV_MIN, alignItems: 'center' }}>
+              <div style={{ font: 'var(--t-body)', textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={inv.category.replace(/_/g, ' ')}>
+                {inv.category.replace(/_/g, ' ')}
+              </div>
+              <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={investedCap}>
+                {investedCap}
+              </div>
+              <div style={{ font: 'var(--t-data)', fontVariantNumeric: 'tabular-nums', textAlign: 'right', whiteSpace: 'nowrap' }} title={fmt(inv.eligible)}>
+                {fmt(inv.eligible)}
+              </div>
+              <div style={{ font: 'var(--t-data)', color: 'var(--ok)', fontVariantNumeric: 'tabular-nums', textAlign: 'right', whiteSpace: 'nowrap' }} title={fmt(Math.round(inv.eligible * 0.1))}>
+                {fmt(Math.round(inv.eligible * 0.1))}
+              </div>
             </div>
-            <div style={{ font: 'var(--t-data)', fontVariantNumeric: 'tabular-nums' }}>{fmt(inv.eligible)}</div>
-            <div style={{ font: 'var(--t-data)', color: 'var(--ok)', fontVariantNumeric: 'tabular-nums' }}>
-              {fmt(Math.round(inv.eligible * 0.1))}
-            </div>
-          </div>
-        ))}
-        <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr 100px 100px', padding: '12px 16px', borderTop: '2px solid var(--border)', background: 'var(--bg-raised)' }}>
+          );
+        })}
+        <div style={{ display: 'grid', gridTemplateColumns: COL_INV, padding: '12px 16px', borderTop: '2px solid var(--border)', background: 'var(--bg-raised)', minWidth: COL_INV_MIN }}>
           <div style={{ font: 'var(--t-body)', fontWeight: 600 }}>Total Eligible</div>
           <div />
-          <div style={{ font: 'var(--t-data)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmt(result.eligible_investment_paisa)}</div>
-          <div style={{ font: 'var(--t-data)', color: 'var(--ok)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmt(result.tax_rebate_paisa)}</div>
+          <div style={{ font: 'var(--t-data)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', textAlign: 'right', whiteSpace: 'nowrap' }}>{fmt(result.eligible_investment_paisa)}</div>
+          <div style={{ font: 'var(--t-data)', color: 'var(--ok)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', textAlign: 'right', whiteSpace: 'nowrap' }}>{fmt(result.tax_rebate_paisa)}</div>
         </div>
       </div>
       <div style={{ marginTop: 12, font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>
@@ -345,20 +370,40 @@ function ForecastTab({ fy }: { fy: string }) {
 
   return (
     <div>
-      <div style={{ background: 'var(--accent)', color: 'var(--accent-fg)', padding: '8px 14px', borderRadius: 8, marginBottom: 16, font: 'var(--t-caption)' }}>
-        📊 Projected full-year figures based on {forecast.months_entered} month{forecast.months_entered !== 1 ? 's' : ''} entered
+      <div style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)', padding: '8px 14px', borderRadius: 8, marginBottom: 16, font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>
+        {forecast.months_entered === 0
+          ? 'No salary entries yet — enter at least one month to see a forecast.'
+          : forecast.months_entered === 1
+          ? `Based on 1 salary month × 12 (projected full year)`
+          : `Based on avg of ${forecast.months_entered} salary months × 12 (projected full year)`}
+        {' '}· Rebate uses your actual investments.
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
         <Tile label="PROJECTED GROSS TAX" value={fmt(forecast.gross_tax_paisa)} />
         <Tile label="PROJECTED REBATE" value={fmt(forecast.tax_rebate_paisa)} color="var(--ok)" />
-        <Tile label="PROJECTED NET TAX" value={fmt(forecast.net_tax_payable_paisa)} />
+        <Tile label="PROJECTED NET TAX" value={fmt(forecast.net_tax_payable_paisa)} color={forecast.net_tax_payable_paisa > 0 ? 'var(--warn)' : 'var(--ok)'} />
       </div>
-      <div style={{ marginTop: 16 }}>
-        <Row label="Projected Gross Income" value={fmt(forecast.gross_income_paisa)} />
-        <Row label="Projected Taxable Income" value={fmt(forecast.taxable_income_paisa)} />
-        <Row label="Projected Remaining Tax" value={fmt(forecast.remaining_tax_paisa)} color={forecast.remaining_tax_paisa < 0 ? 'var(--ok)' : 'var(--warn)'} />
+      <div style={{ marginTop: 16, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
+        <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 8 }}>FULL-YEAR BREAKDOWN</div>
+        <Row label="Projected Gross Income (12 mo)" value={fmt(forecast.gross_income_paisa)} />
+        <Row label="− Salary Exemption" value={`−${fmt(forecast.exemption_paisa)}`} color="var(--ok)" />
+        <Row label="Taxable Income" value={fmt(forecast.taxable_income_paisa)} bold />
+        <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0' }} />
+        <Row label="Gross Tax" value={fmt(forecast.gross_tax_paisa)} />
+        <Row label="− Investment Rebate" value={`−${fmt(forecast.tax_rebate_paisa)}`} color="var(--ok)" />
+        <Row label="Net Tax Payable" value={fmt(forecast.net_tax_payable_paisa)} bold />
+        <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0' }} />
+        <Row label="TDS projected (12 mo)" value={fmt(forecast.tds_paisa)} color="var(--ok)" />
+        <Row
+          label="Projected Remaining to Pay"
+          value={fmt(forecast.remaining_tax_paisa)}
+          color={forecast.remaining_tax_paisa < 0 ? 'var(--ok)' : 'var(--warn)'}
+          bold
+        />
         {forecast.suggested_monthly_tds_paisa != null && forecast.suggested_monthly_tds_paisa > 0 && (
-          <Row label="Suggested Monthly TDS" value={fmt(forecast.suggested_monthly_tds_paisa)} color="var(--accent)" />
+          <div style={{ marginTop: 8, font: 'var(--t-caption)', color: 'var(--accent)' }}>
+            Suggested TDS/month to cover remaining: {fmt(forecast.suggested_monthly_tds_paisa)}
+          </div>
         )}
       </div>
     </div>

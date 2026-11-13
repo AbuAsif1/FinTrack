@@ -24,7 +24,11 @@ async function computeBalance(accountId: string, userId: string): Promise<number
     else if (row.type === 'SAVINGS_WITHDRAWAL') withdrawal = amount;
   }
 
-  return Number(acct.openingBalancePaisa) + Number(deposit) + Number(interest) - Number(withdrawal);
+  const funded = await prisma.transaction.aggregate({
+    where: { bankSourceId: accountId, userId, isDeleted: false },
+    _sum: { amountPaisa: true },
+  });
+  return Number(acct.openingBalancePaisa) + Number(deposit) + Number(interest) - Number(withdrawal) - Number(funded._sum.amountPaisa ?? 0n);
 }
 
 function dpsProjectedPrincipal(
