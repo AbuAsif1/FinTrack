@@ -90,6 +90,10 @@ export default function BudgetsPage() {
 
   const setBudgetsCount = budgets.length;
   const overCount = budgets.filter((b) => b.state === 'over').length;
+  const totalLimit = budgets.reduce((s, b) => s + b.monthly_limit_paisa, 0);
+  const totalSpent = budgets.reduce((s, b) => s + b.spent_paisa, 0);
+  const totalRemaining = totalLimit - totalSpent;
+  const overAmount = budgets.filter((b) => b.state === 'over').reduce((s, b) => s + (b.spent_paisa - b.monthly_limit_paisa), 0);
   const isCurrentMonth = selectedMonth === today;
   const isFuture = selectedMonth > today;
 
@@ -143,16 +147,21 @@ export default function BudgetsPage() {
       {setBudgetsCount > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
           <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
-            <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 4 }}>BUDGETS SET</div>
-            <div style={{ font: 'var(--t-data)', color: 'var(--fg-primary)' }}>{setBudgetsCount}</div>
+            <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 4 }}>TOTAL LIMIT</div>
+            <div style={{ font: 'var(--t-data)', color: 'var(--fg-primary)' }}>{fmt(totalLimit)}</div>
+            <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginTop: 2 }}>{setBudgetsCount} categories</div>
           </div>
           <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
-            <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 4 }}>ON TRACK</div>
-            <div style={{ font: 'var(--t-data)', color: 'var(--ok)' }}>{setBudgetsCount - overCount}</div>
+            <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 4 }}>TOTAL SPENT</div>
+            <div style={{ font: 'var(--t-data)', color: 'var(--fg-primary)' }}>{fmt(totalSpent)}</div>
+            <div style={{ font: 'var(--t-caption)', color: 'var(--ok)', marginTop: 2 }}>{setBudgetsCount - overCount} on track</div>
           </div>
           <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
-            <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 4 }}>OVER BUDGET</div>
-            <div style={{ font: 'var(--t-data)', color: overCount > 0 ? 'var(--danger)' : 'var(--fg-muted)' }}>{overCount}</div>
+            <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 4 }}>REMAINING</div>
+            <div style={{ font: 'var(--t-data)', color: totalRemaining >= 0 ? 'var(--ok)' : 'var(--danger)' }}>{fmt(Math.abs(totalRemaining))}</div>
+            <div style={{ font: 'var(--t-caption)', color: overCount > 0 ? 'var(--danger)' : 'var(--fg-muted)', marginTop: 2 }}>
+              {overCount > 0 ? `${overCount} over by ${fmt(overAmount)}` : 'All within limits'}
+            </div>
           </div>
         </div>
       )}

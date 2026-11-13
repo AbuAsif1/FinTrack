@@ -3,6 +3,20 @@ import { getAuthUser } from '@/lib/auth';
 import { toDbDate, fromDbDate, todayInDhaka } from '@fintrack/shared';
 import { updatePendingInstanceAmount } from '@/lib/services/fixed-expenses';
 
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  const user = await getAuthUser(req);
+  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+
+  const template = await prisma.fixedExpense.findFirst({ where: { id: params.id, userId: user.id } });
+  if (!template) return Response.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 });
+
+  // Delete all instances first (transactions are preserved; instance just stops existing)
+  await prisma.fixedExpenseInstance.deleteMany({ where: { fixedExpenseId: params.id } });
+  await prisma.fixedExpense.delete({ where: { id: params.id } });
+
+  return new Response(null, { status: 204 });
+}
+
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const user = await getAuthUser(req);
   if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
