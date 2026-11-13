@@ -72,6 +72,7 @@ export function TransactionModal({
   editing,
   onClose,
   onSaved,
+  onRequestConfirm,
 }: {
   categories: Category[];
   savingsAccounts: SavingsAccount[];
@@ -79,6 +80,8 @@ export function TransactionModal({
   editing: EditingTransaction | null;
   onClose: () => void;
   onSaved: () => void;
+  /** If provided and editing, called with (proceed, cancel) instead of saving immediately */
+  onRequestConfirm?: (proceed: () => Promise<void>, cancel: () => void) => void;
 }) {
   const isEdit = !!editing;
   const [form, setForm] = useState<Form>(() => ({
@@ -138,57 +141,69 @@ export function TransactionModal({
       return;
     }
 
-    try {
-      if (isTransfer) {
-        if (!form.transfer_from_id || !form.transfer_to_id) {
-          setError('Select both source and destination accounts.');
-          setSaving(false);
-          return;
-        }
-        if (form.transfer_from_id === form.transfer_to_id) {
-          setError('Source and destination must be different.');
-          setSaving(false);
-          return;
-        }
-        await api.post('/savings-accounts/transfer', {
-          from_account_id: form.transfer_from_id,
-          to_account_id: form.transfer_to_id,
-          amount_paisa: amountPaisa,
-          date: form.date,
-          description: form.description || undefined,
-        });
-      } else {
-        const body: Record<string, unknown> = {
-          amount_paisa: amountPaisa,
-          date: form.date,
-          description: form.description,
-          category_id: form.category_id,
-          payment_method: form.payment_method,
-          idempotency_key: form.idempotency_key,
-        };
-        if (isSavings && form.savings_account_id) body.savings_account_id = form.savings_account_id;
-        if (!isSavings && !isLoan && !isTax && form.payment_method === 'BANK' && form.savings_account_id) {
-          body.savings_account_id = form.savings_account_id;
-        }
-        if (isLoan) {
-          body.loan_person_name = form.loan_person_name;
-          if (form.loan_reason) body.reason = form.loan_reason;
-          if (form.loan_return_due_date) body.return_due_date = form.loan_return_due_date;
-        }
-        if (isEdit) {
-          await api.patch(`/transactions/${editing!.id}`, body);
-        } else {
-          await api.post('/transactions', body);
-        }
-      }
-      onSaved();
-    } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
-      if (status === 409) { onSaved(); return; }
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to save.';
-      setError(msg);
+    if (isTransfer && (!form.transfer_from_id || !form.transfer_to_id)) {
+      setError('Select both source and destination accounts.');
       setSaving(false);
+      return;
     }
+    if (isTransfer && form.transfer_from_id === form.transfer_to_id) {
+      setError('Source and destination must be different.');
+      setSaving(false);
+      return;
+    }
+
+    // Build the actual save function so it can be called immediately or after confirmation
+    const doSave = async () => {
+      try {
+        if (isTransfer) {
+          await api.post('/savings-accounts/transfer', {
+            from_account_id: form.transfer_from_id,
+            to_account_id: form.transfer_to_id,
+            amount_paisa: amountPaisa,
+            date: form.date,
+            description: form.description || undefined,
+          });
+        } else {
+          const body: Record<string, unknown> = {
+            amount_paisa: amountPaisa,
+            date: form.date,
+            description: form.description,
+            category_id: form.category_id,
+            payment_method: form.payment_method,
+            idempotency_key: form.idempotency_key,
+          };
+          if (isSavings && form.savings_account_id) body.savings_account_id = form.savings_account_id;
+          if (!isSavings && !isLoan && !isTax && form.payment_method === 'BANK' && form.savings_account_id) {
+            body.savings_account_id = form.savings_account_id;
+          }
+          if (isLoan) {
+            body.loan_person_name = form.loan_person_name;
+            if (form.loan_reason) body.reason = form.loan_reason;
+            if (form.loan_return_due_date) body.return_due_date = form.loan_return_due_date;
+          }
+          if (isEdit) {
+            await api.patch(`/transactions/${editing!.id}`, body);
+          } else {
+            await api.post('/transactions', body);
+          }
+        }
+        onSaved();
+      } catch (err: unknown) {
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        if (status === 409) { onSaved(); return; }
+        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to save.';
+        setError(msg);
+        setSaving(false);
+      }
+    };
+
+    // For edits with confirmation, hand off to parent; for new entries save immediately
+    if (isEdit && onRequestConfirm) {
+      onRequestConfirm(doSave, () => setSaving(false));
+      return;
+    }
+
+    await doSave();
   }
 
   return (

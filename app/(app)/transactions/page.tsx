@@ -41,9 +41,83 @@ function fmtDate(iso: string) {
 const PAYMENT_METHODS = ['CASH', 'BANK', 'BKASH', 'NAGAD', 'ROCKET', 'CARD'];
 
 
-// ── Delete Confirmation ────────────────────────────────────────────────────
+// ── Impact lines helper ────────────────────────────────────────────────────
 
-function DeleteConfirm({
+function impactLines(tx: Transaction): string[] {
+  const lines: string[] = ['• Transaction history will be updated.'];
+  const r = tx.routing;
+  if (!r || r.type === 'NONE') return lines;
+  if (r.type === 'SAVINGS_DEPOSIT' || r.type === 'SAVINGS_WITHDRAWAL') {
+    lines.push(`• Savings balance for "${r.savings_account?.name ?? 'linked account'}" will be recalculated.`);
+  }
+  if (r.type === 'LOAN_GIVEN' || r.type === 'LOAN_RECEIVED') {
+    lines.push(`• Loan ledger for "${r.loan_person?.name ?? 'linked person'}" will be recalculated.`);
+  }
+  if (r.type === 'TAX') {
+    lines.push(`• Tax investment records for ${r.fiscal_year ?? 'current FY'} will be updated.`);
+  }
+  return lines;
+}
+
+// ── Impact Confirm Modal ───────────────────────────────────────────────────
+
+function ImpactConfirmModal({
+  title,
+  description,
+  lines,
+  confirmLabel,
+  confirmDanger,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  description: string;
+  lines: string[];
+  confirmLabel: string;
+  confirmDanger?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function handle() {
+    setBusy(true);
+    await onConfirm();
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400 }}>
+      <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 28, maxWidth: 440, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.35)' }}>
+        <h3 style={{ font: 'var(--t-section)', marginBottom: 8 }}>{title}</h3>
+        <p style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)', marginBottom: 16 }}>{description}</p>
+        <div style={{ background: 'var(--bg-raised)', borderRadius: 8, padding: '12px 16px', marginBottom: 20 }}>
+          <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 8 }}>WHAT WILL BE AFFECTED</div>
+          {lines.map((l, i) => (
+            <div key={i} style={{ font: 'var(--t-body)', color: 'var(--fg-primary)', marginBottom: 4 }}>{l}</div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onCancel} disabled={busy}
+            style={{ padding: '8px 20px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: 'pointer', font: 'var(--t-body)' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handle} disabled={busy}
+            style={{ padding: '8px 20px', background: confirmDanger ? 'var(--danger)' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, cursor: busy ? 'not-allowed' : 'pointer', font: 'var(--t-body)', opacity: busy ? 0.7 : 1 }}
+          >
+            {busy ? 'Working…' : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Bulk Delete Confirmation ───────────────────────────────────────────────
+
+function BulkDeleteConfirm({
   ids,
   onCancel,
   onDeleted,
@@ -65,16 +139,16 @@ function DeleteConfirm({
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300 }}>
       <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 24, maxWidth: 400, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-        <h3 style={{ font: 'var(--t-section)', marginBottom: 12 }}>Delete {ids.length === 1 ? 'Transaction' : `${ids.length} Transactions`}?</h3>
+        <h3 style={{ font: 'var(--t-section)', marginBottom: 12 }}>Delete {ids.length} Transactions?</h3>
         <p style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)', marginBottom: 20 }}>
-          This cannot be undone. Any linked loan entries or savings balance changes will also be reversed.
+          This cannot be undone. All linked loan entries and savings balances will also be reversed.
         </p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button onClick={onCancel} style={{ padding: '8px 16px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: 'pointer' }}>Cancel</button>
           <button onClick={handleDelete} disabled={deleting} style={{ padding: '8px 16px', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
-            {deleting ? 'Deleting…' : 'Delete'}
+            {deleting ? 'Deleting…' : `Delete ${ids.length}`}
           </button>
         </div>
       </div>
@@ -193,7 +267,7 @@ export default function TransactionsPage() {
   // Pagination
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const PAGE_SIZE = 20;
+  const [pageSize, setPageSize] = useState(25);
 
   // Selection
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -203,6 +277,14 @@ export default function TransactionsPage() {
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [deleteIds, setDeleteIds] = useState<string[] | null>(null);
   const router = useRouter();
+
+  // Impact confirmation state
+  const [removeConfirm, setRemoveConfirm] = useState<Transaction | null>(null);
+  const [editConfirmPending, setEditConfirmPending] = useState<{
+    proceed: () => Promise<void>;
+    cancel: () => void;
+    tx: Transaction;
+  } | null>(null);
 
   // Row action popup (⚡ button)
   const [actionOpen, setActionOpen] = useState<string | null>(null);
@@ -226,7 +308,7 @@ export default function TransactionsPage() {
     setLoading(true);
     const params = new URLSearchParams();
     params.set('page', String(page));
-    params.set('limit', String(PAGE_SIZE));
+    params.set('limit', String(pageSize));
     if (search) params.set('search', search);
     if (filterCategory) params.set('category_id', filterCategory);
     if (filterMethod) params.set('payment_method', filterMethod);
@@ -238,7 +320,7 @@ export default function TransactionsPage() {
     setTransactions(Array.isArray(data) ? data : (data.data ?? data.transactions ?? []));
     if (data.total != null) setTotal(data.total);
     setLoading(false);
-  }, [page, search, filterCategory, filterMethod, filterFrom, filterTo]);
+  }, [page, pageSize, search, filterCategory, filterMethod, filterFrom, filterTo]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -255,7 +337,7 @@ export default function TransactionsPage() {
   }
 
   const hasFilters = search || filterCategory || filterMethod || filterFrom || filterTo;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const toggleSelect = (id: string) => setSelected((s) => {
     const n = new Set(s);
@@ -393,10 +475,16 @@ export default function TransactionsPage() {
                     </div>
                     <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>{fmtDate(tx.date)}</div>
                     <div style={{ font: 'var(--t-body)', color: 'var(--fg-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.description}</div>
-                    <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: tx.category?.colorHex ?? '#888', marginRight: 6 }} />
-                      {tx.category?.name ?? '—'}
-                    </div>
+                    {(() => {
+                      const cat = tx.category?.name ? tx.category : categories.find(c => c.id === tx.category_id);
+                      const catColor = cat?.colorHex ?? (cat as any)?.color_hex ?? '#D1D5DB';
+                      return (
+                        <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: catColor, marginRight: 6 }} />
+                          {cat?.name ?? '—'}
+                        </div>
+                      );
+                    })()}
                     <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>{tx.payment_method}</div>
                     <div style={{ font: 'var(--t-data)', color: 'var(--danger)', textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                       −{fmt(tx.amount_paisa)}
@@ -431,13 +519,28 @@ export default function TransactionsPage() {
               ))}
 
               {/* Pagination */}
-              {totalPages > 1 && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
-                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '5px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1 }}>‹</button>
-                  <span style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>{page} / {totalPages}</span>
-                  <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: '5px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1 }}>›</button>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '12px 16px', borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>Rows per page:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                    style={{ padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-caption)', background: 'var(--bg-sunken)', color: 'var(--fg-primary)', cursor: 'pointer' }}
+                  >
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={75}>75</option>
+                    <option value={100}>100</option>
+                  </select>
                 </div>
-              )}
+                {totalPages > 1 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '5px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1 }}>‹</button>
+                    <span style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>{page} / {totalPages}</span>
+                    <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: '5px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1 }}>›</button>
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -455,16 +558,56 @@ export default function TransactionsPage() {
           savingsAccounts={savingsAccounts}
           loanPersons={loanPersons}
           editing={editing as EditingTransaction | null}
-          onClose={() => setShowModal(false)}
+          onClose={() => { setShowModal(false); setEditing(null); }}
           onSaved={() => {
-            setShowModal(false); load();
+            setShowModal(false); setEditing(null); load();
             api.get('/savings-accounts').then(({ data }) => setSavingsAccounts(Array.isArray(data) ? data : (data?.accounts ?? []))).catch(() => {});
+          }}
+          onRequestConfirm={editing ? (proceed, cancel) => {
+            setEditConfirmPending({ proceed, cancel, tx: editing });
+          } : undefined}
+        />
+      )}
+
+      {/* Edit impact confirmation (appears on top of the edit modal) */}
+      {editConfirmPending && (
+        <ImpactConfirmModal
+          title="Confirm Edit"
+          description="Saving this change will update the transaction and all linked records."
+          lines={impactLines(editConfirmPending.tx)}
+          confirmLabel="Confirm & Save"
+          onConfirm={async () => {
+            const { proceed } = editConfirmPending;
+            setEditConfirmPending(null);
+            await proceed();
+          }}
+          onCancel={() => {
+            editConfirmPending.cancel();
+            setEditConfirmPending(null);
           }}
         />
       )}
 
+      {/* Remove impact confirmation (single row) */}
+      {removeConfirm && (
+        <ImpactConfirmModal
+          title="Remove Transaction?"
+          description="This cannot be undone. All linked records will be reversed."
+          lines={impactLines(removeConfirm)}
+          confirmLabel="Remove"
+          confirmDanger
+          onConfirm={async () => {
+            await api.delete(`/transactions/${removeConfirm.id}`).catch(() => {});
+            setRemoveConfirm(null);
+            load();
+          }}
+          onCancel={() => setRemoveConfirm(null)}
+        />
+      )}
+
+      {/* Bulk delete (no routing detail available) */}
       {deleteIds && (
-        <DeleteConfirm
+        <BulkDeleteConfirm
           ids={deleteIds}
           onCancel={() => setDeleteIds(null)}
           onDeleted={() => { setDeleteIds(null); setSelected(new Set()); load(); }}
@@ -509,7 +652,8 @@ export default function TransactionsPage() {
           <div style={{ height: 1, background: 'var(--border)', margin: '0 8px' }} />
           <button
             onClick={() => {
-              setDeleteIds([actionOpen]);
+              const tx = transactions.find((t) => t.id === actionOpen);
+              if (tx) setRemoveConfirm(tx);
               setActionOpen(null);
             }}
             style={{

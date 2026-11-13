@@ -7,7 +7,7 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-export function InstallPrompt() {
+export function InstallPrompt({ inline }: { inline?: boolean } = {}) {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const [shown, setShown] = useState(false);
 
@@ -26,10 +26,18 @@ export function InstallPrompt() {
 
   if (!deferred || !shown) return null;
 
-  return (
-    <div
-      style={{
-        position: 'fixed',
+  const containerStyle = inline
+    ? {
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 10,
+        padding: '20px 24px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+      }
+    : {
+        position: 'fixed' as const,
         bottom: 80,
         left: 16,
         right: 16,
@@ -42,8 +50,10 @@ export function InstallPrompt() {
         display: 'flex',
         alignItems: 'center',
         gap: 12,
-      }}
-    >
+      };
+
+  return (
+    <div style={containerStyle}>
       <div style={{ flex: 1 }}>
         <div style={{ font: 'var(--t-label)', fontWeight: 600 }}>Install FinTrack</div>
         <div style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)', marginTop: 2 }}>

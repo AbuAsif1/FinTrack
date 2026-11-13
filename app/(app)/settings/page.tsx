@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { InstallPrompt } from '@/components/ui/InstallPrompt';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -325,6 +326,7 @@ export default function SettingsPage() {
       <ProfileSection me={me} onSignOut={signOut} />
       <AppearanceSection />
       <CategoriesSection />
+      <InstallPrompt inline />
 
       {/* Links to other settings pages */}
       <section style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 24 }}>

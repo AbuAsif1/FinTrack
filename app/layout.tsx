@@ -3,7 +3,6 @@ import { Inter, Space_Grotesk } from 'next/font/google';
 import { Providers } from './providers';
 import { ServiceWorkerRegistrar } from '@/components/ui/ServiceWorkerRegistrar';
 import { OfflineNotice } from '@/components/ui/OfflineNotice';
-import { InstallPrompt } from '@/components/ui/InstallPrompt';
 import './globals.css';
 
 const inter = Inter({
@@ -31,7 +30,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ServiceWorkerRegistrar />
         <OfflineNotice />
-        <InstallPrompt />
         <Providers>{children}</Providers>
       </body>
     </html>
