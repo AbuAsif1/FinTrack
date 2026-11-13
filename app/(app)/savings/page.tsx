@@ -610,9 +610,9 @@ export default function SavingsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Savings accounts and DPS"
-        title="Savings & DPS"
-        description="Balance overview and DPS maturity tracking across all your accounts."
+        eyebrow="Accounts, DPS and deposits"
+        title="Bank & Savings"
+        description="Balance overview and maturity tracking across all your accounts."
       />
 
       {loading ? (
