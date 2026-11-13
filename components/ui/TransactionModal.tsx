@@ -27,6 +27,8 @@ export interface FixedExpenseTemplate {
   name: string;
   standard_amount_paisa: number;
   due_day: number;
+  category_id?: string;
+  category?: { id: string; name: string; routing_type: string };
 }
 
 export interface EditingTransaction {
@@ -50,7 +52,7 @@ interface Form {
   amount_paisa: string;
   date: string;
   description: string;
-  category_id: string;
+  category_id: string;      // may be '__FIXED_EXPENSE__' as a UI placeholder
   payment_method: string;
   savings_account_id: string;
   loan_person_name: string;
@@ -90,7 +92,6 @@ export function TransactionModal({
   editing: EditingTransaction | null;
   onClose: () => void;
   onSaved: () => void;
-  /** If provided and editing, called with (proceed, cancel) instead of saving immediately */
   onRequestConfirm?: (proceed: () => Promise<void>, cancel: () => void) => void;
 }) {
   const isEdit = !!editing;
@@ -114,16 +115,19 @@ export function TransactionModal({
   const [error, setError] = useState('');
 
   const isTransfer = form.category_id === '__TRANSFER__';
-  const selectedCat = categories.find((c) => c.id === form.category_id);
+  const isFixedExpenseMode = form.category_id === '__FIXED_EXPENSE__';
+
+  // For routing type detection: use the template's category when in fixed-expense mode
+  const selectedFixedTemplate = fixedExpenses.find((t) => t.id === form.fixed_expense_id);
+  const effectiveCategoryId = isFixedExpenseMode
+    ? (selectedFixedTemplate?.category?.id ?? selectedFixedTemplate?.category_id ?? '')
+    : form.category_id;
+  const selectedCat = categories.find((c) => c.id === effectiveCategoryId);
   const routingType = selectedCat?.routing_type ?? 'NONE';
   const isSavings = routingType === 'SAVINGS_DEPOSIT' || routingType === 'SAVINGS_WITHDRAWAL';
   const isLoan = routingType === 'LOAN_GIVEN' || routingType === 'LOAN_RECEIVED';
   const isTax = routingType === 'TAX';
   const savingsOnly = savingsAccounts.filter((a) => a.type === 'SAVINGS');
-
-  // Fixed expense category detection: category name contains "fixed" (case-insensitive)
-  const isFixedExpenseCat = !isTransfer && !!selectedCat && /fixed/i.test(selectedCat.name) && fixedExpenses.length > 0;
-  const selectedFixedTemplate = fixedExpenses.find((t) => t.id === form.fixed_expense_id);
 
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '8px 10px', border: '1px solid var(--border)',
@@ -157,6 +161,12 @@ export function TransactionModal({
       return;
     }
 
+    if (isFixedExpenseMode && !selectedFixedTemplate) {
+      setError('Please select which fixed expense this payment is for.');
+      setSaving(false);
+      return;
+    }
+
     if (isTransfer && (!form.transfer_from_id || !form.transfer_to_id)) {
       setError('Select both source and destination accounts.');
       setSaving(false);
@@ -168,7 +178,6 @@ export function TransactionModal({
       return;
     }
 
-    // Build the actual save function so it can be called immediately or after confirmation
     const doSave = async () => {
       try {
         if (isTransfer) {
@@ -180,11 +189,13 @@ export function TransactionModal({
             description: form.description || undefined,
           });
         } else {
+          // Use the template's real category_id when in fixed-expense mode
+          const categoryIdToSend = isFixedExpenseMode ? effectiveCategoryId : form.category_id;
           const body: Record<string, unknown> = {
             amount_paisa: amountPaisa,
             date: form.date,
             description: form.description,
-            category_id: form.category_id,
+            category_id: categoryIdToSend,
             payment_method: form.payment_method,
             idempotency_key: form.idempotency_key,
           };
@@ -213,7 +224,6 @@ export function TransactionModal({
       }
     };
 
-    // For edits with confirmation, hand off to parent; for new entries save immediately
     if (isEdit && onRequestConfirm) {
       onRequestConfirm(doSave, () => setSaving(false));
       return;
@@ -233,7 +243,7 @@ export function TransactionModal({
         </h2>
 
         <form onSubmit={submit}>
-          {/* Fixed: Amount + Date */}
+          {/* Amount + Date */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <label>
               <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Amount (৳)</div>
@@ -245,7 +255,7 @@ export function TransactionModal({
             </label>
           </div>
 
-          {/* Fixed: Description */}
+          {/* Description */}
           <label style={{ display: 'block', marginBottom: 12 }}>
             <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Description</div>
             <input
@@ -258,7 +268,7 @@ export function TransactionModal({
             />
           </label>
 
-          {/* Category + Payment Method (hidden when transfer) */}
+          {/* Category + Payment Method */}
           <div style={{ display: 'grid', gridTemplateColumns: isTransfer ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <label>
               <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Category</div>
@@ -267,6 +277,9 @@ export function TransactionModal({
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
+                {!isEdit && fixedExpenses.length > 0 && (
+                  <option value="__FIXED_EXPENSE__">📋 Fixed Expenses</option>
+                )}
                 {!isEdit && savingsOnly.length >= 2 && (
                   <option value="__TRANSFER__">⇄ Transfer between accounts</option>
                 )}
@@ -282,13 +295,14 @@ export function TransactionModal({
             )}
           </div>
 
-          {/* Fixed Expense template picker */}
-          {isFixedExpenseCat && (
-            <div style={{ background: 'rgba(99,102,241,0.07)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
-              <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 8 }}>
+          {/* Fixed Expense mode: template picker */}
+          {isFixedExpenseMode && (
+            <div style={{ background: 'rgba(99,102,241,0.07)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '12px 14px', marginBottom: 12 }}>
+              <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 8, fontWeight: 600 }}>
                 📋 Which fixed expense is this payment for?
               </div>
               <select
+                required
                 value={form.fixed_expense_id}
                 onChange={(e) => {
                   const id = e.target.value;
@@ -304,16 +318,24 @@ export function TransactionModal({
                 }}
                 style={inputStyle}
               >
-                <option value="">— Select fixed expense (optional) —</option>
+                <option value="">Select fixed expense…</option>
                 {fixedExpenses.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.name} · ৳{(t.standard_amount_paisa / 100).toLocaleString('en-IN', { minimumFractionDigits: 0 })} · due day {t.due_day}
+                    {t.name}
+                    {t.category ? ` · ${t.category.name}` : ''}
+                    {` · ৳${(t.standard_amount_paisa / 100).toLocaleString('en-IN', { minimumFractionDigits: 0 })}`}
+                    {` · due day ${t.due_day}`}
                   </option>
                 ))}
               </select>
               {selectedFixedTemplate && (
                 <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginTop: 6 }}>
-                  Amount and description pre-filled from template. You can adjust them above.
+                  Amount and description pre-filled. Adjust above if the actual amount differs.
+                </div>
+              )}
+              {selectedFixedTemplate?.category && (
+                <div style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)', marginTop: 4 }}>
+                  Category: <strong>{selectedFixedTemplate.category.name}</strong> (from template)
                 </div>
               )}
             </div>
@@ -349,7 +371,7 @@ export function TransactionModal({
           )}
 
           {/* Bank account deduction */}
-          {!isTransfer && form.payment_method === 'BANK' && !isSavings && !isLoan && !isTax && savingsOnly.length > 0 && (
+          {!isTransfer && !isFixedExpenseMode && form.payment_method === 'BANK' && !isSavings && !isLoan && !isTax && savingsOnly.length > 0 && (
             <div style={{ background: 'rgba(21,128,61,0.08)', borderLeft: '3px solid var(--ok)', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
               <div style={{ font: 'var(--t-caption)', color: 'var(--ok)', marginBottom: 6 }}>
                 🏦 Deduct from bank account (optional)

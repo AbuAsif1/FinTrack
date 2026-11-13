@@ -255,7 +255,7 @@ export default function TransactionsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [savingsAccounts, setSavingsAccounts] = useState<SavingsAccount[]>([]);
   const [loanPersons, setLoanPersons] = useState<LoanPerson[]>([]);
-  const [fixedExpenses, setFixedExpenses] = useState<{ id: string; name: string; standard_amount_paisa: number; due_day: number }[]>([]);
+  const [fixedExpenses, setFixedExpenses] = useState<{ id: string; name: string; standard_amount_paisa: number; due_day: number; category_id: string; category: { id: string; name: string; routing_type: string } }[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
