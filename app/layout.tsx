@@ -18,10 +18,17 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'FinTrack BD',
-  description: 'Personal finance for a salaried professional in Bangladesh',
+  title: 'FinTrack',
+  description: 'Personal finance for salaried professionals in Bangladesh',
   manifest: '/manifest.json',
-  themeColor: '#3A5FCD',
+  themeColor: '#6366F1',
+  icons: {
+    icon: [
+      { url: '/icon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: '/icon-192.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -82,12 +82,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             height: 52,
           }}
         >
-          <span style={{
-            font: '600 15px var(--font-space-grotesk, system-ui)',
-            color: 'var(--fg-primary)',
-          }}>
-            FinTrack
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icon-32.png" alt="" width={28} height={28} style={{ borderRadius: 7 }} />
+            <span style={{ font: '600 15px var(--font-space-grotesk, system-ui)', color: 'var(--fg-primary)' }}>
+              FinTrack
+            </span>
+          </div>
           <NotificationBell unreadCount={unreadCount} onCountChange={setUnreadCount} />
         </header>
 

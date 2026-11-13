@@ -35,7 +35,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
   await getEmailTransport().send({
     to: target.email,
-    subject: 'Reset your FinTrack BD password',
+    subject: 'Reset your FinTrack password',
     html: passwordResetEmailHtml(resetUrl),
   });
 

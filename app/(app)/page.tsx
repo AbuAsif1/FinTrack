@@ -122,7 +122,7 @@ function FirstRunChecklist() {
   return (
     <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 24 }}>
       <h2 style={{ margin: '0 0 8px', font: '600 18px var(--font-space-grotesk, system-ui)', color: 'var(--fg-primary)' }}>
-        Welcome to FinTrack BD
+        Welcome to FinTrack
       </h2>
       <p style={{ margin: '0 0 20px', font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>
         Complete these steps to get started:

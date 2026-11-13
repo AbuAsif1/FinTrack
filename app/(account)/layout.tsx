@@ -9,13 +9,16 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
       justifyContent: 'center',
       padding: '24px 16px',
     }}>
-      <div style={{
-        font: 'var(--t-section)',
-        color: 'var(--accent)',
-        marginBottom: 32,
-        letterSpacing: '0.02em',
-      }}>
-        FinTrack BD
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginBottom: 32 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/icon-192.png" alt="FinTrack" width={56} height={56} style={{ borderRadius: 14 }} />
+        <span style={{
+          font: '700 22px var(--font-space-grotesk, system-ui)',
+          color: 'var(--fg-primary)',
+          letterSpacing: '-0.02em',
+        }}>
+          FinTrack
+        </span>
       </div>
       <div style={{
         width: '100%',

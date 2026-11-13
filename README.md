@@ -1,4 +1,4 @@
-# FinTrack BD
+# FinTrack
 
 A personal finance web application built for a salaried professional in Bangladesh. Replaces three separate Excel sheets — income and tax, fixed monthly spending, borrow-loan ledger — with one mobile-first Progressive Web App that understands Bangladesh-specific financial concepts.
 
@@ -219,15 +219,15 @@ This installs all packages for the main app and the internal `packages/` workspa
 
 ```sql
 -- Run in psql or pgAdmin
-CREATE DATABASE fintrack_bd;
-CREATE DATABASE fintrack_bd_test;   -- for running tests
+CREATE DATABASE fintrack;
+CREATE DATABASE fintrack_test;   -- for running tests
 ```
 
 **Option B — Neon (hosted, free tier)**
 
 1. Sign up at https://neon.tech
 2. Create a project — Neon gives you one database with a connection string.
-3. Create a second branch or database named `fintrack_bd_test` for tests.
+3. Create a second branch or database named `fintrack_test` for tests.
 
 ---
 
@@ -241,12 +241,12 @@ Open `.env.local` and fill in every value:
 
 | Variable | Required | Description |
 |---|---|---|
-| `DATABASE_URL` | Yes | PostgreSQL connection string — e.g. `postgresql://user:pass@localhost:5432/fintrack_bd` |
-| `TEST_DATABASE_URL` | For tests | Separate DB used by Vitest and Playwright — e.g. `postgresql://user:pass@localhost:5432/fintrack_bd_test` |
+| `DATABASE_URL` | Yes | PostgreSQL connection string — e.g. `postgresql://user:pass@localhost:5432/fintrack` |
+| `TEST_DATABASE_URL` | For tests | Separate DB used by Vitest and Playwright — e.g. `postgresql://user:pass@localhost:5432/fintrack_test` |
 | `JWT_SECRET` | Yes | Any long random string — e.g. run `openssl rand -hex 32` |
 | `APP_URL` | Yes | `http://localhost:3000` for local dev |
 | `RESEND_API_KEY` | For emails | Get a free key at https://resend.com — set to `disabled` to skip emails locally |
-| `EMAIL_FROM` | For emails | Sender address — e.g. `FinTrack BD <noreply@yourdomain.com>` |
+| `EMAIL_FROM` | For emails | Sender address — e.g. `FinTrack <noreply@yourdomain.com>` |
 | `SIGNUP_MODE` | Yes | `open` lets anyone register; `closed` blocks registration (use `open` for local dev) |
 | `SEED_USER_EMAIL` | Yes | Email for the first admin account created by the seed script |
 | `SEED_USER_PASSWORD` | Yes | Password for the seed admin (min 10 characters) |

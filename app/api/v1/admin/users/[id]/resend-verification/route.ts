@@ -35,7 +35,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const verifyUrl = `${appUrl}/verify-email?token=${rawToken}`;
   await getEmailTransport().send({
     to: target.email,
-    subject: 'Verify your email — FinTrack BD',
+    subject: 'Verify your email — FinTrack',
     html: verificationEmailHtml(verifyUrl),
   });
 

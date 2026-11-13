@@ -63,22 +63,7 @@ export function Sidebar() {
       {/* Brand */}
       <div style={{ padding: '20px 20px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-          <div style={{
-            width: 32,
-            height: 32,
-            background: 'var(--accent)',
-            color: 'var(--accent-fg)',
-            borderRadius: 8,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 700,
-            fontSize: 15,
-            fontFamily: 'var(--font-space-grotesk, system-ui)',
-            flexShrink: 0,
-          }}>
-            F
-          </div>
+          <img src="/icon-32.png" alt="FinTrack" width={32} height={32} style={{ borderRadius: 8, flexShrink: 0 }} />
           <div>
             <div style={{
               font: '600 15px var(--font-space-grotesk, system-ui)',

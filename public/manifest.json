@@ -1,11 +1,11 @@
 {
-  "name": "FinTrack BD",
+  "name": "FinTrack",
   "short_name": "FinTrack",
   "description": "Personal finance for salaried professionals in Bangladesh",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F7F8FC",
-  "theme_color": "#3A5FCD",
+  "theme_color": "#6366F1",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }

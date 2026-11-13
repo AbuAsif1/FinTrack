@@ -1,4 +1,4 @@
-# FinTrack BD — System Requirements
+# FinTrack — System Requirements
 # ===================================
 # These are the SYSTEM-LEVEL tools you need installed before running the project.
 # Node package dependencies are managed by pnpm and listed in package.json.

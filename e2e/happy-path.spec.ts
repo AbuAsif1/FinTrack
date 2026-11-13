@@ -1,5 +1,5 @@
 /**
- * Happy-Path User Behaviour Scenarios — FinTrack BD
+ * Happy-Path User Behaviour Scenarios — FinTrack
  *
  * These 9 scenarios run sequentially against a live app and a real database.
  * Before running, seed the test user:  pnpm seed:e2e
