@@ -694,18 +694,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Quick actions */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <Link href="/transactions?action=add" className="btn-primary">
-          + Add Spending
-        </Link>
-        <Link href="/income?action=add" className="btn-secondary">
-          + Add Income
-        </Link>
-        <Link href="/fixed-expenses?action=mark-paid" className="btn-secondary">
-          ✓ Mark Fixed Paid
-        </Link>
-      </div>
     </div>
   );
 }

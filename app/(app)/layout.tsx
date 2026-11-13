@@ -8,6 +8,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { tryRestoreSession } from '@/lib/api';
 import api from '@/lib/api';
+import Link from 'next/link';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -92,6 +93,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* Desktop sticky top action bar */}
         <div className="app-topbar">
+          <Link href="/income?action=add" className="btn-secondary">+ Add Income</Link>
+          <Link href="/fixed-expenses?action=mark-paid" className="btn-secondary">✓ Mark Fixed Paid</Link>
           <button
             onClick={openAdd}
             className="btn-primary"
