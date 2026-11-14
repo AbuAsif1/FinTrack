@@ -72,11 +72,18 @@ describe('Sub-item H: Upcoming Events', () => {
     const maturityDate = new Date(Date.now() + 7 * 86400000);
     const maturityStr = maturityDate.toISOString().slice(0, 10);
 
+    const parentRes = await ctx.makeRequest('POST', '/api/v1/savings-accounts', {
+      headers,
+      body: { name: 'Parent Bank', type: 'SAVINGS', bank_name: 'Test Bank', opening_balance_paisa: 0, opening_date: '2024-01-01' },
+    });
+    const parent = await parentRes.json();
+
     await ctx.makeRequest('POST', '/api/v1/savings-accounts', {
       headers,
       body: {
         name: 'DPS Test',
         type: 'DPS',
+        parent_account_id: parent.id,
         bank_name: 'Test Bank',
         opening_balance_paisa: 1000000,
         opening_date: '2024-01-01',

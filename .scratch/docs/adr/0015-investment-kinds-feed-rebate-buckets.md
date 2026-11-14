@@ -1,0 +1,5 @@
+# Investment kinds are account types, and each feeds its own rebate bucket
+
+Status: accepted (2026-11-15). Extends ADR-0014.
+
+An Investment Account's kind is its account type: `SANCHAYPATRA`, `UNIVERSAL_PENSION`, `STOCKS`, `INSURANCE` or `INVESTMENT` (others). The UI groups them as one "Investment" type with a "Kind" field. They have no Parent Account, can carry a monthly installment, and count in Net Worth, Insurance included. Each rebate bucket on the Tax page is Σ `SAVINGS_DEPOSIT` in the Fiscal Year into accounts of the matching type (DPS accounts feed `dps`). A transaction with no account counts toward DPS or Sanchaypatra only by its category name, so a UPension paid with the "DPS / Savings" category is counted once. The owner chose to remove manual editing of investment amounts on the Tax page. Any `tax_investments` amounts entered earlier still add to their buckets, but no screen writes them any more. We added enum values instead of a separate kind column so that existing Sanchaypatra accounts and every query that already filters on `type` keep working unchanged.

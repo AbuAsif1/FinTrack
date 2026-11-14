@@ -1,5 +1,5 @@
 /**
- * TC-UI-121, TC-UI-124, TC-UI-125 — Tax Dashboard UI: overpaid, locked settings, investments
+ * TC-UI-121, TC-UI-124, TC-P2ACC-021 — Tax page UI: overpaid, locked settings, read-only investments
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -68,16 +68,11 @@ function makeTaxYear(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
-const DEFAULT_INVESTMENTS = {
-  stocks_paisa: 0, insurance_paisa: 0, others_paisa: 0, universal_pension_paisa: 0,
-};
-
 function setupMocks(resultOverrides = {}, taxYearOverrides = {}) {
   const result = makeResult(resultOverrides);
   const taxYear = makeTaxYear(taxYearOverrides);
   vi.mocked(api.get).mockImplementation(async (path: string) => {
     if ((path as string).includes('/tax/summary'))       return { data: result };
-    if ((path as string).includes('/tax-investments'))   return { data: DEFAULT_INVESTMENTS };
     if ((path as string).includes('/tax-years/'))        return { data: taxYear };
     if ((path as string).includes('/forecast'))          return { data: { ...result, is_projection: true } };
     return { data: [] };
@@ -127,26 +122,21 @@ describe('TC-UI-124: Settings tab is read-only when year is locked/filed', () =>
   });
 });
 
-// ── TC-UI-125 ─────────────────────────────────────────────────────────────────
+// ── TC-P2ACC-021 ──────────────────────────────────────────────────────────────
 
-describe('TC-UI-125: edit investments — only stocks/insurance/others get inputs', () => {
-  it('DPS and Sanchaypatra do not appear as editable fields; stocks does', async () => {
-    setupMocks({ is_locked: false });
+describe('TC-P2ACC-021: Overview investments are read-only and come from the tax result', () => {
+  it('lists each investment kind with its amount and offers no Edit button', async () => {
+    setupMocks({
+      is_locked: false,
+      investment_breakdown: [
+        { category: 'universal_pension', invested: 500000, cap: null, eligible: 500000 },
+        { category: 'insurance', invested: 300000, cap: null, eligible: 300000 },
+      ],
+    });
     render(<TaxPage />);
-    await waitFor(() => expect(screen.getByText(/INVESTMENTS/i)).toBeInTheDocument());
-
-    // Click the Edit button in the INVESTMENTS section
-    const editBtn = screen.getAllByRole('button', { name: /^edit$/i })[0];
-    fireEvent.click(editBtn);
-
-    // Stocks input label should appear
-    await waitFor(() => expect(screen.getByText(/^stocks/i)).toBeInTheDocument());
-
-    // DPS and Sanchaypatra should NOT appear as form labels
-    expect(screen.queryByLabelText(/^dps$/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/sanchaypatra/i)).not.toBeInTheDocument();
-
-    // Input fields for stocks, insurance, others must be present (multiple inputs with value 0)
-    expect(screen.getAllByDisplayValue('0').length).toBeGreaterThan(0);
+    await waitFor(() => expect(screen.getByText('Universal Pension Scheme')).toBeInTheDocument());
+    expect(screen.getByText('Insurance')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
   });
 });

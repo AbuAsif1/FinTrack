@@ -2,32 +2,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { getAuthUser, AuthError } from '@/lib/auth';
 import { todayInDhaka } from '@fintrack/shared';
-
-async function accountBalance(userId: string, accountId: string): Promise<number> {
-  const [acct, txSums, fundedSums] = await Promise.all([
-    prisma.savingsAccount.findFirst({ where: { id: accountId, userId }, select: { openingBalancePaisa: true } }),
-    prisma.transaction.groupBy({
-      by: ['type'],
-      where: { userId, isDeleted: false, savingsAccountId: accountId },
-      _sum: { amountPaisa: true },
-    }),
-    prisma.transaction.aggregate({
-      where: { userId, isDeleted: false, bankSourceId: accountId },
-      _sum: { amountPaisa: true },
-    }),
-  ]);
-  if (!acct) return 0;
-  let deposit = 0n, interest = 0n, withdrawal = 0n, spending = 0n;
-  for (const row of txSums) {
-    const amt = row._sum.amountPaisa ?? 0n;
-    if (row.type === 'SAVINGS_DEPOSIT') deposit = amt;
-    else if (row.type === 'SAVINGS_INTEREST') interest = amt;
-    else if (row.type === 'SAVINGS_WITHDRAWAL') withdrawal = amt;
-    else if (row.type === 'NONE') spending = amt;
-  }
-  const funded = fundedSums._sum.amountPaisa ?? 0n;
-  return Number(acct.openingBalancePaisa) + Number(deposit) + Number(interest) - Number(withdrawal) - Number(spending) - Number(funded);
-}
+import { accountBalance } from '@/lib/services/accounts';
 
 function deriveStatus(currentBalance: number, targetAmountPaisa: bigint, targetDate: Date): string {
   const target = Number(targetAmountPaisa);

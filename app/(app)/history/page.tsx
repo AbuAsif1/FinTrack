@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import api, { getAccessToken } from '@/lib/api';
 import { Amount } from '@/components/ui/Amount';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { SkeletonTableRows, SK } from '@/components/ui/Skeleton';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -51,7 +52,7 @@ function fyMonths(fy: string): { from: string; to: string } {
 // ── Monthly Summary Tab ────────────────────────────────────────────────
 
 function MonthlySummaryTab({ months, loading }: { months: MonthRow[]; loading: boolean }) {
-  if (loading) return <div style={{ color: 'var(--fg-muted)', font: 'var(--t-body)', padding: '20px 0' }}>Loading…</div>;
+  if (loading) return <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, marginTop: 16 }}><SkeletonTableRows rows={8} cols={[{ flex: 1 }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }]} /></div>;
   if (!months.length) return <div style={{ color: 'var(--fg-muted)', font: 'var(--t-body)', padding: '20px 0' }}>No data for this period.</div>;
 
   const totals = months.reduce(
@@ -122,7 +123,7 @@ function MonthlySummaryTab({ months, loading }: { months: MonthRow[]; loading: b
 // ── Income Trends Tab ──────────────────────────────────────────────────
 
 function IncomeTrendsTab({ months, loading }: { months: IncomeTrendMonth[]; loading: boolean }) {
-  if (loading) return <div style={{ color: 'var(--fg-muted)', font: 'var(--t-body)', padding: '20px 0' }}>Loading…</div>;
+  if (loading) return <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, marginTop: 16 }}><SkeletonTableRows rows={8} cols={SK.history} /></div>;
   if (!months.length) return <div style={{ color: 'var(--fg-muted)', font: 'var(--t-body)', padding: '20px 0' }}>No income data for this period.</div>;
 
   // Collect all income types
@@ -180,7 +181,7 @@ function IncomeTrendsTab({ months, loading }: { months: IncomeTrendMonth[]; load
 // ── Spending Trends Tab ────────────────────────────────────────────────
 
 function SpendingTrendsTab({ months, loading }: { months: CategoryTrendMonth[]; loading: boolean }) {
-  if (loading) return <div style={{ color: 'var(--fg-muted)', font: 'var(--t-body)', padding: '20px 0' }}>Loading…</div>;
+  if (loading) return <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, marginTop: 16 }}><SkeletonTableRows rows={8} cols={SK.history} /></div>;
   if (!months.length) return <div style={{ color: 'var(--fg-muted)', font: 'var(--t-body)', padding: '20px 0' }}>No spending data for this period.</div>;
 
   // Top 5 categories by total
@@ -236,7 +237,7 @@ function SpendingTrendsTab({ months, loading }: { months: CategoryTrendMonth[]; 
 // ── Savings Rate Tab ────────────────────────────────────────────────────
 
 function SavingsRateTab({ months, loading }: { months: MonthRow[]; loading: boolean }) {
-  if (loading) return <div style={{ color: 'var(--fg-muted)', font: 'var(--t-body)', padding: '20px 0' }}>Loading…</div>;
+  if (loading) return <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, marginTop: 16 }}><SkeletonTableRows rows={8} cols={[{ flex: 1 }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }]} /></div>;
   const withRate = months.filter((m) => m.savings_rate_bps != null);
   if (!withRate.length) return <div style={{ color: 'var(--fg-muted)', font: 'var(--t-body)', padding: '20px 0' }}>No income data for this period.</div>;
 
@@ -363,7 +364,7 @@ export default function HistoryPage() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div>
       <PageHeader
         eyebrow="Trends and summaries"
         title="History & Analytics"

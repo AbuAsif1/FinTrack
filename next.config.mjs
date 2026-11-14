@@ -19,6 +19,9 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['@neondatabase/serverless', '@prisma/adapter-neon'],
   },
+  async redirects() {
+    return [{ source: '/wallets', destination: '/savings', permanent: true }];
+  },
 };
 
 export default pwaConfig(nextConfig);

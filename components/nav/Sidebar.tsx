@@ -11,10 +11,9 @@ const navItems = [
   { href: '/transactions', label: 'Transactions', icon: '⇄' },
   { href: '/budgets', label: 'Budgets', icon: '◧' },
   { href: '/fixed-expenses', label: 'Fixed Expenses', icon: '◉' },
-  { href: '/savings', label: 'Bank & Savings', icon: '◈' },
-  { href: '/wallets', label: 'Wallets', icon: '◫' },
+  { href: '/savings', label: 'Bank & Wallet', icon: '◈' },
   { href: '/loans', label: 'Loans', icon: '⟺' },
-  { href: '/tax', label: 'Tax Dashboard', icon: '◎' },
+  { href: '/tax', label: 'Tax', icon: '◎' },
   { href: '/history', label: 'History', icon: '▦' },
 ];
 
@@ -50,8 +49,8 @@ export function Sidebar() {
       aria-label="Main navigation"
       style={{
         width: 240,
-        background: 'var(--bg-surface)',
-        borderRight: '1px solid var(--border)',
+        background: '#1A2340',
+        borderRight: '1px solid rgba(255,255,255,0.06)',
         height: '100vh',
         position: 'sticky',
         top: 0,
@@ -68,14 +67,14 @@ export function Sidebar() {
           <div>
             <div style={{
               font: '600 15px var(--font-space-grotesk, system-ui)',
-              color: 'var(--fg-primary)',
+              color: '#FFFFFF',
               lineHeight: 1.2,
             }}>
               FinTrack
             </div>
             <div style={{
               font: 'var(--t-caption)',
-              color: 'var(--fg-muted)',
+              color: '#94A3B8',
               lineHeight: 1.2,
             }}>
               Personal finance
@@ -100,14 +99,16 @@ export function Sidebar() {
                   gap: 10,
                   padding: '9px 12px',
                   borderRadius: 8,
-                  color: active ? 'var(--accent)' : 'var(--fg-secondary)',
-                  background: active ? 'rgba(99,102,241,0.1)' : 'transparent',
+                  color: active ? '#FFFFFF' : '#94A3B8',
+                  background: active ? 'rgba(255,255,255,0.11)' : 'transparent',
                   textDecoration: 'none',
                   font: 'var(--t-body)',
                   fontWeight: active ? 600 : 400,
                   transition: 'background 100ms, color 100ms',
                   marginBottom: 2,
                   boxSizing: 'border-box',
+                  borderLeft: active ? '3px solid #2D5BE3' : '3px solid transparent',
+                  paddingLeft: 9,
                 }}
               >
                 <span style={{
@@ -116,7 +117,7 @@ export function Sidebar() {
                   fontSize: 15,
                   lineHeight: 1,
                   flexShrink: 0,
-                  color: active ? 'var(--accent)' : 'var(--fg-muted)',
+                  color: active ? '#FFFFFF' : '#64748B',
                 }}>
                   {item.icon}
                 </span>
@@ -128,7 +129,7 @@ export function Sidebar() {
       </ul>
 
       {/* Bottom section */}
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 8 }}>
         {me?.role === 'ADMIN' && (
           <Link
             href="/admin/users"
@@ -140,13 +141,15 @@ export function Sidebar() {
               gap: 10,
               padding: '9px 12px',
               borderRadius: 8,
-              color: isActive('/admin') ? 'var(--accent)' : 'var(--fg-secondary)',
-              background: isActive('/admin') ? 'rgba(99,102,241,0.1)' : 'transparent',
+              color: isActive('/admin') ? '#FFFFFF' : '#94A3B8',
+              background: isActive('/admin') ? 'rgba(255,255,255,0.11)' : 'transparent',
               textDecoration: 'none',
               font: 'var(--t-body)',
               fontWeight: isActive('/admin') ? 600 : 400,
               marginBottom: 2,
               boxSizing: 'border-box',
+              borderLeft: isActive('/admin') ? '3px solid #2D5BE3' : '3px solid transparent',
+              paddingLeft: 9,
             }}
           >
             <span style={{ width: 18, textAlign: 'center', fontSize: 15, flexShrink: 0 }}>👥</span>
@@ -165,13 +168,15 @@ export function Sidebar() {
               gap: 10,
               padding: '9px 12px',
               borderRadius: 8,
-              color: isActive(item.href) ? 'var(--accent)' : 'var(--fg-secondary)',
-              background: isActive(item.href) ? 'rgba(99,102,241,0.1)' : 'transparent',
+              color: isActive(item.href) ? '#FFFFFF' : '#94A3B8',
+              background: isActive(item.href) ? 'rgba(255,255,255,0.11)' : 'transparent',
               textDecoration: 'none',
               font: 'var(--t-body)',
               fontWeight: isActive(item.href) ? 600 : 400,
               marginBottom: 2,
               boxSizing: 'border-box',
+              borderLeft: isActive(item.href) ? '3px solid #2D5BE3' : '3px solid transparent',
+              paddingLeft: 9,
             }}
           >
             <span style={{ width: 18, textAlign: 'center', fontSize: 15, flexShrink: 0 }}>
@@ -185,7 +190,7 @@ export function Sidebar() {
       {/* Footer: FY indicator + privacy note */}
       <div style={{
         padding: '12px 20px 16px',
-        borderTop: '1px solid var(--border)',
+        borderTop: '1px solid rgba(255,255,255,0.1)',
       }}>
         <div style={{
           display: 'flex',
@@ -199,14 +204,14 @@ export function Sidebar() {
             borderRadius: '50%',
             flexShrink: 0,
           }} />
-          <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', fontWeight: 500 }}>
+          <span style={{ font: 'var(--t-caption)', color: '#64748B', fontWeight: 500 }}>
             {fy}
           </span>
         </div>
         <p style={{
           margin: 0,
           font: 'var(--t-caption)',
-          color: 'var(--fg-muted)',
+          color: '#64748B',
           lineHeight: 1.4,
           fontSize: 11,
         }}>

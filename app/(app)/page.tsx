@@ -3,11 +3,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
-import { SummaryTile } from '@/components/ui/SummaryTile';
 import { Amount } from '@/components/ui/Amount';
 import { AlertBanner } from '@/components/ui/AlertBanner';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { SkeletonCard } from '@/components/ui/Skeleton';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -107,18 +107,6 @@ function formatMonth(ym: string): string {
 
 // ── Components ────────────────────────────────────────────────────────────
 
-function SkeletonTile() {
-  return (
-    <div style={{
-      background: 'var(--bg-surface)',
-      border: '1px solid var(--border)',
-      borderRadius: 10,
-      padding: 20,
-      height: 100,
-      animation: 'pulse 1.4s ease infinite',
-    }} />
-  );
-}
 
 function FirstRunChecklist() {
   return (
@@ -486,26 +474,33 @@ export default function DashboardPage() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Page header */}
+    <div>
+      {/* Page header — .page-hdr provides 24px bottom margin */}
       <PageHeader
         eyebrow="Your finances, clearly"
         title="Dashboard"
         description="A calm overview built only from your saved records."
       />
 
+      {/* Content: flex column with consistent 16px gaps between all sections */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
       {/* Alert banners */}
       {alertInstances.map((inst) => (
-        <AlertBanner key={inst.id} variant={inst.is_overdue ? 'danger' : 'warn'}>
-          {inst.is_overdue ? 'Overdue:' : 'Due soon:'} {inst.name} — <Amount paisa={inst.standard_amount_paisa} />
-          {' '}
-          <Link href="/fixed-expenses" style={{ color: 'inherit', fontWeight: 600, marginLeft: 8 }}>
-            Mark Paid →
-          </Link>
-        </AlertBanner>
+        <AlertBanner
+          key={inst.id}
+          variant={inst.is_overdue ? 'danger' : 'warn'}
+          title={`${inst.is_overdue ? 'Overdue' : 'Due soon'}: ${inst.name}`}
+          body={`৳${(inst.standard_amount_paisa / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+          action={
+            <Link href="/fixed-expenses" style={{ color: 'var(--accent)', font: 'var(--t-label)', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', textDecoration: 'none' }}>
+              Mark Paid →
+            </Link>
+          }
+        />
       ))}
 
-      {/* Period selector */}
+      {/* Period selector — always visible so user can switch before data loads */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
         {(['this-month', 'last-month', 'this-fy', 'last-30'] as Period[]).map((p) => (
           <button
@@ -528,92 +523,82 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Summary tiles */}
+      {/* Loading skeleton / error / first-run checklist */}
       {loading ? (
-        <div className="r-tiles">
-          {[0, 1, 2, 3].map((i) => <SkeletonTile key={i} />)}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Hero banner skeleton */}
+          <SkeletonCard height={110} />
+          {/* Cash Flow + Tax row */}
+          <div className="r-main">
+            <SkeletonCard height={240} />
+            <SkeletonCard height={240} />
+          </div>
+          {/* Upcoming + Loans row */}
+          <div className="r-halves">
+            <SkeletonCard height={220} />
+            <SkeletonCard height={220} />
+          </div>
+          {/* Spending + Recent Activity row */}
+          <div className="r-content">
+            <SkeletonCard height={180} />
+            <SkeletonCard height={180} />
+          </div>
         </div>
       ) : error ? (
         <div style={{ color: 'var(--danger)', font: 'var(--t-body)' }}>{error}</div>
       ) : !hasData ? (
         <FirstRunChecklist />
-      ) : data ? (
-        <div className="r-tiles">
-          <SummaryTile
-            label="In-Hand Income"
-            paisa={data.tiles.in_hand_income_paisa}
-            variant="featured"
-            icon="↑"
-            subtitle="Saved income this period"
-            delta={data.tiles.in_hand_income_change_paisa != null ? { paisa: data.tiles.in_hand_income_change_paisa, label: 'vs prev' } : undefined}
-          />
-          <SummaryTile
-            label="Total Spending"
-            paisa={data.tiles.total_spending_paisa}
-            variant="spending"
-            icon="↗"
-            subtitle="Saved expenses this period"
-            delta={data.tiles.total_spending_change_paisa != null ? { paisa: data.tiles.total_spending_change_paisa, label: 'vs prev' } : undefined}
-          />
-          <SummaryTile
-            label="Net Savings"
-            paisa={data.tiles.net_savings_paisa}
-            variant="savings"
-            icon="↗"
-            subtitle="Income minus spending"
-            delta={data.tiles.net_savings_change_paisa != null ? { paisa: data.tiles.net_savings_change_paisa, label: 'vs prev' } : undefined}
-          />
-          <SummaryTile
-            label="Savings Rate"
-            paisa={0}
-            valueOverride={data.tiles.savings_rate_bps != null ? `${(data.tiles.savings_rate_bps / 100).toFixed(1)}%` : '—'}
-            variant="income"
-            icon="↗"
-            subtitle="(Income − spending) ÷ income"
-            delta={data.tiles.savings_rate_change_bps != null ? {
-              paisa: data.tiles.savings_rate_change_bps,
-              label: `pp vs prev`,
-            } : undefined}
-          />
-        </div>
       ) : null}
 
-      {/* Net worth card */}
-      {data && data.net_worth_paisa != null && (
+      {/* V2 Hero Balance Banner — shows result for the selected period */}
+      {data && !loading && hasData && data.net_worth_paisa != null && (
         <div style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 10,
-          padding: '16px 20px',
+          background: 'linear-gradient(135deg, #2D5BE3 0%, #1A2340 100%)',
+          borderRadius: 16,
+          padding: '24px 28px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 16,
+          gap: 24,
+          flexWrap: 'wrap',
         }}>
-          <div>
-            <span style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+          <div style={{ flex: '1 1 180px', minWidth: 180 }}>
+            <div style={{ color: 'rgba(148,196,255,0.85)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
               Net Worth
-            </span>
-            <div style={{
-              font: 'var(--t-data)',
-              marginTop: 4,
-              color: data.net_worth_paisa >= 0 ? 'var(--ok)' : 'var(--danger)',
-            }}>
+            </div>
+            <div style={{ color: data.net_worth_paisa < 0 ? '#FCA5A5' : '#FFFFFF', font: '700 30px var(--font-space-grotesk, system-ui)', lineHeight: 1.1 }}>
+              {data.net_worth_paisa < 0 && <span style={{ fontSize: 20, marginRight: 2, opacity: 0.8 }}>−</span>}
               <Amount paisa={Math.abs(data.net_worth_paisa)} />
-              {data.net_worth_paisa < 0 && <span style={{ font: 'var(--t-caption)', marginLeft: 4 }}>(deficit)</span>}
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 6 }}>
+              {periodLabels[period]}
             </div>
           </div>
-          <Link href="/wallets" style={{
-            font: 'var(--t-caption)',
-            color: 'var(--accent)',
-            textDecoration: 'none',
-            fontWeight: 500,
-            whiteSpace: 'nowrap',
-          }}>
-            View Wallets →
-          </Link>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {([
+              { label: 'Income', value: <Amount paisa={data.tiles.in_hand_income_paisa} />, accent: '#86EFAC' },
+              { label: 'Spending', value: <Amount paisa={data.tiles.total_spending_paisa} />, accent: '#FCA5A5' },
+              { label: 'Net Savings', value: <Amount paisa={data.tiles.net_savings_paisa} />, accent: '#93C5FD' },
+              { label: 'Savings Rate', value: data.tiles.savings_rate_bps != null ? `${(data.tiles.savings_rate_bps / 100).toFixed(1)}%` : '—', accent: '#FCD34D' },
+            ] as Array<{ label: string; value: JSX.Element | string; accent: string }>).map((kpi) => (
+              <div key={kpi.label} style={{
+                background: 'rgba(255,255,255,0.09)',
+                border: '1px solid rgba(255,255,255,0.14)',
+                borderRadius: 10,
+                padding: '10px 14px',
+                minWidth: 110,
+              }}>
+                <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>
+                  {kpi.label}
+                </div>
+                <div style={{ color: kpi.accent, font: '700 14px var(--font-space-grotesk, system-ui)', fontVariantNumeric: 'tabular-nums' }}>
+                  {kpi.value}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
+
 
       {/* Main grid: cash flow + tax */}
       {data && hasData && (
@@ -676,7 +661,7 @@ export default function DashboardPage() {
               textDecoration: 'none',
               fontWeight: 500,
             }}>
-              Go to Tax Dashboard →
+              Go to Tax →
             </Link>
           </div>
         </div>
@@ -899,6 +884,7 @@ export default function DashboardPage() {
         </div>
       )}
 
+      </div> {/* end content flex column */}
     </div>
   );
 }

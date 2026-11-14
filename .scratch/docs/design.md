@@ -23,7 +23,7 @@
    - [7.2 Income Management](#72-income-management)
    - [7.3 Transactions & Spending](#73-transactions--spending)
    - [7.4 Fixed Recurring Expenses](#74-fixed-recurring-expenses)
-   - [7.5 Savings & DPS](#75-savings--dps)
+   - [7.5 Bank & Wallet](#75-bank--wallet)
    - [7.6 Borrow-Loan Ledger](#76-borrow-loan-ledger)
    - [7.7 Tax Dashboard](#77-tax-dashboard)
    - [7.8 History & Analytics](#78-history--analytics)
@@ -655,49 +655,40 @@ The drawer also offers **Skip this month** with an optional note. A Skipped cell
 
 ---
 
-### 7.5 Savings & DPS
+### 7.5 Bank & Wallet
 
-**Purpose:** Balance overview of all savings accounts and DPS maturity tracking.
+**Purpose:** Every balance in one place: bank and MFS accounts with the DPS/FDR under them, Sanchaypatra and investments, In-Hand Cash, and Net Worth (ADR-0014). Route `/savings`; `/wallets` redirects here.
 
 #### Desktop layout
 
 ```
-┌── Page title + actions ───────────────────────────────────────────┐
-│  Savings & DPS                              [ + Add Account ]      │
-└───────────────────────────────────────────────────────────────────┘
+┌── Page title + actions ───────────────────────────────────────────────────────┐
+│  Bank & Wallet                                            [ + Add account ]    │
+└───────────────────────────────────────────────────────────────────────────────┘
 
-┌── Summary Tiles (3-column) ───────────────────────────────────────┐
-│  TOTAL SAVED ACROSS ACCOUNTS      YTD CONTRIBUTION    DPS ACCOUNTS │
-│  ৳4,32,000.00                     ৳2,00,000           3 active     │
-└───────────────────────────────────────────────────────────────────┘
+┌── Summary Tiles (5, wrap on narrow screens) ──────────────────────────────────┐
+│  BANK          MFS          IN-HAND CASH   SANCHAYPATRA &      ▓ NET WORTH ▓   │
+│  ৳1,40,000     ৳3,000       ৳500           INVESTMENT          ▓ ৳1,63,500 ▓   │
+│                                            ৳20,000             (featured tile) │
+└───────────────────────────────────────────────────────────────────────────────┘
 
-┌── Account Cards (2-column grid) ──────────────────────────────────┐
+Needs a parent account     (only when a DPS/FDR has no parent; card has [Link to parent account])
 
-│  ┌── City Bank DPS (10k) ─────────────────────────────────────┐  │
-│  │  TYPE: DPS · City Bank · **** 4521                         │  │
-│  │                                                             │  │
-│  │  Balance  ৳80,000.00         Installment  ৳10,000/mo       │  │
-│  │  Opened   Jul 2025           Matures      Jul 2033          │  │
-│  │  Interest  —                 Projected    ৳9,60,000+int    │  │
-│  │                                                             │  │
-│  │  Deposited this FY:                                         │  │
-│  │  [████████████████████████████████████████████] ৳80,000    │  │
-│  │  Rebate cap is shared across all DPS accounts.            │  │
-│  │  [View transactions]                                        │  │
-│  └─────────────────────────────────────────────────────────────┘  │
+Bank accounts
+┌── BRAC Savings ───────────────────────────── ৳1,00,000.00 ┐
+│  BRAC Bank, ending 4521                                    │
+│  [Transactions] [Transfer] [Add interest] [Edit]           │
+│  ┃ BRAC DPS 5k ─────────────────────────────── ৳40,000.00  │
+│  ┃ DPS, ৳5,000.00 a month, matures Jul 2033                │
+│  ┃ [Transactions] [Withdraw] [Add interest] [Edit]         │
+└────────────────────────────────────────────────────────────┘
 
-│  ┌── City Bank DPS (30k) ─────────────────────────────────────┐  │
-│  │  ... (same pattern) ...                                     │  │
-│  └─────────────────────────────────────────────────────────────┘  │
-
-└───────────────────────────────────────────────────────────────────┘
+MFS accounts · Sanchaypatra & Investment · In-Hand Cash   (same card pattern)
 ```
 
 ---
 
-**DPS rebate progress:** one bar under the summary tiles for all DPS accounts combined, e.g. `DPS deposits this FY  ৳2,00,000 / ৳1,20,000 cap · cap reached`.
-
-**Card actions:** View transactions · Withdraw · Add interest · Close account (only when the balance is ৳0.00). Withdraw and Add interest open the Add Transaction form with the matching category and this account pre-selected.
+**Card actions:** Transactions · Transfer (Payment Accounts) or Withdraw (DPS, FDR, Sanchaypatra, Investment) · Add interest (not on In-Hand Cash) · Edit · Close account (only when the balance is ৳0.00 and no open DPS/FDR sits under it). A Withdraw from a DPS/FDR goes into its Parent Account by default. DPS rebate progress lives on the Tax Dashboard only.
 
 ---
 
@@ -987,7 +978,7 @@ A "Paid until" date that has passed is shown in `--danger` with `(lapsed)`. On m
 │  💵  Income                                                       │
 │  💸  Transactions                                                 │
 │  📋  Fixed Expenses          ⚠ 1         ← amber badge: due-soon │
-│  🏦  Savings & DPS                                                │
+│  🏦  Bank & Wallet                                                │
 │  🤝  Loans                                                        │
 │  📊  Tax Dashboard                                                │
 │  📈  History                                                      │
@@ -1013,7 +1004,7 @@ A "Paid until" date that has passed is shown in `--danger` with `(lapsed)`. On m
 ```
 
 - 5 tabs; "Add" is a 48px FAB button at center, elevated, `--accent` bg
-- "More" opens a bottom drawer with the remaining navigation items: Income, Savings & DPS, Loans, Tax Dashboard, History, Budgets, Settings
+- "More" opens a bottom drawer with the remaining navigation items: Income, Bank & Wallet, Loans, Tax Dashboard, History, Budgets, Settings
 - Badge: red dot on Fixed tab when any item is overdue
 
 ### Top bar (mobile only)

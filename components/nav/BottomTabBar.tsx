@@ -12,10 +12,9 @@ const mainTabs = [
 
 const moreItems = [
   { href: '/income', label: 'Income', icon: '💵' },
-  { href: '/savings', label: 'Bank & Savings', icon: '🏦' },
-  { href: '/wallets', label: 'Wallets', icon: '💳' },
+  { href: '/savings', label: 'Bank & Wallet', icon: '🏦' },
   { href: '/loans', label: 'Loans', icon: '🤝' },
-  { href: '/tax', label: 'Tax Dashboard', icon: '📊' },
+  { href: '/tax', label: 'Tax', icon: '📊' },
   { href: '/history', label: 'History', icon: '📈' },
   { href: '/settings', label: 'Settings', icon: '⚙' },
 ];

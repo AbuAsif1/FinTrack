@@ -452,12 +452,13 @@ export default function SettingsPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div>
       <PageHeader
         eyebrow="Preferences and data"
         title="Settings"
         description="Profile, appearance, categories, tax years, import and export."
       />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       <ProfileSection me={me} onSignOut={signOut} />
       <AppearanceSection />
@@ -497,6 +498,7 @@ export default function SettingsPage() {
           ))}
         </div>
       </section>
+      </div>
     </div>
   );
 }

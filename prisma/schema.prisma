@@ -42,9 +42,13 @@ enum IncomeType {
 
 enum SavingsAccountType {
   SAVINGS
+  MFS
   DPS
   FDR
   SANCHAYPATRA
+  UNIVERSAL_PENSION
+  STOCKS
+  INSURANCE
   INVESTMENT
   CASH
 }
@@ -299,10 +303,13 @@ model SavingsAccount {
   maturityDate           DateTime?           @db.Date @map("maturity_date")
   interestRateBps        Int?                @map("interest_rate_bps")
   closedOn               DateTime?           @db.Date @map("closed_on")
+  parentAccountId        String?             @map("parent_account_id")
   createdAt              DateTime            @default(now()) @map("created_at")
   updatedAt              DateTime            @updatedAt @map("updated_at")
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentAccount          SavingsAccount?  @relation("AccountParent", fields: [parentAccountId], references: [id], onDelete: SetNull)
+  childAccounts          SavingsAccount[] @relation("AccountParent")
   transactions           Transaction[] @relation("TxSavingsAccount")
   bankSourceTransactions Transaction[] @relation("TxBankSource")
   fixedExpenses          FixedExpense[]

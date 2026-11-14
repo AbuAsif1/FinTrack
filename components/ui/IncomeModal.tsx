@@ -126,6 +126,7 @@ export function IncomeModal({
   const [isTaxable, setIsTaxable] = useState(true);
   const [employerName, setEmployerName] = useState('');
   const [savingsAccountId, setSavingsAccountId] = useState('');
+  const receivingAccounts = savingsAccounts.filter((a) => ['SAVINGS', 'MFS', 'CASH'].includes(a.type));
 
   // Salary fields
   const [actualPaisa, setActualPaisa] = useState<number | null>(null);
@@ -326,13 +327,13 @@ export function IncomeModal({
           </>
         )}
 
-        {/* Bank account */}
-        {savingsAccounts.length > 0 && (
-          <FieldLabel label="Bank Account (optional)">
+        {/* Receiving account: only bank, MFS and In-Hand Cash accounts can receive money */}
+        {receivingAccounts.length > 0 && (
+          <FieldLabel label="Received into (optional)">
             <select value={savingsAccountId} onChange={(e) => setSavingsAccountId(e.target.value)} style={inputStyle}>
-              <option value="">— None —</option>
-              {savingsAccounts.map((a) => (
-                <option key={a.id} value={a.id}>{a.name} · {a.bank_name}</option>
+              <option value="">Not into one of my accounts</option>
+              {receivingAccounts.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}{a.type === 'CASH' ? '' : ` · ${a.bank_name}`}</option>
               ))}
             </select>
           </FieldLabel>

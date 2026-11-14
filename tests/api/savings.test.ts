@@ -42,6 +42,15 @@ async function createAccount(
   });
 }
 
+/** A Savings account to sit DPS/FDR accounts under */
+async function parentAccountId(
+  ctx: Ctx,
+  user: { id: string; email: string; password: string; role: 'USER' | 'ADMIN' },
+): Promise<string> {
+  const res = await createAccount(ctx, user, { name: 'Parent Bank', type: 'SAVINGS' });
+  return (await res.json()).id;
+}
+
 /** Insert a savings transaction directly via DB (fixture â€” until ticket 06) */
 async function insertSavingsTx(
   db: PrismaClient,
@@ -82,16 +91,18 @@ describe('TC-SAV-001: create an account of each type', () => {
     const user = await ctx.createUser({ provision: true });
 
     const types = ['SAVINGS', 'DPS', 'SANCHAYPATRA', 'INVESTMENT', 'CASH'];
+    let parentId = '';
     for (const type of types) {
       const extraFields =
         type === 'DPS'
-          ? { monthly_installment_paisa: 1000000, maturity_date: '2030-01-01' }
+          ? { monthly_installment_paisa: 1000000, maturity_date: '2030-01-01', parent_account_id: parentId }
           : {};
       const res = await createAccount(ctx, user, { type, name: `My ${type}`, ...extraFields });
       expect(res.status, `type ${type} should be 201`).toBe(201);
       const body = await res.json();
       expect(body.type).toBe(type);
       expect(body.id).toBeDefined();
+      if (type === 'SAVINGS') parentId = body.id;
     }
 
     const headers = await ctx.authHeader(user);
@@ -226,16 +237,17 @@ describe('TC-SAV-006: savings list totals', () => {
 describe('TC-SAV-007: combined DPS cap progress', () => {
   it('dps_this_fy_paisa aggregates deposits from two DPS accounts', async () => {
     const user = await ctx.createUser({ provision: true });
+    const parent = await parentAccountId(ctx, user);
 
     const res1 = await createAccount(ctx, user, {
-      name: 'DPS 1', type: 'DPS',
+      name: 'DPS 1', type: 'DPS', parent_account_id: parent,
       monthly_installment_paisa: 1000000, maturity_date: '2030-01-01',
       opening_balance_paisa: 0,
     });
     const acct1 = await res1.json();
 
     const res2 = await createAccount(ctx, user, {
-      name: 'DPS 2', type: 'DPS',
+      name: 'DPS 2', type: 'DPS', parent_account_id: parent,
       monthly_installment_paisa: 1000000, maturity_date: '2030-01-01',
       opening_balance_paisa: 0,
     });
@@ -267,7 +279,7 @@ describe('TC-SAV-008: DPS projected principal at maturity', () => {
     const maturityStr = `${maturityDate.getFullYear()}-${String(maturityDate.getMonth() + 1).padStart(2, '0')}-01`;
 
     const res = await createAccount(ctx, user, {
-      name: 'DPS Account', type: 'DPS',
+      name: 'DPS Account', type: 'DPS', parent_account_id: await parentAccountId(ctx, user),
       monthly_installment_paisa: 1000000, // à§³10,000
       maturity_date: maturityStr,
       opening_balance_paisa: 8000000, // à§³80,000 (no additional transactions)
@@ -360,7 +372,7 @@ describe('TC-SAV-011: update savings account fields', () => {
   it('saves updated name, bank_name and DPS monthly installment', async () => {
     const user = await ctx.createUser({ provision: true });
     const res = await createAccount(ctx, user, {
-      name: 'Old Name', type: 'DPS',
+      name: 'Old Name', type: 'DPS', parent_account_id: await parentAccountId(ctx, user),
       monthly_installment_paisa: 1000000, maturity_date: '2030-01-01',
     });
     const acct = await res.json();

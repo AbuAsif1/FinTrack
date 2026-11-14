@@ -68,7 +68,7 @@ The sum of Spending in a period. Transfers, Loan Entries and Tax Payments are ex
 
 ### Transfer
 
-A Transaction that moves money between the user's cash and one of their own savings accounts. A Transfer is never Spending.
+A Transaction that moves money from one of the user's own accounts to another, such as from a bank account to In-Hand Cash, or into a DPS. A Transfer is never Spending.
 
 ### Net Savings
 
@@ -97,11 +97,46 @@ _Avoid_: free to spend, available balance
 
 ---
 
-## Savings
+## Accounts and savings
+
+### Payment Account
+
+An account the user can pay from and receive money into: a bank savings account, an MFS Account or In-Hand Cash. DPS, FDR and Investment Accounts are not Payment Accounts.
+
+### MFS Account
+
+A mobile financial services account such as bKash or Nagad. It behaves like a bank account and can hold its own DPS.
+_Avoid_: mobile wallet, e-wallet
+
+### In-Hand Cash
+
+The physical cash the user holds. Each user has at most one. A Cash payment comes out of it.
+_Avoid_: petty cash
+
+### Parent Account
+
+The bank savings account or MFS Account that a DPS or FDR belongs to. The DPS or FDR counts toward its parent's total, and money withdrawn from it goes back to the parent.
+
+### Investment Account
+
+An account holding one kind of investment: Sanchaypatra, Universal Pension, Stocks, Insurance or another investment. It has no Parent Account. Payments into it count toward the Tax Rebate for its kind.
+
+### Universal Pension
+
+The government's universal pension scheme, paid in monthly installments into an Investment Account. Installments are eligible for Tax Rebate.
+_Avoid_: pension DPS
+
+### Funding Account
+
+The Payment Account on the other side of a Transfer, Loan Entry or Tax Payment: the account the money leaves from, or the one it arrives in.
+
+### Net Worth
+
+The sum of the balances of all the user's accounts. Money lent to or borrowed from Loan Persons is not included.
 
 ### DPS (Deposit Pension Scheme)
 
-A bank savings instrument with a fixed monthly installment and a maturity date. An installment is a Transfer and is eligible for Tax Rebate up to a yearly cap.
+A savings instrument with a fixed monthly installment and a maturity date, held under a Parent Account. An installment is a Transfer and is eligible for Tax Rebate up to a yearly cap.
 _Avoid_: recurring deposit, RD
 
 ### Sanchaypatra

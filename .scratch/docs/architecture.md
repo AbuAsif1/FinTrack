@@ -143,7 +143,7 @@ export async function GET(req: Request) {
 | `auth_rate_limits` | Failed-login counters |
 | `categories` | Category names with a routing type |
 | `transactions` | Every money movement except income; soft-deleted |
-| `savings_accounts` | Savings, DPS, Sanchaypatra, investment and cash accounts |
+| `savings_accounts` | Every account: bank savings, MFS, In-Hand Cash, DPS, FDR, Sanchaypatra, investment (ADR-0014) |
 | `loan_persons` | People in the Borrow-Loan ledger |
 | `loan_entries` | Loan detail, one-to-one with a loan Transaction |
 | `income_entries` | Monthly income by type; soft-deleted |
@@ -174,7 +174,7 @@ export async function GET(req: Request) {
 
 **`transactions`** — `date`, `amount_paisa` (> 0), `description`, `category_id`, `type` (RoutingType, copied from the category at creation), `payment_method`, `savings_account_id` (nullable FK), `tax_fiscal_year` (nullable; set for `TAX_PAYMENT`), `idempotency_key` (unique per user), `import_batch_id` (nullable), `is_deleted`, `deleted_at`, `created_at`, `updated_at`. Indexes: `(user_id, date)`, `(user_id, savings_account_id)`.
 
-**`savings_accounts`** — `name`, `type` (SavingsAccountType), `bank_name`, `last_four`, `opening_balance_paisa`, `opening_date`, `monthly_installment_paisa` (DPS), `maturity_date` (DPS), `interest_rate_bps` (optional), `closed_on` (nullable)
+**`savings_accounts`** — `name`, `type` (SavingsAccountType: `SAVINGS`, `MFS`, `DPS`, `FDR`, `SANCHAYPATRA`, `INVESTMENT`, `CASH`), `parent_account_id` (DPS/FDR only), `bank_name`, `last_four`, `opening_balance_paisa`, `opening_date`, `monthly_installment_paisa` (DPS), `maturity_date` (DPS), `interest_rate_bps` (optional), `closed_on` (nullable)
 
 **`loan_persons`** — `name` (unique per user, case-insensitive), `notes`
 
@@ -264,7 +264,9 @@ These are the only definitions (ADR-0005). All exclude soft-deleted rows. "Dated
 
 | Value | Definition |
 |---|---|
-| Savings balance | `opening_balance_paisa` + Σ`SAVINGS_DEPOSIT` + Σ`SAVINGS_INTEREST` − Σ`SAVINGS_WITHDRAWAL` for the account |
+| Account balance | `opening_balance_paisa` + income received (Σ `gross_paisa` − `tds_paisa` of Income Entries naming the account) + the account's side of every Transaction naming it (ADR-0014): as `savings_account_id`, `SAVINGS_DEPOSIT` and `SAVINGS_INTEREST` add, `SAVINGS_WITHDRAWAL` and `NONE` subtract; as `bank_source_id` (Funding Account), `SAVINGS_DEPOSIT`, `NONE`, `LOAN_GIVEN` and `TAX_PAYMENT` subtract, `SAVINGS_WITHDRAWAL` and `LOAN_RECEIVED` add. Computed by `lib/services/accounts.ts`; no other copy |
+| Bank & Wallet totals | Bank: `SAVINGS` accounts plus the DPS/FDR under them. MFS: `MFS` accounts plus the DPS/FDR under them. In-Hand Cash: the `CASH` account. Investments: `SANCHAYPATRA`, `UNIVERSAL_PENSION`, `STOCKS`, `INSURANCE` and `INVESTMENT` accounts |
+| Net Worth | Σ Account balance over all the user's accounts (a DPS/FDR with no Parent Account counts here only) |
 | Running Balance (Loan Person) | Σ amounts of `GIVEN` entries − Σ amounts of `RECEIVED` entries |
 | Total Spending (range) | Σ Transactions of type `NONE` |
 | Tax Payments (range) | Σ Transactions of type `TAX_PAYMENT`, by date |
@@ -274,22 +276,12 @@ These are the only definitions (ADR-0005). All exclude soft-deleted rows. "Dated
 | Fixed Commitments (month) | Σ over the month's instances: `actual_amount_paisa` if `PAID`, `standard_amount_paisa` if `PENDING`, 0 if `SKIPPED` |
 | Discretionary Cash (month) | In-Hand Income − Fixed Commitments |
 | Remaining to Spend (month) | In-Hand Income + cash in − cash out − Σ `standard_amount_paisa` of `PENDING` instances. Cash in: `SAVINGS_WITHDRAWAL`, `LOAN_RECEIVED`. Cash out: `NONE`, `SAVINGS_DEPOSIT`, `LOAN_GIVEN`, `TAX_PAYMENT`. |
-| DPS total (Fiscal Year) | Σ `SAVINGS_DEPOSIT` dated in the Fiscal Year whose account type is `DPS` |
-| Sanchaypatra total (Fiscal Year) | Σ `SAVINGS_DEPOSIT` dated in the Fiscal Year whose account type is `SANCHAYPATRA` |
+| Rebate investment by bucket (Fiscal Year) | Σ `SAVINGS_DEPOSIT` dated in the Fiscal Year by the type of the account deposited into: `DPS` → dps, `SANCHAYPATRA` → sanchaypatra, `UNIVERSAL_PENSION` → universal_pension, `STOCKS` → stocks, `INSURANCE` → insurance, `INVESTMENT` → others; plus any legacy `tax_investments` amounts. A Transaction with no account counts toward dps or sanchaypatra by its category name only. `investedByBucket()` in `lib/services/tax.ts` (ADR-0015) |
 | Tax Paid (Fiscal Year) | Σ `tds_paisa` of Income Entries in the Fiscal Year + Σ `TAX_PAYMENT` with that `tax_fiscal_year` |
 
 **Estimated income.** For Discretionary Cash and Remaining to Spend, when the month has no `SALARY` Income Entry, add the In-Hand amount of the most recent earlier `SALARY` entry and return `income_is_estimated: true`.
 
-```sql
--- Savings balance
-SELECT sa.opening_balance_paisa
-     + COALESCE(SUM(t.amount_paisa) FILTER (WHERE t.type IN ('SAVINGS_DEPOSIT','SAVINGS_INTEREST')), 0)
-     - COALESCE(SUM(t.amount_paisa) FILTER (WHERE t.type = 'SAVINGS_WITHDRAWAL'), 0) AS balance_paisa
-FROM savings_accounts sa
-LEFT JOIN transactions t ON t.savings_account_id = sa.id AND t.is_deleted = FALSE
-WHERE sa.id = $1 AND sa.user_id = $2
-GROUP BY sa.id;
-```
+**Account rules (ADR-0014).** Payment Accounts are `SAVINGS`, `MFS` and `CASH`; only they pay Spending, receive income or send transfers (`422 ACCOUNT_NOT_PAYABLE` otherwise). `DPS` and `FDR` require `parent_account_id` pointing at an open `SAVINGS` or `MFS` account; no other type takes one. A user has at most one open `CASH` account (`409 CASH_ACCOUNT_EXISTS`). A `CASH` payment with no named account uses In-Hand Cash from its opening date. A `SAVINGS_WITHDRAWAL` with no named receiving account credits the DPS/FDR's Parent Account.
 
 ---
 

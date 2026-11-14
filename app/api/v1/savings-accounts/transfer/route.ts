@@ -1,28 +1,10 @@
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { toDbDate, fromDbDate } from '@fintrack/shared';
+import { accountBalance, assertPaymentAccount, AccountRuleError } from '@/lib/services/accounts';
 
-async function computeBalance(accountId: string, userId: string): Promise<number> {
-  const acct = await prisma.savingsAccount.findFirst({ where: { id: accountId, userId } });
-  if (!acct) return 0;
-  const sums = await prisma.transaction.groupBy({
-    by: ['type'],
-    where: { savingsAccountId: accountId, userId, isDeleted: false },
-    _sum: { amountPaisa: true },
-  });
-  let deposit = 0n, interest = 0n, withdrawal = 0n, spending = 0n;
-  for (const r of sums) {
-    const a = r._sum.amountPaisa ?? 0n;
-    if (r.type === 'SAVINGS_DEPOSIT') deposit = a;
-    else if (r.type === 'SAVINGS_INTEREST') interest = a;
-    else if (r.type === 'SAVINGS_WITHDRAWAL') withdrawal = a;
-    else if (r.type === 'NONE') spending = a;
-  }
-  const funded = await prisma.transaction.aggregate({
-    where: { bankSourceId: accountId, userId, isDeleted: false },
-    _sum: { amountPaisa: true },
-  });
-  return Number(acct.openingBalancePaisa) + Number(deposit) + Number(interest) - Number(withdrawal) - Number(spending) - Number(funded._sum.amountPaisa ?? 0n);
+function computeBalance(accountId: string, userId: string): Promise<number> {
+  return accountBalance(userId, accountId);
 }
 
 export async function POST(req: Request) {
@@ -47,6 +29,12 @@ export async function POST(req: Request) {
   if (!toAcct)   return Response.json({ error: 'Destination account not found', code: 'NOT_FOUND' }, { status: 404 });
   if (fromAcct.closedOn) return Response.json({ error: 'Source account is closed', code: 'ACCOUNT_CLOSED' }, { status: 422 });
   if (toAcct.closedOn)   return Response.json({ error: 'Destination account is closed', code: 'ACCOUNT_CLOSED' }, { status: 422 });
+  try {
+    assertPaymentAccount(fromAcct);
+  } catch (err) {
+    if (err instanceof AccountRuleError) return Response.json({ error: err.message, code: err.code }, { status: err.status });
+    throw err;
+  }
 
   // Balance check on source
   const fromBalance = await computeBalance(from_account_id, user.id);

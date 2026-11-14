@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { todayInDhaka, fromDbDate, fiscalYear, IncomeType } from '@fintrack/shared';
+import { todayInDhaka, fromDbDate, fiscalYear, IncomeType, REBATE_BUCKET_BY_ACCOUNT_TYPE } from '@fintrack/shared';
 import { calculateTax, forecastTax } from '@fintrack/tax-engine';
 import type { TaxInput } from '@fintrack/tax-engine';
 import type { TaxYearConfig } from '@fintrack/shared';
@@ -47,6 +47,44 @@ export async function ensureTaxYear(userId: string, fy: string) {
   });
 }
 
+// ── investedByBucket ───────────────────────────────────────────────────────
+
+type RebateBucket = 'dps' | 'sanchaypatra' | 'universal_pension' | 'stocks' | 'insurance' | 'others';
+
+/**
+ * Σ SAVINGS_DEPOSIT in [fyStart, fyEnd) by the rebate bucket of the account deposited into.
+ * A transaction with no account counts toward DPS or Sanchaypatra only by its category name.
+ */
+export async function investedByBucket(userId: string, fyStart: Date, fyEnd: Date): Promise<Record<RebateBucket, number>> {
+  const totals: Record<RebateBucket, number> = { dps: 0, sanchaypatra: 0, universal_pension: 0, stocks: 0, insurance: 0, others: 0 };
+
+  const [deposits, unlinked] = await Promise.all([
+    prisma.transaction.findMany({
+      where: { userId, isDeleted: false, type: 'SAVINGS_DEPOSIT', date: { gte: fyStart, lt: fyEnd }, savingsAccountId: { not: null } },
+      select: { amountPaisa: true, savingsAccount: { select: { type: true } } },
+    }),
+    prisma.transaction.findMany({
+      where: {
+        userId, isDeleted: false, date: { gte: fyStart, lt: fyEnd }, savingsAccountId: null,
+        OR: [
+          { category: { name: { contains: 'dps', mode: 'insensitive' } } },
+          { category: { name: { contains: 'sanchaypatra', mode: 'insensitive' } } },
+        ],
+      },
+      select: { amountPaisa: true, category: { select: { name: true } } },
+    }),
+  ]);
+
+  for (const d of deposits) {
+    const bucket = d.savingsAccount ? REBATE_BUCKET_BY_ACCOUNT_TYPE[d.savingsAccount.type] : undefined;
+    if (bucket) totals[bucket] += Number(d.amountPaisa);
+  }
+  for (const t of unlinked) {
+    totals[t.category.name.toLowerCase().includes('dps') ? 'dps' : 'sanchaypatra'] += Number(t.amountPaisa);
+  }
+  return totals;
+}
+
 // ── buildTaxInput ──────────────────────────────────────────────────────────
 
 export async function buildTaxInput(userId: string, fy: string): Promise<TaxInput> {
@@ -74,52 +112,21 @@ export async function buildTaxInput(userId: string, fy: string): Promise<TaxInpu
     is_taxable: r.isTaxable,
   }));
 
-  // DPS deposits this FY — via SAVINGS_DEPOSIT to DPS accounts OR any category named "dps"
-  const dpsTxRows = await prisma.transaction.findMany({
-    where: {
-      userId,
-      isDeleted: false,
-      date: { gte: fyStart, lt: fyEnd },
-      OR: [
-        { type: 'SAVINGS_DEPOSIT', savingsAccount: { type: 'DPS' } },
-        { category: { name: { contains: 'dps', mode: 'insensitive' } } },
-      ],
-    },
-    select: { id: true, amountPaisa: true },
-  });
-  // Deduplicate by id (a row matching both OR branches would otherwise be counted twice)
-  const dpsPaisa = [...new Map(dpsTxRows.map((r) => [r.id, r])).values()]
-    .reduce((sum, r) => sum + Number(r.amountPaisa), 0);
+  // Each rebate bucket = deposits this FY into accounts of the matching type (ADR-0015)
+  const fromAccounts = await investedByBucket(userId, fyStart, fyEnd);
 
-  // Sanchaypatra deposits this FY — via SAVINGS_DEPOSIT to SANCHAYPATRA accounts OR category name
-  const sanchTxRows = await prisma.transaction.findMany({
-    where: {
-      userId,
-      isDeleted: false,
-      date: { gte: fyStart, lt: fyEnd },
-      OR: [
-        { type: 'SAVINGS_DEPOSIT', savingsAccount: { type: 'SANCHAYPATRA' } },
-        { category: { name: { contains: 'sanchaypatra', mode: 'insensitive' } } },
-      ],
-    },
-    select: { id: true, amountPaisa: true },
-  });
-  const sanchPaisa = [...new Map(sanchTxRows.map((r) => [r.id, r])).values()]
-    .reduce((sum, r) => sum + Number(r.amountPaisa), 0);
-
-  // Manual tax investments
+  // Amounts entered on the Tax page before Investment Accounts existed still count
   const taxInv = await prisma.taxInvestment.findUnique({
     where: { userId_fiscalYear: { userId, fiscalYear: fy } },
   });
 
   const investments = {
-    dps: dpsPaisa,
-    sanchaypatra: sanchPaisa,
-    stocks: Number(taxInv?.stocksPaisa ?? 0),
-    insurance: Number(taxInv?.insurancePaisa ?? 0),
-    others: Number(taxInv?.othersPaisa ?? 0),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    universal_pension: Number((taxInv as any)?.universalPensionPaisa ?? 0),
+    dps: fromAccounts.dps,
+    sanchaypatra: fromAccounts.sanchaypatra,
+    stocks: fromAccounts.stocks + Number(taxInv?.stocksPaisa ?? 0),
+    insurance: fromAccounts.insurance + Number(taxInv?.insurancePaisa ?? 0),
+    others: fromAccounts.others + Number(taxInv?.othersPaisa ?? 0),
+    universal_pension: fromAccounts.universal_pension + Number(taxInv?.universalPensionPaisa ?? 0),
   };
 
   // Tax payments assigned to this FY

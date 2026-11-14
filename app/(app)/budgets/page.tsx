@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { SkeletonCard } from '@/components/ui/Skeleton';
 
 interface Category {
   id: string;
@@ -143,32 +144,43 @@ export default function BudgetsPage() {
         </button>
       </div>
 
-      {/* ── Summary tiles ── */}
+      {/* ── V2 hero banner ── */}
       {setBudgetsCount > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
-            <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 4 }}>TOTAL LIMIT</div>
-            <div style={{ font: 'var(--t-data)', color: 'var(--fg-primary)' }}>{fmt(totalLimit)}</div>
-            <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginTop: 2 }}>{setBudgetsCount} categories</div>
+        <div style={{
+          background: 'linear-gradient(135deg, #2D5BE3 0%, #1A2340 100%)',
+          borderRadius: 16, padding: '20px 24px', marginBottom: 20,
+          display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap',
+        }}>
+          <div style={{ flex: '1 1 160px', minWidth: 160 }}>
+            <div style={{ color: 'rgba(148,196,255,0.85)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Total Limit</div>
+            <div style={{ color: '#FFFFFF', font: '700 28px var(--font-space-grotesk, system-ui)', lineHeight: 1.1 }}>{fmt(totalLimit)}</div>
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 6 }}>{setBudgetsCount} categories set</div>
           </div>
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
-            <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 4 }}>TOTAL SPENT</div>
-            <div style={{ font: 'var(--t-data)', color: 'var(--fg-primary)' }}>{fmt(totalSpent)}</div>
-            <div style={{ font: 'var(--t-caption)', color: 'var(--ok)', marginTop: 2 }}>{setBudgetsCount - overCount} on track</div>
-          </div>
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
-            <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 4 }}>REMAINING</div>
-            <div style={{ font: 'var(--t-data)', color: totalRemaining >= 0 ? 'var(--ok)' : 'var(--danger)' }}>{fmt(Math.abs(totalRemaining))}</div>
-            <div style={{ font: 'var(--t-caption)', color: overCount > 0 ? 'var(--danger)' : 'var(--fg-muted)', marginTop: 2 }}>
-              {overCount > 0 ? `${overCount} over by ${fmt(overAmount)}` : 'All within limits'}
-            </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {([
+              { label: 'Spent', value: fmt(totalSpent), accent: '#FCA5A5' },
+              { label: 'Remaining', value: fmt(Math.abs(totalRemaining)), accent: totalRemaining >= 0 ? '#86EFAC' : '#FCA5A5' },
+              { label: 'On Track', value: `${setBudgetsCount - overCount} / ${setBudgetsCount}`, accent: '#93C5FD' },
+            ]).map((kpi) => (
+              <div key={kpi.label} style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, padding: '10px 14px', minWidth: 100 }}>
+                <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>{kpi.label}</div>
+                <div style={{ color: kpi.accent, font: '700 14px var(--font-space-grotesk, system-ui)', fontVariantNumeric: 'tabular-nums' }}>{kpi.value}</div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
       {/* ── Budget rows ── */}
       {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: 'var(--fg-muted)', font: 'var(--t-body)' }}>Loading…</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Hero banner skeleton */}
+          <SkeletonCard height={100} />
+          {/* Budget category row skeletons */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[0, 1, 2, 3, 4].map((i) => <SkeletonCard key={i} height={72} />)}
+          </div>
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {categories.map((cat) => {

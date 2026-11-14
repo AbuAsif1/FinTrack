@@ -94,10 +94,7 @@ export async function buildRouter() {
     exportIncomeMod,
     exportLoanPersonMod,
     exportMonthlySummaryMod,
-    walletsMod,
-    walletsTransfersMod,
-    walletsMethodTxsMod,
-    walletsMethodMod,
+    savingsTransferMod,
     tagsMod,
     tagsIdMod,
     tagsMergeMod,
@@ -119,6 +116,7 @@ export async function buildRouter() {
     pushSubscriptionsMod,
     pushSubscriptionIdMod,
     pushPreferencesMod,
+    investmentsMod,
   ] = await Promise.all([
     import('../../app/api/v1/health/route'),
     import('../../app/api/v1/auth/login/route'),
@@ -193,10 +191,7 @@ export async function buildRouter() {
     import('../../app/api/v1/export/income/route'),
     import('../../app/api/v1/export/loan-persons/[id]/route'),
     import('../../app/api/v1/export/monthly-summary/route'),
-    import('../../app/api/v1/wallets/route'),
-    import('../../app/api/v1/wallets/transfers/route'),
-    import('../../app/api/v1/wallets/[method]/transactions/route'),
-    import('../../app/api/v1/wallets/[method]/route'),
+    import('../../app/api/v1/savings-accounts/transfer/route'),
     import('../../app/api/v1/tags/route'),
     import('../../app/api/v1/tags/[id]/route'),
     import('../../app/api/v1/tags/[id]/merge/route'),
@@ -218,6 +213,7 @@ export async function buildRouter() {
     import('../../app/api/v1/push/subscriptions/route'),
     import('../../app/api/v1/push/subscriptions/[id]/route'),
     import('../../app/api/v1/push/preferences/route'),
+    import('../../app/api/v1/investments/route'),
   ]);
 
   routes.length = 0;
@@ -249,6 +245,7 @@ export async function buildRouter() {
 
   // Savings accounts — :id/transactions before :id
   addRoute('/api/v1/savings-accounts', { GET: savingsAccountsMod.GET, POST: savingsAccountsMod.POST });
+  addRoute('/api/v1/savings-accounts/transfer', { POST: savingsTransferMod.POST });
   addRoute('/api/v1/savings-accounts/:id/transactions', { GET: savingsAccountTxsMod.GET });
   addRoute('/api/v1/savings-accounts/:id', { GET: savingsAccountIdMod.GET, PATCH: savingsAccountIdMod.PATCH });
 
@@ -341,12 +338,6 @@ export async function buildRouter() {
   addRoute('/api/v1/export/monthly-summary', { GET: exportMonthlySummaryMod.GET });
   addRoute('/api/v1/export/loan-persons/:id', { GET: exportLoanPersonMod.GET });
 
-  // Wallets — transfers and :method/transactions before :method
-  addRoute('/api/v1/wallets/transfers', { POST: walletsTransfersMod.POST });
-  addRoute('/api/v1/wallets/:method/transactions', { GET: walletsMethodTxsMod.GET });
-  addRoute('/api/v1/wallets/:method', { PUT: walletsMethodMod.PUT });
-  addRoute('/api/v1/wallets', { GET: walletsMod.GET });
-
   // Tags — merge before :id
   addRoute('/api/v1/tags/:id/merge', { POST: tagsMergeMod.POST });
   addRoute('/api/v1/tags/:id', { PATCH: tagsIdMod.PATCH, DELETE: tagsIdMod.DELETE });
@@ -376,6 +367,8 @@ export async function buildRouter() {
   addRoute('/api/v1/push/subscriptions/:id', { DELETE: pushSubscriptionIdMod.DELETE });
   addRoute('/api/v1/push/subscriptions', { GET: pushSubscriptionsMod.GET });
   addRoute('/api/v1/push/preferences', { GET: pushPreferencesMod.GET, PATCH: pushPreferencesMod.PATCH });
+
+  addRoute('/api/v1/investments', { GET: investmentsMod.GET, POST: investmentsMod.POST });
 }
 
 export function routeRequest(req: Request): Response | Promise<Response> {

@@ -181,43 +181,6 @@ async function populateAllTables(
     },
   });
 
-  // ── Wallet ────────────────────────────────────────────────────────────────
-  const walletRes = await ctx.makeRequest('POST', '/api/v1/wallets', {
-    headers: { Authorization: `Bearer ${token}` },
-    body: {
-      method: 'BKASH',
-      name: `bKash ${seed}`,
-      opening_balance_paisa: 100000,
-      opening_balance_date: '2026-11-01',
-    },
-  });
-  if (walletRes.status === 201 || walletRes.status === 200) {
-    // Create a second wallet to have a transfer pair
-    const wallet2Res = await ctx.makeRequest('POST', '/api/v1/wallets', {
-      headers: { Authorization: `Bearer ${token}` },
-      body: {
-        method: 'CASH',
-        name: `Cash ${seed}`,
-        opening_balance_paisa: 50000,
-        opening_balance_date: '2026-11-01',
-      },
-    });
-    if (wallet2Res.status === 201 || wallet2Res.status === 200) {
-      const w1 = (await walletRes.json()) as { id: string };
-      const w2 = (await wallet2Res.json()) as { id: string };
-      await ctx.makeRequest('POST', '/api/v1/wallet-transfers', {
-        headers: { Authorization: `Bearer ${token}` },
-        body: {
-          from_wallet_id: w1.id,
-          to_wallet_id: w2.id,
-          amount_paisa: 10000,
-          date: '2026-11-01',
-          idempotency_key: `del-wt-${seed}`,
-        },
-      });
-    }
-  }
-
   // ── BackupRun (direct DB insert — no public API) ──────────────────────────
   await ctx.db.backupRun.create({
     data: {

@@ -1,7 +1,8 @@
 import { prisma } from '../prisma';
-import { toDbDate, fromDbDate, fiscalYear, todayInDhaka } from '@fintrack/shared';
-import type { PaymentMethod, Prisma } from '@prisma/client';
+import { toDbDate, fromDbDate, fiscalYear, todayInDhaka, PAYMENT_ACCOUNT_TYPES } from '@fintrack/shared';
+import type { PaymentMethod, Prisma, SavingsAccount } from '@prisma/client';
 import { ensureInstances } from './fixed-expenses';
+import { accountBalance, findCashAccount } from './accounts';
 
 export class RoutingError extends Error {
   constructor(
@@ -30,7 +31,7 @@ export interface CreateTxInput {
   is_settlement?: boolean;
   // Tax routing
   tax_fiscal_year?: string;
-  // Bank account funding a savings deposit (BANK payment); its balance is reduced
+  // Funding Account on the other side of a savings, loan or tax transaction (a Payment Account)
   bank_account_id?: string;
   // Fixed expense being paid and the month (YYYY-MM) of the installment; may differ from the payment date
   fixed_expense_id?: string;
@@ -77,28 +78,43 @@ function txToJson(tx: TxWithCategory) {
   };
 }
 
-async function computeSavingsBalance(accountId: string, userId: string): Promise<number> {
-  const acct = await prisma.savingsAccount.findFirst({ where: { id: accountId, userId } });
-  if (!acct) return 0;
-  const txSums = await prisma.transaction.groupBy({
-    by: ['type'],
-    where: { savingsAccountId: accountId, userId, isDeleted: false },
-    _sum: { amountPaisa: true },
-  });
-  let deposit = 0n, interest = 0n, withdrawal = 0n, spending = 0n;
-  for (const r of txSums) {
-    const a = r._sum.amountPaisa ?? 0n;
-    if (r.type === 'SAVINGS_DEPOSIT') deposit = a;
-    else if (r.type === 'SAVINGS_INTEREST') interest = a;
-    else if (r.type === 'SAVINGS_WITHDRAWAL') withdrawal = a;
-    else if (r.type === 'NONE') spending = a;
+function computeSavingsBalance(accountId: string, userId: string): Promise<number> {
+  return accountBalance(userId, accountId);
+}
+
+function assertPayable(acct: SavingsAccount) {
+  if (!PAYMENT_ACCOUNT_TYPES.includes(acct.type)) {
+    throw new RoutingError(422, 'ACCOUNT_NOT_PAYABLE', `${acct.name} cannot pay or receive money directly`);
   }
-  const funded = await prisma.transaction.aggregate({
-    where: { bankSourceId: accountId, userId, isDeleted: false },
-    _sum: { amountPaisa: true },
-  });
-  const fundedOut = funded._sum.amountPaisa ?? 0n;
-  return Number(acct.openingBalancePaisa) + Number(deposit) + Number(interest) - Number(withdrawal) - Number(spending) - Number(fundedOut);
+}
+
+/**
+ * The Payment Account money leaves or enters: the account the client named, or In-Hand Cash for a CASH
+ * payment. In-Hand Cash is used only from its opening date, because its opening balance already
+ * reflects anything spent before then.
+ */
+async function resolveFundingAccount(
+  userId: string,
+  explicitId: string | undefined,
+  paymentMethod: PaymentMethod,
+  txDate: string,
+): Promise<SavingsAccount | null> {
+  if (explicitId) {
+    const acct = await validateSavingsAccount(explicitId, userId, txDate);
+    assertPayable(acct);
+    return acct;
+  }
+  if (paymentMethod !== 'CASH') return null;
+  const cash = await findCashAccount(userId);
+  if (!cash || txDate < fromDbDate(cash.openingDate)) return null;
+  return cash;
+}
+
+async function assertCovers(acct: SavingsAccount, userId: string, amountPaisa: number) {
+  const balance = await computeSavingsBalance(acct.id, userId);
+  if (amountPaisa > balance) {
+    throw new RoutingError(422, 'INSUFFICIENT_BALANCE', `Amount exceeds ${acct.name} balance (${balance} paisa available)`);
+  }
 }
 
 async function computeRunningBalance(loanPersonId: string, userId: string): Promise<number> {
@@ -208,17 +224,26 @@ export class CategoryRoutingService {
         }
       }
 
+      // Deposit: money leaves the Funding Account. Withdrawal: money arrives in the named
+      // account, or in the parent of a DPS/FDR when none is named.
       let bankSourceId: string | null = null;
-      if (category.routingType === 'SAVINGS_DEPOSIT' && input.payment_method === 'BANK' && input.bank_account_id) {
-        if (input.bank_account_id === input.savings_account_id) {
+      if (category.routingType === 'SAVINGS_DEPOSIT') {
+        if (input.bank_account_id && input.bank_account_id === input.savings_account_id) {
           throw new RoutingError(422, 'VALIDATION_ERROR', 'Bank account and savings account must be different');
         }
-        await validateSavingsAccount(input.bank_account_id, this.userId, input.date);
-        const bankBalance = await computeSavingsBalance(input.bank_account_id, this.userId);
-        if (input.amount_paisa > bankBalance) {
-          throw new RoutingError(422, 'INSUFFICIENT_BALANCE', `Amount exceeds bank account balance (${bankBalance} paisa available)`);
+        const funding = await resolveFundingAccount(this.userId, input.bank_account_id, input.payment_method, input.date);
+        if (funding && funding.id !== acct.id) {
+          await assertCovers(funding, this.userId, input.amount_paisa);
+          bankSourceId = funding.id;
         }
-        bankSourceId = input.bank_account_id;
+      } else if (category.routingType === 'SAVINGS_WITHDRAWAL') {
+        if (input.bank_account_id) {
+          const receiving = await resolveFundingAccount(this.userId, input.bank_account_id, input.payment_method, input.date);
+          bankSourceId = receiving?.id ?? null;
+        } else {
+          bankSourceId = acct.parentAccountId;
+        }
+        if (bankSourceId === acct.id) bankSourceId = null;
       }
 
       await this.assertInstanceUnpaid(input.fixed_expense_id, input.for_month);
@@ -251,6 +276,8 @@ export class CategoryRoutingService {
 
     // ── Loan routing ─────────────────────────────────────────────────────────
     if (category.routingType === 'LOAN_GIVEN' || category.routingType === 'LOAN_RECEIVED') {
+      const funding = await resolveFundingAccount(this.userId, input.bank_account_id, input.payment_method, input.date);
+      if (funding && category.routingType === 'LOAN_GIVEN') await assertCovers(funding, this.userId, input.amount_paisa);
       const result = await prisma.$transaction(async (tx) => {
         const person = await resolveLoanPerson(this.userId, input.loan_person_id, input.loan_person_name, tx);
 
@@ -263,6 +290,7 @@ export class CategoryRoutingService {
             categoryId: input.category_id,
             type: category.routingType,
             paymentMethod: input.payment_method,
+            bankSourceId: funding?.id ?? null,
             idempotencyKey: input.idempotency_key,
             importBatchId: input.import_batch_id ?? null,
           },
@@ -295,6 +323,8 @@ export class CategoryRoutingService {
     // ── Tax Payment ──────────────────────────────────────────────────────────
     if (category.routingType === 'TAX_PAYMENT') {
       const taxFY = validateTaxFiscalYear(input.date, input.tax_fiscal_year);
+      const funding = await resolveFundingAccount(this.userId, input.bank_account_id, input.payment_method, input.date);
+      if (funding) await assertCovers(funding, this.userId, input.amount_paisa);
       const tx = await prisma.transaction.create({
         data: {
           userId: this.userId,
@@ -304,6 +334,7 @@ export class CategoryRoutingService {
           categoryId: input.category_id,
           type: category.routingType,
           paymentMethod: input.payment_method,
+          bankSourceId: funding?.id ?? null,
           taxFiscalYear: taxFY,
           idempotencyKey: input.idempotency_key,
           importBatchId: input.import_batch_id ?? null,
@@ -323,16 +354,10 @@ export class CategoryRoutingService {
       throw new RoutingError(422, 'ROUTING_NOT_IMPLEMENTED', 'This routing type is not yet supported');
     }
 
-    // Bank account deduction: when payment_method=BANK and a savings_account_id is provided
-    let bankAccountId: string | null = null;
-    if (input.payment_method === 'BANK' && input.savings_account_id) {
-      await validateSavingsAccount(input.savings_account_id, this.userId, input.date);
-      const balance = await computeSavingsBalance(input.savings_account_id, this.userId);
-      if (input.amount_paisa > balance) {
-        throw new RoutingError(422, 'INSUFFICIENT_BALANCE', `Spending amount exceeds account balance (${balance} paisa available)`);
-      }
-      bankAccountId = input.savings_account_id;
-    }
+    // Spending records its paying account in savingsAccountId
+    const payer = await resolveFundingAccount(this.userId, input.savings_account_id, input.payment_method, input.date);
+    if (payer) await assertCovers(payer, this.userId, input.amount_paisa);
+    const bankAccountId = payer?.id ?? null;
 
     await this.assertInstanceUnpaid(input.fixed_expense_id, input.for_month);
 
