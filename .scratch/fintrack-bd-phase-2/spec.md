@@ -6,6 +6,29 @@
 > **Owns:** the features deferred from the MVP. Nothing here is ready to build: each item needs a decision from the owner and its own tickets under `issues/` before work starts.
 > MVP scope: `.scratch/docs/brd.md` §3. MVP spec: `.scratch/fintrack-bd-mvp/spec.md`.
 
+## Issue tickets
+
+Each item below has a detailed ticket in `issues/` with user flows, scenarios, and impact notes.
+
+| # | Ticket | Area |
+|---|--------|------|
+| 1 | [p2-01 More admin tools](issues/p2-01-more-admin-tools.md) | Admin |
+| 4 | [p2-04 Monthly spending limit + dashboard chart](issues/p2-04-monthly-spending-limit-dashboard-chart.md) | Money |
+| 5 | [p2-05 Wallet balances and net worth](issues/p2-05-wallet-balances-and-net-worth.md) | Money |
+| 6 | [p2-06 Savings goals](issues/p2-06-savings-goals.md) | Money |
+| 7 | [p2-07 Quarterly/annual Fixed Expenses + recurring suggestions](issues/p2-07-quarterly-annual-fixed-expenses-recurring-suggestions.md) | Money |
+| 8 | [p2-08 Tags on Transactions](issues/p2-08-tags-on-transactions.md) | Money |
+| 9 | [p2-09 What-if tax planner + filing checklist](issues/p2-09-what-if-tax-planner-and-filing-checklist.md) | Tax |
+| 10 | [p2-10 Tax treatment of savings interest + Sanchaypatra](issues/p2-10-tax-treatment-savings-interest-sanchaypatra.md) | Tax |
+| 11 | [p2-11 Recurring income + Transaction templates](issues/p2-11-recurring-income-and-transaction-templates.md) | Money |
+| 15 | [p2-15 Direct .xlsx import](issues/p2-15-direct-xlsx-import.md) | Import |
+| 18 | [p2-18 Browser push notifications + daily scheduler](issues/p2-18-browser-push-notifications-and-daily-scheduler.md) | Platform |
+| 19 | [p2-19 Offline entry queue](issues/p2-19-offline-entry-queue.md) | Platform |
+| 20 | [p2-20 Bangla language toggle](issues/p2-20-bangla-language-toggle.md) | Platform |
+| 21 | [p2-21 Interface polish](issues/p2-21-interface-polish.md) | Platform |
+
+> **Moved to Phase 3:** items 2 (delete account), 3 (2FA/passkey), 12 (loan statement), 13 (statement import), 14 (bank sync), 16 (document vault), 17 (restore/backups). See `.scratch/fintrack-bd-phase-3/spec.md`.
+
 ---
 
 ## Accounts and administration
@@ -19,14 +42,6 @@ The MVP gives admins user management only (`brd.md` FR-14, ADR-0011). Deferred:
 - Site health and usage counts
 
 Admins still never see any user's financial data. Paying for the app is a Phase 3 idea: `.scratch/fintrack-bd-phase-3/spec.md`.
-
-### 2. Delete my account and data
-
-A typed-confirmation action that removes a user's account and everything in it, after offering the full export. Needs a recorded exception to the soft-delete rule.
-
-### 3. Passkey or two-factor sign-in
-
-A second factor or passkey for an app that holds all of a user's finances.
 
 ---
 
@@ -68,39 +83,13 @@ Record tax deducted at source on bank interest and Sanchaypatra profit and inclu
 
 Salary proposed automatically each month for one-tap confirmation, and saved templates for frequent Transactions.
 
-### 12. Shareable loan statement and reminder text
-
-A statement for one Loan Person as an image or PDF, and a ready-to-send bKash reminder message.
-
 ---
 
 ## Import and documents
 
-### 13. Statement import with column mapping
-
-Import a bank or bKash statement CSV as it comes, mapping its columns. Uncategorised rows go to a Needs review queue. Includes categorisation rules ("description contains X, then category Y") and a warning when a row matches an existing entry on date, amount and description.
-
-- **Builds on:** the MVP's template-based CSV import.
-
-### 14. Automatic bank sync
-
-Balances and transactions pulled from the bank. From the owner's original plan ("later").
-
-- **Depends on:** item 13, and on a bank or aggregator offering an API in Bangladesh.
-
 ### 15. Direct `.xlsx` import
 
 Read the owner's spreadsheets directly instead of CSV templates. Each sheet's layout needs its own mapping.
-
-### 16. Receipt photos and a document vault
-
-Attach a photo to a Transaction, and keep salary certificates, TDS challans and DPS or Sanchaypatra statements for filing.
-
-- **Needs:** file storage and a privacy decision about storing documents with a third party.
-
-### 17. Restore from export and scheduled backups
-
-Restore an account from a full JSON export, and take automatic periodic backups.
 
 ---
 

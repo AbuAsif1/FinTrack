@@ -2,6 +2,18 @@
 
 Ticket 11. Read `README.md` in this folder first. "Today" is set by the test clock.
 
+## Suite classification
+
+| Suite | Included case IDs |
+|-------|------------------|
+| **Smoke** | TC-DASH-001 |
+| **Happy Path** | Smoke + TC-DASH-002, TC-DASH-003, TC-DASH-004, TC-DASH-006, TC-DASH-007, TC-DASH-008, TC-DASH-009, TC-DASH-012, TC-DASH-014, TC-DASH-015, TC-DASH-016, TC-DASH-017, TC-DASH-018, TC-DASH-019, TC-DASH-022 |
+| **Full Regression** | All cases above plus TC-DASH-005, TC-DASH-010, TC-DASH-011, TC-DASH-013, TC-DASH-020, TC-DASH-021 |
+
+> **Smoke** runs the `AC-CASH-1` month fixture — proves all cash-panel derived values are correct. **Happy Path** covers every P1 period, income-estimation, category breakdown and generated-on-read case. **Full Regression** adds P2 null-savings-rate, period-arithmetic, change-indicators, compliance and trend cases.
+
+---
+
 | ID | Test case | Expected | Seam | P | Covers |
 |---|---|---|---|---|---|
 | TC-DASH-001 | The `AC-CASH-1` month | Fixed Commitments ৳60,732; Discretionary Cash ৳79,268; Remaining to Spend ৳79,768 | API | P1 | AC-CASH-1 |

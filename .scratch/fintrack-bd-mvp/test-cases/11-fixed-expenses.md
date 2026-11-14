@@ -2,6 +2,18 @@
 
 Ticket 08. Read `README.md` in this folder first. "Today" is set by the test clock.
 
+## Suite classification
+
+| Suite | Included case IDs |
+|-------|------------------|
+| **Smoke** | TC-FIX-004 |
+| **Happy Path** | Smoke + TC-FIX-001, TC-FIX-002, TC-FIX-003, TC-FIX-005, TC-FIX-006, TC-FIX-007, TC-FIX-009, TC-FIX-010, TC-FIX-011, TC-FIX-012, TC-FIX-013, TC-FIX-014, TC-FIX-015, TC-FIX-016, TC-FIX-017, TC-FIX-018 |
+| **Full Regression** | All cases above plus TC-FIX-008 |
+
+> **Smoke** proves the generated-on-read instances exist for the current month. **Happy Path** covers every P1 template, instance and payment case including DPS linkage and due-status rules. **Full Regression** adds the P2 future-month placeholder case.
+
+---
+
 | ID | Test case | Expected | Seam | P | Covers |
 |---|---|---|---|---|---|
 | TC-FIX-001 | Create a template with name, standard amount, due day and category | Saved and listed | API | P1 | FR-05 |

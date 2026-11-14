@@ -84,6 +84,22 @@ async function seedIncomeEntries(ctx: Ctx, user: TestUser) {
   }
 }
 
+// AC-TAX-1 income: Gross ৳20,06,846 (200684600 paisa), TDS ৳1,32,488 (13248800 paisa)
+async function seedIncomeEntriesAcTax1(ctx: Ctx, user: TestUser) {
+  await ctx.db.incomeEntry.create({
+    data: {
+      userId: user.id,
+      month: new Date('2025-07-01'),
+      fiscalYear: '2025-26',
+      incomeType: 'SALARY',
+      grossPaisa: BigInt(200684600),
+      tdsPaisa: BigInt(13248800),
+      isTaxable: true,
+      idempotencyKey: 'ac-tax-1-income',
+    },
+  });
+}
+
 // Helper to get tax summary
 async function getTaxSummary(ctx: Ctx, user: TestUser, fy: string) {
   const headers = await ctx.authHeader(user);
@@ -99,9 +115,9 @@ describe('TC-TAX-001: AC-TAX-1 full year summary', () => {
   it('returns correct Gross Tax, Net Tax, Remaining Tax', async () => {
     const user = await ctx.createUser({ provision: true });
     await seedTaxYear(ctx, user, '2025-26', SEEDED_CONFIG_2526);
-    await seedIncomeEntries(ctx, user);
+    await seedIncomeEntriesAcTax1(ctx, user); // AC-TAX-1: gross ৳20,06,846, TDS ৳1,32,488
 
-    // DPS deposits: à§³8,00,000 total â†’ need a DPS account and deposit transactions
+    // DPS deposits: ৳8,00,000 total → need a DPS account and deposit transactions
     const dpsCat = await ctx.db.category.findFirst({ where: { userId: user.id, routingType: 'SAVINGS_DEPOSIT' } });
     const dpsAccount = await ctx.db.savingsAccount.create({
       data: { userId: user.id, name: 'Upension DPS', type: 'DPS', bankName: 'Upension', openingDate: new Date('2025-07-01'), openingBalancePaisa: BigInt(0) },
@@ -162,7 +178,7 @@ describe('TC-TAX-001: AC-TAX-1 full year summary', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-TAX-002: Unconfirmed year â†’ is_provisional = true
+// TC-TAX-002: Unconfirmed year → is_provisional = true
 // ---------------------------------------------------------------------------
 
 describe('TC-TAX-002: unconfirmed year is provisional', () => {
@@ -174,7 +190,7 @@ describe('TC-TAX-002: unconfirmed year is provisional', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-TAX-003: Confirm year â†’ is_provisional = false
+// TC-TAX-003: Confirm year → is_provisional = false
 // ---------------------------------------------------------------------------
 
 describe('TC-TAX-003: confirm year', () => {
@@ -192,7 +208,7 @@ describe('TC-TAX-003: confirm year', () => {
 // TC-TAX-004: Changing settings marks year provisional again
 // ---------------------------------------------------------------------------
 
-describe('TC-TAX-004: edit settings â†’ provisional again', () => {
+describe('TC-TAX-004: edit settings → provisional again', () => {
   it('is_provisional goes true again after a settings change', async () => {
     const user = await ctx.createUser({ provision: true });
     const headers = await ctx.authHeader(user);
@@ -211,7 +227,7 @@ describe('TC-TAX-004: edit settings â†’ provisional again', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-TAX-005: Invalid config (no remainder slab) â†’ 422
+// TC-TAX-005: Invalid config (no remainder slab) → 422
 // ---------------------------------------------------------------------------
 
 describe('TC-TAX-005: invalid config rejected', () => {
@@ -260,10 +276,10 @@ describe('TC-TAX-007: forecast is_projection', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-TAX-009: File the return â†’ AC-TAX-6 (filed on 2026-09-15 â†’ early filing rebate)
+// TC-TAX-009: File the return → AC-TAX-6 (filed on 2026-09-15 → early filing rebate)
 // ---------------------------------------------------------------------------
 
-describe('TC-TAX-009: file return â†’ AC-TAX-6', () => {
+describe('TC-TAX-009: file return → AC-TAX-6', () => {
   it('early filing rebate applies; year is locked', async () => {
     const user = await ctx.createUser({ provision: true });
     await seedTaxYear(ctx, user, '2025-26', SEEDED_CONFIG_2526);
@@ -292,7 +308,7 @@ describe('TC-TAX-009: file return â†’ AC-TAX-6', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-TAX-010: Writes to locked year â†’ 409 TAX_YEAR_LOCKED
+// TC-TAX-010: Writes to locked year → 409 TAX_YEAR_LOCKED
 // ---------------------------------------------------------------------------
 
 describe('TC-TAX-010: locked year rejects writes', () => {
@@ -311,7 +327,7 @@ describe('TC-TAX-010: locked year rejects writes', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-TAX-012: Reopen locked year â†’ unlocks, new entry accepted
+// TC-TAX-012: Reopen locked year → unlocks, new entry accepted
 // ---------------------------------------------------------------------------
 
 describe('TC-TAX-012: reopen filed year', () => {
@@ -355,7 +371,7 @@ describe('TC-TAX-013: save tax investments', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TC-TAX-015: Tax payment assigned to FY â†’ counted in that FY's Tax Paid
+// TC-TAX-015: Tax payment assigned to FY → counted in that FY's Tax Paid
 // ---------------------------------------------------------------------------
 
 describe('TC-TAX-015: tax payment fiscal year assignment', () => {

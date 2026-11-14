@@ -45,4 +45,65 @@
 - [x] Each admin write produces one `admin_actions` row
 - [x] With financial data seeded for a user, no admin response for that user contains any of it
 
+## Why
+
+FinTrack BD is a hosted, multi-user app. The owner (admin) provisions accounts for people they want to give access to — currently just themselves, but potentially a small trusted group. Without an admin interface, adding a user requires a database command. The admin area gives the owner a UI to onboard users, manage payment status, and deactivate or remove accounts — all without ever touching the database directly. The hard rule that admins never see financial data (ADR-0011) is what makes this safe: the admin role is purely account-management, not a privileged financial view.
+
+---
+
+## User flows
+
+### Creating a new user
+1. Admin opens **Admin → Users** from the navigation (visible only to admins).
+2. Admin clicks **Create user**.
+3. A modal asks for name, email, and role (User or Admin).
+4. Admin clicks **Create**. The app creates a verified, provisioned account with no password and sends a set-password email to the new user.
+5. The new user appears in the list with status **Provisioned**.
+
+### Managing a user's subscription / payment status
+1. Admin opens the user's detail page.
+2. Under the **Payments** tab, admin clicks **Add payment**.
+3. Admin enters: date paid, amount, covers-until date, and an optional note.
+4. The user's paid-until date updates in the user list (highlighted if lapsed).
+5. Admin can edit or delete a payment entry; each change is logged in the action history.
+
+### Deactivating a user temporarily
+1. Admin clicks **Deactivate** on the user's detail page.
+2. A modal asks: "Until a specific date?" (e.g. while unpaid) or "Until manually reactivated?"
+3. Admin selects a date or leaves it open-ended and optionally adds a reason.
+4. The user's existing sessions end immediately. Future sign-in attempts are refused until the date passes or the admin reactivates.
+
+### Deleting a user account
+1. Admin opens the user's detail page → **Danger zone**.
+2. Admin clicks **Delete account**.
+3. A confirmation modal requires the admin to type the user's email address.
+4. Admin types the email and confirms.
+5. The app removes the user and every row they own across all tables in one database transaction. No financial data from other users is touched.
+
+### Viewing admin action history
+1. Admin opens **Admin → Users → Action history** (or the history tab on a user detail page).
+2. Every admin write is listed: who did it, what they did, to which user, and when.
+
+---
+
+## Scenarios
+
+**Scenario A — onboarding the owner's partner:** The owner wants to give their spouse access. Admin creates a user account with the User role. The spouse receives a set-password email, signs in, and starts entering transactions. The admin can see the account status but never sees the spouse's financial records.
+
+**Scenario B — deactivating a lapsed subscription:** A user has not paid for 2 months. The admin deactivates the account "until reactivated." The user's sessions end. When they renew, the admin logs the payment and reactivates the account.
+
+**Scenario C — admin trying to delete their own account:** The acting admin clicks Delete on their own account. The app returns `409 SELF_ACTION`. The same guard prevents the admin from deactivating or editing their own account. The site-owner must use the `pnpm user:set-role` CLI to change their own role.
+
+**Scenario D — deleting a user who has financial data:** A test user accumulated 2 years of transactions during development. Admin deletes the account. All transactions, income entries, loan entries, savings accounts, fixed expenses, and tax year records for that user are removed in one atomic transaction. Other users' data is not touched.
+
+---
+
+## Context notes
+
+- Admins can create other admins (`role: ADMIN`) but cannot edit, deactivate, or delete another admin — `409 ADMIN_PROTECTED` guards every write targeting an admin account. This prevents a rogue admin from locking out others.
+- The only way to demote an admin (change role from ADMIN to USER) is the `pnpm user:set-role` CLI — this deliberately requires server access and is logged separately.
+- The `admin_actions` table is an append-only audit log; admin writes never update or delete existing action rows.
+- No admin API route may query a financial table (`transactions`, `income_entries`, `savings_accounts`, `loan_entries`, `fixed_expenses`, `tax_years`, etc.) — enforced by ADR-0011. Any route that accidentally returns financial data for a user is a security defect.
+- Ticket 12 (Frontend shell & auth UI) must be done first to have the navigation and session context the admin pages rely on. Ticket 25 (Registration & recovery) must be done first for the set-password and password-reset email flows used when creating a new user.
+
 ## Comments

@@ -170,7 +170,7 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Missing required fields', code: 'VALIDATION_ERROR' }, { status: 422 });
   }
 
-  const validTypes = ['SAVINGS', 'DPS', 'SANCHAYPATRA', 'INVESTMENT', 'CASH'];
+  const validTypes = ['SAVINGS', 'DPS', 'FDR', 'SANCHAYPATRA', 'INVESTMENT', 'CASH'];
   if (!validTypes.includes(type)) {
     return Response.json({ error: 'Invalid type', code: 'VALIDATION_ERROR' }, { status: 422 });
   }

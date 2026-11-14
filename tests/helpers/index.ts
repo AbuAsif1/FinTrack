@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 import { buildRouter, routeRequest } from './router';
 import { provisionNewUser } from '../../lib/provision';
+import { prisma as globalPrisma } from '../../lib/prisma';
 
 // Use the test database URL
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? '';
@@ -10,20 +11,20 @@ const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_
 // Emails that must never be deleted by test cleanup (seed/admin accounts)
 const SEED_EMAILS = (process.env.SEED_USER_EMAIL ? [process.env.SEED_USER_EMAIL] : []).concat(['owner@example.com']);
 
-let prisma: PrismaClient;
+let testDb: PrismaClient;
 
 function getTestDb(): PrismaClient {
-  if (!prisma) {
-    prisma = new PrismaClient({ datasources: { db: { url: TEST_DATABASE_URL } } });
+  if (!testDb) {
+    testDb = new PrismaClient({ datasources: { db: { url: TEST_DATABASE_URL } } });
   }
-  return prisma;
+  return testDb;
 }
 
-async function cleanupTestData(db: PrismaClient) {
-  // Delete all non-seed users; onDelete:Cascade removes all their related data
-  await db.user.deleteMany({ where: { email: { notIn: SEED_EMAILS } } });
-  // Rate limits have no user FK — delete them separately
-  await db.authRateLimit.deleteMany({});
+async function cleanupTestData() {
+  // Use the global prisma (same connection path as route handlers) so deletes are
+  // immediately visible across the entire test run.
+  await globalPrisma.user.deleteMany({ where: { email: { notIn: SEED_EMAILS } } });
+  await globalPrisma.authRateLimit.deleteMany({});
 }
 
 export type TestUser = {
@@ -45,7 +46,7 @@ export async function createTestContext(): Promise<TestContext> {
   const db = getTestDb();
 
   // Clean up any test data left from a previous test (crash recovery)
-  await cleanupTestData(db);
+  await cleanupTestData();
   await buildRouter();
 
   const jwtSecret = new TextEncoder().encode(
@@ -57,7 +58,9 @@ export async function createTestContext(): Promise<TestContext> {
     const password = `testpassword-${Date.now()}`;
     const email = `test-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
     const hash = await bcrypt.hash(password, 4); // low cost for tests
-    const user = await db.user.create({
+    // Use the same global prisma that route handlers use (Neon HTTP adapter) so user creation
+    // and provisioning are on the same connection path and see each other immediately.
+    const user = await globalPrisma.user.create({
       data: {
         email,
         passwordHash: hash,
@@ -101,7 +104,7 @@ export async function createTestContext(): Promise<TestContext> {
   }
 
   async function cleanup() {
-    await cleanupTestData(db);
+    await cleanupTestData();
   }
 
   return { db, createUser, authHeader, makeRequest, cleanup };

@@ -41,6 +41,7 @@ enum IncomeType {
 enum SavingsAccountType {
   SAVINGS
   DPS
+  FDR
   SANCHAYPATRA
   INVESTMENT
   CASH
@@ -116,6 +117,8 @@ model User {
   budgets                Budget[]
   notifications          Notification[]
   importBatches          ImportBatch[]
+  wallets                Wallet[]
+  walletTransfers        WalletTransfer[]
 
   @@map("users")
 }
@@ -449,6 +452,44 @@ model Notification {
 
   @@unique([userId, dedupeKey])
   @@map("notifications")
+}
+
+model Wallet {
+  id                   String        @id @default(cuid())
+  userId               String        @map("user_id")
+  method               PaymentMethod
+  name                 String
+  openingBalancePaisa  BigInt        @default(0) @map("opening_balance_paisa")
+  openingBalanceDate   DateTime      @db.Date @map("opening_balance_date")
+  isEnabled            Boolean       @default(true) @map("is_enabled")
+  createdAt            DateTime      @default(now()) @map("created_at")
+  updatedAt            DateTime      @updatedAt @map("updated_at")
+
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transfersFrom     WalletTransfer[] @relation("TransferFrom")
+  transfersTo       WalletTransfer[] @relation("TransferTo")
+
+  @@unique([userId, method])
+  @@map("wallets")
+}
+
+model WalletTransfer {
+  id              String        @id @default(cuid())
+  userId          String        @map("user_id")
+  fromWalletId    String        @map("from_wallet_id")
+  toWalletId      String        @map("to_wallet_id")
+  amountPaisa     BigInt        @map("amount_paisa")
+  date            DateTime      @db.Date
+  note            String?
+  idempotencyKey  String        @map("idempotency_key")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromWallet Wallet @relation("TransferFrom", fields: [fromWalletId], references: [id])
+  toWallet   Wallet @relation("TransferTo", fields: [toWalletId], references: [id])
+
+  @@unique([userId, idempotencyKey])
+  @@map("wallet_transfers")
 }
 
 model ImportBatch {

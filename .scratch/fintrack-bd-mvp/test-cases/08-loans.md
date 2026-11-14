@@ -2,6 +2,18 @@
 
 Ticket 05. Read `README.md` in this folder first.
 
+## Suite classification
+
+| Suite | Included case IDs |
+|-------|------------------|
+| **Smoke** | TC-LOAN-002 |
+| **Happy Path** | Smoke + TC-LOAN-001, TC-LOAN-003, TC-LOAN-004, TC-LOAN-005, TC-LOAN-006, TC-LOAN-007, TC-LOAN-008, TC-LOAN-009, TC-LOAN-010, TC-LOAN-012, TC-LOAN-013 |
+| **Full Regression** | All cases above plus TC-LOAN-011, TC-LOAN-014 |
+
+> **Smoke** proves a Loan Given entry can be created and appears in the ledger. **Happy Path** covers every P1 person, entry and settle-up case plus the `AC-LOAN-1` fixture. **Full Regression** adds P2 zero-balance settle-up and optional-date cases.
+
+---
+
 | ID | Test case | Expected | Seam | P | Covers |
 |---|---|---|---|---|---|
 | TC-LOAN-001 | Create a Loan Person; create another whose name differs only by case | Saved; then 422 | API | P1 | FR-07 |

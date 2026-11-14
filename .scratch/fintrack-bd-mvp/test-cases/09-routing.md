@@ -2,6 +2,18 @@
 
 Ticket 06. Read `README.md` in this folder first. All cases go through `/transactions`.
 
+## Suite classification
+
+| Suite | Included case IDs |
+|-------|------------------|
+| **Smoke** | TC-ROUTE-002 |
+| **Happy Path** | Smoke + TC-ROUTE-001, TC-ROUTE-003, TC-ROUTE-004, TC-ROUTE-005, TC-ROUTE-006, TC-ROUTE-007, TC-ROUTE-008, TC-ROUTE-010, TC-ROUTE-011, TC-ROUTE-012, TC-ROUTE-014, TC-ROUTE-015, TC-ROUTE-016, TC-ROUTE-018, TC-ROUTE-020, TC-ROUTE-021, TC-ROUTE-023 |
+| **Full Regression** | All cases above plus TC-ROUTE-009, TC-ROUTE-013, TC-ROUTE-017, TC-ROUTE-019, TC-ROUTE-022 |
+
+> **Smoke** proves a savings deposit is routed correctly and balance follows. **Happy Path** covers every P1 routing case: savings, loans, Tax Payment and atomicity. **Full Regression** adds P2 closed-account, case-insensitive name, date range and routing-summary response cases.
+
+---
+
 | ID | Test case | Expected | Seam | P | Covers |
 |---|---|---|---|---|---|
 | TC-ROUTE-001 | Create in "DPS / Savings" with no savings account | 422; nothing is written | API | P1 | rules §5 |

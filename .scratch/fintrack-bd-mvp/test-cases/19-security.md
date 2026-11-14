@@ -4,6 +4,18 @@ Every ticket that adds an endpoint. Read `README.md` in this folder first.
 
 These cases grow with the API: each ticket that adds endpoints extends the tests for `TC-SEC-001` to `TC-SEC-003` to cover them. "User A" and "User B" are two registered users, each with data.
 
+## Suite classification
+
+| Suite | Included case IDs |
+|-------|------------------|
+| **Smoke** | TC-SEC-003 |
+| **Happy Path** | Smoke + TC-SEC-001, TC-SEC-002, TC-SEC-004, TC-SEC-005, TC-SEC-006, TC-SEC-007 |
+| **Full Regression** | All cases above plus TC-SEC-008 |
+
+> **Smoke** proves every protected route returns 401 without a token. **Happy Path** covers P1 cross-user data isolation and injection cases. **Full Regression** adds the P2 HttpOnly cookie check.
+
+---
+
 | ID | Test case | Expected | Seam | P | Covers |
 |---|---|---|---|---|---|
 | TC-SEC-001 | User B reads, updates and deletes each of User A's records by id, for every resource | 404 every time; User A's data is unchanged | API | P1 | rules §9 |

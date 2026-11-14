@@ -2,6 +2,18 @@
 
 Ticket 25. Read `README.md` in this folder first. Emails are read from the in-memory test transport.
 
+## Suite classification
+
+| Suite | Included case IDs |
+|-------|------------------|
+| **Smoke** | TC-REG-001, TC-REG-020 |
+| **Happy Path** | Smoke + TC-REG-002, TC-REG-003, TC-REG-004, TC-REG-005, TC-REG-006, TC-REG-007, TC-REG-009, TC-REG-011, TC-REG-012, TC-REG-013 |
+| **Full Regression** | All cases above plus TC-REG-008, TC-REG-010, TC-REG-014, TC-REG-015, TC-REG-016, TC-REG-017, TC-REG-018, TC-REG-019 |
+
+> **Smoke** runs register (API) and the full E2E registration journey — proves the sign-up path and email verification work end to end. **Happy Path** covers every P1 registration and password-reset case. **Full Regression** adds P2 rate-limiting, token-security and UI cases.
+
+---
+
 | ID | Test case | Expected | Seam | P | Covers |
 |---|---|---|---|---|---|
 | TC-REG-001 | Register with a valid name, email and password | Success response; a verification email with a link is sent | API | P1 | FR-01 |

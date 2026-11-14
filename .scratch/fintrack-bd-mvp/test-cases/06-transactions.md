@@ -2,6 +2,18 @@
 
 Ticket 03. Read `README.md` in this folder first.
 
+## Suite classification
+
+| Suite | Included case IDs |
+|-------|------------------|
+| **Smoke** | TC-TXN-001, TC-TXN-007 |
+| **Happy Path** | Smoke + TC-TXN-002, TC-TXN-004, TC-TXN-005, TC-TXN-006, TC-TXN-008, TC-TXN-010, TC-TXN-011, TC-TXN-012, TC-TXN-013, TC-TXN-014, TC-TXN-017, TC-TXN-020 |
+| **Full Regression** | All cases above plus TC-TXN-003, TC-TXN-009, TC-TXN-015, TC-TXN-016, TC-TXN-018, TC-TXN-019 |
+
+> **Smoke** proves a Transaction can be created and listed — the core money-entry path. **Happy Path** covers every P1 CRUD, idempotency, date and category case. **Full Regression** adds P2 filtering, soft-delete export, bulk delete and naming edge cases.
+
+---
+
 | ID | Test case | Expected | Seam | P | Covers |
 |---|---|---|---|---|---|
 | TC-TXN-001 | Create a Transaction in a Spending category | 201; `type` is `NONE`; `amount_paisa` is an integer | API | P1 | FR-04 |

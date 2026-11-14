@@ -2,6 +2,18 @@
 
 Ticket 02. Read `README.md` in this folder first.
 
+## Suite classification
+
+| Suite | Included case IDs |
+|-------|------------------|
+| **Smoke** | TC-AUTH-001, TC-AUTH-008 |
+| **Happy Path** | Smoke + TC-AUTH-002, TC-AUTH-003, TC-AUTH-004, TC-AUTH-005, TC-AUTH-006, TC-AUTH-007, TC-AUTH-010, TC-AUTH-011, TC-AUTH-012, TC-AUTH-013, TC-AUTH-014, TC-AUTH-015, TC-AUTH-016, TC-AUTH-017, TC-AUTH-019 |
+| **Full Regression** | All cases above plus TC-AUTH-009, TC-AUTH-018, TC-AUTH-020, TC-AUTH-021 |
+
+> **Smoke** confirms sign-in succeeds and unauthed routes return 401 — if these fail the app is completely unusable. **Happy Path** covers every P1 session and password-change case. **Full Regression** adds P2 token-lifetime, IP-rate-limit and CLI-tool cases.
+
+---
+
 | ID | Test case | Expected | Seam | P | Covers |
 |---|---|---|---|---|---|
 | TC-AUTH-001 | Login with a verified user's correct password | 200 with an access token; refresh cookie set `HttpOnly; Secure; SameSite=Strict; Path=/` for 30 days | API | P1 | FR-01 |

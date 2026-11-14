@@ -17,6 +17,8 @@ export interface SavingsAccount {
   name: string;
   type: string;
   balance_paisa: number;
+  opening_balance_paisa?: number;
+  monthly_installment_paisa?: number | null;
 }
 
 export interface LoanPerson {
@@ -75,7 +77,18 @@ interface Form {
   transfer_to_id: string;
   idempotency_key: string;
   fixed_expense_id: string;
+  investment_type: string;
+  investment_custom_label: string;
+  investment_account_id: string;
 }
+
+const INVESTMENT_TYPES = [
+  { value: 'sanchaypatra', label: 'Sanchaypatra' },
+  { value: 'fixed_deposit', label: 'Fixed Deposit' },
+  { value: 'stocks',        label: 'Stocks' },
+  { value: 'insurance',     label: 'Insurance' },
+  { value: 'others',        label: 'Others' },
+];
 
 const PAYMENT_METHODS = ['CASH', 'BANK', 'BKASH', 'NAGAD', 'ROCKET', 'CARD'];
 
@@ -369,12 +382,16 @@ export function TransactionModal({
     transfer_to_id: '',
     idempotency_key: crypto.randomUUID(),
     fixed_expense_id: '',
+    investment_type: '',
+    investment_custom_label: '',
+    investment_account_id: '',
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const isTransfer = form.category_id === '__TRANSFER__';
   const isFixedExpenseMode = form.category_id === '__FIXED_EXPENSE__';
+  const isInvestmentMode = form.category_id === '__INVESTMENT__';
 
   const selectedFixedTemplate = fixedExpenses.find((t) => t.id === form.fixed_expense_id);
   const effectiveCategoryId = isFixedExpenseMode
@@ -384,7 +401,7 @@ export function TransactionModal({
   const routingType = selectedCat?.routing_type ?? 'NONE';
   const isSavings = routingType === 'SAVINGS_DEPOSIT' || routingType === 'SAVINGS_WITHDRAWAL';
   const isLoan = routingType === 'LOAN_GIVEN' || routingType === 'LOAN_RECEIVED';
-  const isTax = routingType === 'TAX';
+  const isTax = routingType === 'TAX_PAYMENT';
   const savingsOnly = savingsAccounts.filter((a) => a.type === 'SAVINGS');
 
   // Hide categories already covered by a fixed expense template (only when adding new)
@@ -392,9 +409,20 @@ export function TransactionModal({
     ? new Set<string>()
     : new Set(fixedExpenses.flatMap((fe) => [fe.category_id, fe.category?.id]).filter((id): id is string => !!id));
 
-  // Category options: regular categories + Fixed Expenses (single entry) + Transfer
+  // Hide "Investment (Sanchaypatra)" from the flat list — it now lives under __INVESTMENT__
+  const isSanchCategory = (c: { name: string }) => c.name.toLowerCase().includes('sanchaypatra') || c.name.toLowerCase().includes('sanch');
+
+  // Investment sub-type helpers
+  const investIsSavingsType = form.investment_type === 'sanchaypatra' || form.investment_type === 'fixed_deposit';
+  const sanchAccounts = savingsAccounts.filter((a) => a.type === 'SANCHAYPATRA');
+  const fdAccounts = savingsAccounts.filter((a) => a.type !== 'CASH');
+
+  // Category options: regular categories + Investment + Fixed Expenses + Transfer
   const categoryOptions: SelectOption[] = [
-    ...categories.filter((c) => !fixedExpenseCategoryIds.has(c.id)).map((c) => ({ value: c.id, label: c.name })),
+    ...categories
+      .filter((c) => !fixedExpenseCategoryIds.has(c.id) && !isSanchCategory(c))
+      .map((c) => ({ value: c.id, label: c.name })),
+    ...(!isEdit ? [{ value: '__INVESTMENT__', label: 'Investment', group: 'Special' }] : []),
     ...(!isEdit ? [{ value: '__FIXED_EXPENSE__', label: 'Fixed Expenses', group: 'Special' }] : []),
     ...(!isEdit && savingsOnly.length >= 2 ? [{ value: '__TRANSFER__', label: 'Transfer between accounts', group: 'Special' }] : []),
   ];
@@ -425,6 +453,9 @@ export function TransactionModal({
       savings_account_id: '',
       bank_account_id: '',
       fixed_expense_id: '',
+      investment_type: '',
+      investment_custom_label: '',
+      investment_account_id: '',
     }));
   }
 
@@ -436,6 +467,27 @@ export function TransactionModal({
     const amountPaisa = Math.round(parseFloat(form.amount_paisa) * 100);
     if (isNaN(amountPaisa) || amountPaisa <= 0) {
       setError('Enter a valid amount.');
+      setSaving(false);
+      return;
+    }
+
+    if (isInvestmentMode && !form.investment_type) {
+      setError('Please select the type of investment.');
+      setSaving(false);
+      return;
+    }
+    if (isInvestmentMode && form.investment_type === 'others' && !form.investment_custom_label.trim()) {
+      setError('Please enter the investment type name.');
+      setSaving(false);
+      return;
+    }
+    if (isInvestmentMode && investIsSavingsType && !form.investment_account_id) {
+      setError('Please select the account to deposit into.');
+      setSaving(false);
+      return;
+    }
+    if (isInvestmentMode && form.payment_method === 'BANK' && !form.bank_account_id) {
+      setError('Please select the bank account to pay from.');
       setSaving(false);
       return;
     }
@@ -477,6 +529,20 @@ export function TransactionModal({
 
     const doSave = async () => {
       try {
+        if (isInvestmentMode) {
+          await api.post('/investments', {
+            investment_type: form.investment_type,
+            ...(form.investment_type === 'others' && form.investment_custom_label ? { custom_label: form.investment_custom_label.trim() } : {}),
+            amount_paisa: amountPaisa,
+            payment_method: form.payment_method,
+            ...(investIsSavingsType && form.investment_account_id ? { savings_account_id: form.investment_account_id } : {}),
+            ...(form.payment_method === 'BANK' && form.bank_account_id ? { bank_account_id: form.bank_account_id } : {}),
+            description: form.description || undefined,
+            idempotency_key: form.idempotency_key,
+          });
+          onSaved();
+          return;
+        }
         if (isTransfer) {
           await api.post('/savings-accounts/transfer', {
             from_account_id: form.transfer_from_id,
@@ -563,6 +629,165 @@ export function TransactionModal({
               />
             </div>
 
+            {/* Investment step 2 — immediately after Category */}
+            {isInvestmentMode && (
+              <div style={{ marginLeft: 14, paddingLeft: 12, borderLeft: '2px solid var(--accent)', marginTop: 10, marginBottom: 4 }}>
+                <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 6, fontWeight: 600 }}>
+                  Step 2 — Type of Investment
+                </div>
+                <select
+                  required
+                  value={form.investment_type}
+                  onChange={(e) => {
+                    const t = e.target.value;
+                    const label = INVESTMENT_TYPES.find((it) => it.value === t)?.label ?? '';
+                    setForm((f) => ({
+                      ...f,
+                      investment_type: t,
+                      investment_custom_label: '',
+                      investment_account_id: '',
+                      // Pre-fill description for non-savings types; savings types fill it from the account selector
+                      ...(['stocks', 'insurance', 'others'].includes(t) ? { description: label } : { description: '' }),
+                    }));
+                  }}
+                  style={inputStyle}
+                >
+                  <option value="">Select investment type…</option>
+                  {INVESTMENT_TYPES.map((it) => (
+                    <option key={it.value} value={it.value}>{it.label}</option>
+                  ))}
+                </select>
+
+                {/* Custom label for Others */}
+                {form.investment_type === 'others' && (
+                  <label style={{ display: 'block', marginTop: 10 }}>
+                    <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Investment type name</div>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Real Estate, NFT, Mutual Fund…"
+                      value={form.investment_custom_label}
+                      onChange={(e) => setForm((f) => ({ ...f, investment_custom_label: e.target.value, description: e.target.value }))}
+                      style={inputStyle}
+                    />
+                  </label>
+                )}
+
+                {/* Destination account for Sanchaypatra */}
+                {form.investment_type === 'sanchaypatra' && (
+                  <label style={{ display: 'block', marginTop: 10 }}>
+                    <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Sanchaypatra Account</div>
+                    {sanchAccounts.length === 0 ? (
+                      <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-sunken)' }}>
+                        No Sanchaypatra accounts found. Add one on the Savings page.
+                      </div>
+                    ) : (
+                      <select
+                        required
+                        value={form.investment_account_id}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          const acct = sanchAccounts.find((a) => a.id === id);
+                          setForm((f) => ({
+                            ...f,
+                            investment_account_id: id,
+                            // Auto-fill from monthly installment if available, else opening balance
+                            ...(acct && (acct.monthly_installment_paisa ?? acct.opening_balance_paisa ?? 0) > 0
+                              ? { amount_paisa: String((acct.monthly_installment_paisa ?? acct.opening_balance_paisa ?? 0) / 100) }
+                              : {}),
+                            ...(acct ? { description: acct.name } : {}),
+                          }));
+                        }}
+                        style={inputStyle}
+                      >
+                        <option value="">Select account…</option>
+                        {sanchAccounts.map((a) => (
+                          <option key={a.id} value={a.id}>{a.name} · {fmt(a.balance_paisa)}</option>
+                        ))}
+                      </select>
+                    )}
+                  </label>
+                )}
+
+                {/* Destination account for Fixed Deposit */}
+                {form.investment_type === 'fixed_deposit' && (
+                  <label style={{ display: 'block', marginTop: 10 }}>
+                    <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Fixed Deposit Account</div>
+                    {fdAccounts.length === 0 ? (
+                      <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-sunken)' }}>
+                        No savings accounts found. Add one on the Savings page.
+                      </div>
+                    ) : (
+                      <select
+                        required
+                        value={form.investment_account_id}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          const acct = fdAccounts.find((a) => a.id === id);
+                          setForm((f) => ({
+                            ...f,
+                            investment_account_id: id,
+                            // Auto-fill amount from opening balance; fallback to balance
+                            ...(acct && (acct.opening_balance_paisa ?? acct.balance_paisa) > 0
+                              ? { amount_paisa: String((acct.opening_balance_paisa ?? acct.balance_paisa) / 100) }
+                              : {}),
+                            ...(acct ? { description: acct.name } : {}),
+                          }));
+                        }}
+                        style={inputStyle}
+                      >
+                        <option value="">Select account…</option>
+                        {fdAccounts.map((a) => (
+                          <option key={a.id} value={a.id}>{a.name} · {fmt(a.balance_paisa)}</option>
+                        ))}
+                      </select>
+                    )}
+                  </label>
+                )}
+
+                {/* Info for financial investment types */}
+                {(form.investment_type === 'stocks' || form.investment_type === 'insurance' || form.investment_type === 'others') && form.investment_type && (
+                  <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginTop: 6 }}>
+                    Amount will be recorded as an expense and added to Tax &gt; Investments automatically.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Investment HOW section — payment method + bank deduction */}
+            {isInvestmentMode && form.investment_type && (
+              <div style={{ marginLeft: 14, paddingLeft: 12, borderLeft: '2px solid var(--ok)', marginTop: 10, marginBottom: 4 }}>
+                <div style={{ font: 'var(--t-caption)', color: 'var(--ok)', marginBottom: 6, fontWeight: 600 }}>
+                  Step 3 — How are you paying?
+                </div>
+                <select value={form.payment_method} onChange={set('payment_method')} style={inputStyle}>
+                  {['CASH', 'BANK', 'BKASH', 'CARD'].map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+                {form.payment_method === 'BANK' && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Deduct from bank account</div>
+                    {savingsOnly.length === 0 ? (
+                      <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-sunken)' }}>
+                        No bank accounts set up yet.
+                      </div>
+                    ) : (
+                      <select
+                        required
+                        value={form.bank_account_id}
+                        onChange={set('bank_account_id')}
+                        style={inputStyle}
+                      >
+                        <option value="">Select bank account…</option>
+                        {savingsOnly.map((a) => (
+                          <option key={a.id} value={a.id}>{a.name} · {fmt(a.balance_paisa)}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Fixed Expense step 2 — immediately after Category */}
             {isFixedExpenseMode && (
               <div style={{ marginLeft: 14, paddingLeft: 12, borderLeft: '2px solid var(--accent)', marginTop: 10, marginBottom: 4 }}>
@@ -637,7 +862,7 @@ export function TransactionModal({
           </div>
 
           {/* ── Section 2: How are you paying? ───────────────────────────── */}
-          {!isFixedExpenseMode && !isTransfer && (
+          {!isFixedExpenseMode && !isTransfer && !isInvestmentMode && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ font: 'var(--t-label)', color: 'var(--fg-muted)', marginBottom: 8, letterSpacing: '0.04em' }}>
                 HOW
@@ -727,8 +952,8 @@ export function TransactionModal({
             <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Description</div>
             <input
               type="text"
-              required={!isTransfer}
-              placeholder={isTransfer ? 'Optional note' : ''}
+              required={!isTransfer && !isInvestmentMode}
+              placeholder={isTransfer || isInvestmentMode ? 'Optional note' : ''}
               value={form.description}
               onChange={set('description')}
               style={inputStyle}
@@ -765,7 +990,7 @@ export function TransactionModal({
           )}
 
           {/* Savings routing — only for direct category selection, not fixed expenses (savings account auto-filled from template) */}
-          {!isTransfer && isSavings && !isFixedExpenseMode && (
+          {!isTransfer && isSavings && !isFixedExpenseMode && !isInvestmentMode && (
             <div style={{ background: 'rgba(58,95,205,0.08)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
               <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 6 }}>
                 This will {routingType === 'SAVINGS_DEPOSIT' ? 'deposit into' : 'withdraw from'} your savings account.
@@ -845,7 +1070,7 @@ export function TransactionModal({
               type="submit" disabled={saving}
               style={{ padding: '8px 20px', background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', font: 'var(--t-body)', opacity: saving ? 0.7 : 1 }}
             >
-              {saving ? 'Saving…' : isEdit ? 'Save Changes' : isTransfer ? 'Transfer' : 'Save Transaction'}
+              {saving ? 'Saving…' : isEdit ? 'Save Changes' : isTransfer ? 'Transfer' : isInvestmentMode ? 'Save Investment' : 'Save Transaction'}
             </button>
           </div>
         </form>

@@ -2,6 +2,18 @@
 
 Ticket 01. Read `README.md` in this folder first. Every case calls `calculateTax` or `forecastTax` directly with the settings passed in; "FY2025-26 settings" and "FY2024-25 settings" are the seeded values in `brd.md` §6 FR-TAX-03.
 
+## Suite classification
+
+| Suite | Included case IDs |
+|-------|------------------|
+| **Smoke** | TC-TAXE-001 |
+| **Happy Path** | Smoke + TC-TAXE-002, TC-TAXE-003, TC-TAXE-004, TC-TAXE-006, TC-TAXE-007, TC-TAXE-008, TC-TAXE-009, TC-TAXE-010, TC-TAXE-011, TC-TAXE-012, TC-TAXE-013, TC-TAXE-014, TC-TAXE-018, TC-TAXE-019, TC-TAXE-020, TC-TAXE-021, TC-TAXE-022, TC-TAXE-024, TC-TAXE-027 |
+| **Full Regression** | All cases above plus TC-TAXE-005, TC-TAXE-015, TC-TAXE-016, TC-TAXE-017, TC-TAXE-023, TC-TAXE-025, TC-TAXE-026, TC-TAXE-028 |
+
+> **Smoke** runs the full `AC-TAX-1` calculation — if it passes, the engine is fundamentally correct. **Happy Path** covers every P1 engine case. **Full Regression** adds P2/P3 rebate-cap, early-filing, forecast and edge-case scenarios.
+
+---
+
 | ID | Test case | Expected | Seam | P | Covers |
 |---|---|---|---|---|---|
 | TC-TAXE-001 | The `AC-TAX-1` inputs | Every figure in the `AC-TAX-1` table, to the Paisa | Engine | P1 | AC-TAX-1 |

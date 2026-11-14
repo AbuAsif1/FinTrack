@@ -127,7 +127,7 @@ function DueSoonBanner({ items, onDismiss }: { items: FixedExpenseInstance[]; on
 // ── PayDrawer ──────────────────────────────────────────────────────────────
 
 function PayDrawer({ instance, onClose, onDone }: { instance: FixedExpenseInstance | null; onClose: () => void; onDone: () => void }) {
-  const [amountPaisa, setAmountPaisa] = useState<number | null>(null);
+  const [amountPaisa, setAmountPaisa] = useState<number | null>(instance?.standard_amount_paisa ?? null);
   const [paidDate, setPaidDate] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('BANK');
   const [mode, setMode] = useState<'pay' | 'skip'>('pay');

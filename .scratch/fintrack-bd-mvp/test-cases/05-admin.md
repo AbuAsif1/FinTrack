@@ -2,6 +2,18 @@
 
 Ticket 26. Read `README.md` in this folder first. "User" means an account with role `USER`; "admin" means role `ADMIN`.
 
+## Suite classification
+
+| Suite | Included case IDs |
+|-------|------------------|
+| **Smoke** | TC-ADM-001 |
+| **Happy Path** | Smoke + TC-ADM-002, TC-ADM-004, TC-ADM-005, TC-ADM-006, TC-ADM-007, TC-ADM-009, TC-ADM-010, TC-ADM-011, TC-ADM-012, TC-ADM-013, TC-ADM-014, TC-ADM-015, TC-ADM-016, TC-ADM-017, TC-ADM-018, TC-ADM-021, TC-ADM-023, TC-ADM-025, TC-ADM-028, TC-ADM-029, TC-ADM-030 |
+| **Full Regression** | All cases above plus TC-ADM-003, TC-ADM-008, TC-ADM-019, TC-ADM-020, TC-ADM-022, TC-ADM-024, TC-ADM-026, TC-ADM-027, TC-ADM-031, TC-ADM-032, TC-ADM-033 |
+
+> **Smoke** confirms non-admins are locked out of every admin route. **Happy Path** covers all P1 user-management operations. **Full Regression** adds P2 search/filter, payment-lapse, audit history and UI cases.
+
+---
+
 | ID | Test case | Expected | Seam | P | Covers |
 |---|---|---|---|---|---|
 | TC-ADM-001 | A user calls each `/admin/*` route | 403 `ADMIN_ONLY` every time | API | P1 | FR-14 |
@@ -36,3 +48,4 @@ Ticket 26. Read `README.md` in this folder first. "User" means an account with r
 | TC-ADM-030 | Delete confirmation for a user | Delete stays disabled until the typed email matches | UI | P1 | design §7.11 |
 | TC-ADM-031 | Deactivate modal | Offers "Until a date" and "Until I reactivate", with an optional reason | UI | P2 | design §7.11 |
 | TC-ADM-032 | A deactivated user tries to sign in | The message names the end date, or says to contact the site admin | UI | P2 | design §7.10 |
+| TC-ADM-033 | An admin creates a user; that user opens the set-password link 25 hours later | 422 expired link; sign-in still fails | API | P2 | architecture §Authentication |

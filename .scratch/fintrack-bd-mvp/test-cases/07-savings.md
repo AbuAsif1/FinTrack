@@ -2,6 +2,18 @@
 
 Ticket 04. Read `README.md` in this folder first. Until ticket 06, savings Transactions are created by test fixtures.
 
+## Suite classification
+
+| Suite | Included case IDs |
+|-------|------------------|
+| **Smoke** | TC-SAV-004 |
+| **Happy Path** | Smoke + TC-SAV-001, TC-SAV-002, TC-SAV-003, TC-SAV-005, TC-SAV-007, TC-SAV-009 |
+| **Full Regression** | All cases above plus TC-SAV-006, TC-SAV-008, TC-SAV-010, TC-SAV-011, TC-SAV-012, TC-SAV-013, TC-SAV-014 |
+
+> **Smoke** runs the full balance-calculation fixture (opening + deposits + interest + withdrawal). **Happy Path** covers every P1 account lifecycle case. **Full Regression** adds P2 list totals, maturity projection, history, update and transfer cases.
+
+---
+
 | ID | Test case | Expected | Seam | P | Covers |
 |---|---|---|---|---|---|
 | TC-SAV-001 | Create an account of each type (Savings, DPS, Sanchaypatra, Investment, Cash) | Each is saved and listed | API | P1 | FR-06 |
@@ -16,3 +28,5 @@ Ticket 04. Read `README.md` in this folder first. Until ticket 06, savings Trans
 | TC-SAV-010 | An account's Transaction history | Only that account's Transactions, newest first | API | P2 | FR-06 |
 | TC-SAV-011 | Update name, bank name and DPS fields | Saved | API | P2 | FR-06 |
 | TC-SAV-012 | A Sanchaypatra account with one purchase | Balance is the opening balance plus the purchase | API | P2 | FR-06 |
+| TC-SAV-013 | Transfer ৳10,000 from one savings account to another | Source balance falls by ৳10,000; destination balance rises by ৳10,000; Total Spending is unchanged | API | P1 | FR-06 |
+| TC-SAV-014 | Transfer an amount above the source account's balance | 422; both balances are unchanged | API | P1 | FR-06 |

@@ -2,6 +2,18 @@
 
 Ticket 09. Read `README.md` in this folder first.
 
+## Suite classification
+
+| Suite | Included case IDs |
+|-------|------------------|
+| **Smoke** | TC-TAX-001 |
+| **Happy Path** | Smoke + TC-TAX-002, TC-TAX-003, TC-TAX-004, TC-TAX-005, TC-TAX-006, TC-TAX-007, TC-TAX-008, TC-TAX-009, TC-TAX-010, TC-TAX-011, TC-TAX-012, TC-TAX-013, TC-TAX-014, TC-TAX-015, TC-TAX-016, TC-TAX-017 |
+| **Full Regression** | All cases above plus TC-TAX-018 |
+
+> **Smoke** runs the full `AC-TAX-1` summary end to end — if it passes, the tax API pipeline from income entries to net payable is working. **Happy Path** covers every P1 settings, filing, locking, forecast and payment case. **Full Regression** adds the P2 response-time check.
+
+---
+
 | ID | Test case | Expected | Seam | P | Covers |
 |---|---|---|---|---|---|
 | TC-TAX-001 | Summary for FY2025-26 with Income Entries, DPS deposits of ৳8,00,000, a Sanchaypatra purchase of ৳1,00,000 and others of ৳1,90,000 | The `AC-TAX-1` figures | API | P1 | AC-TAX-1 |

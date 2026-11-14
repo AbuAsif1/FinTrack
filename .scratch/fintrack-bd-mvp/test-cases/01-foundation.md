@@ -2,6 +2,18 @@
 
 Ticket 01. Read `README.md` in this folder first.
 
+## Suite classification
+
+| Suite | Included case IDs |
+|-------|------------------|
+| **Smoke** | TC-FND-001, TC-FND-006, TC-FND-012, TC-FND-017 |
+| **Happy Path** | Smoke + TC-FND-002, TC-FND-003, TC-FND-004, TC-FND-005, TC-FND-007, TC-FND-008, TC-FND-009, TC-FND-010, TC-FND-011, TC-FND-013, TC-FND-014, TC-FND-015, TC-FND-016, TC-FND-018, TC-FND-020 |
+| **Full Regression** | All cases above plus TC-FND-019 |
+
+> **Smoke** proves money formatting, Paisa parsing, fiscal year helper and health endpoint work. **Happy Path** runs every P1 unit and API case. **Full Regression** adds the idempotency seed test (P2).
+
+---
+
 | ID | Test case | Expected | Seam | P | Covers |
 |---|---|---|---|---|---|
 | TC-FND-001 | `formatBDT(200684600)` | `৳20,06,846.00` | Unit | P1 | AC-FMT-1 |

@@ -73,6 +73,45 @@ Shared test helpers and factories live in `tests/helpers/`. `pnpm test:matrix` l
 
 ---
 
+## Test suites
+
+Three suites exist for the MVP phase. The same three-tier pattern applies to Phase 2 and Phase 3 as those test case files are written.
+
+| Suite | Purpose | When to run | Approximate case count |
+|-------|---------|-------------|------------------------|
+| **Smoke** | Proves the app boots and the critical path is not broken | Every deploy; every CI run; under 10 minutes | ~29 cases across all files |
+| **Happy Path** | Covers every primary user story at P1 priority | Before merging to main; ~1–2 hours | Smoke + all remaining P1 cases (~140 total) |
+| **Full Regression** | Every case — P1, P2 and P3 — including edge cases, error paths and performance | Nightly; before every release | All ~260+ cases |
+
+### Running the suites
+
+```bash
+# Smoke — fast, CI-enforced (pnpm test:smoke reads SUITE=smoke from each spec)
+pnpm test:smoke
+
+# Happy Path
+pnpm test:happy
+
+# Full regression (default)
+pnpm test
+```
+
+Each test case file has a **Suite classification** section at the top listing exactly which case IDs belong to each suite. The rule:
+
+- **Smoke** — 1–3 cases per area that prove the core mechanism is not broken. Always a subset of Happy Path.
+- **Happy Path** — all P1 cases. Always a subset of Full Regression.
+- **Full Regression** — every case in the file, P1 + P2 + P3.
+
+When writing a new case, choose P first (P1 / P2 / P3), then the suite follows automatically: P1 cases land in Happy Path; whether they also land in Smoke is a manual call recorded in the file's classification section.
+
+### Smoke case IDs (master list)
+
+The 29 Smoke cases spread across files. Running only these gives confidence that the app is not broken:
+
+`TC-FND-001`, `TC-FND-006`, `TC-FND-012`, `TC-FND-017` · `TC-TAXE-001` · `TC-AUTH-001`, `TC-AUTH-008` · `TC-REG-001`, `TC-REG-020` · `TC-ADM-001` · `TC-TXN-001`, `TC-TXN-007` · `TC-SAV-004` · `TC-LOAN-002` · `TC-ROUTE-002` · `TC-INC-001` · `TC-FIX-004` · `TC-TAX-001` · `TC-NOTIF-001` · `TC-DASH-001` · `TC-IMP-018` · `TC-EXP-001` · `TC-UI-004`, `TC-UI-068`, `TC-UI-120` · `TC-NFR-015`, `TC-NFR-016` · `TC-SEC-003`
+
+---
+
 ## Changing the matrix
 
 - A new behaviour gets a new case with the next free number in its area, in the same change as the code.

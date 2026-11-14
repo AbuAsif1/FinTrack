@@ -238,8 +238,8 @@ function OverviewTab({
 
       {/* Investments (manual entry) */}
       <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>MANUAL INVESTMENTS</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>INVESTMENTS</div>
           {!result.is_locked && !invEdit && (
             <button
               onClick={() => setInvEdit({
@@ -254,11 +254,17 @@ function OverviewTab({
             </button>
           )}
         </div>
+        <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginBottom: 10 }}>
+          Recorded via Add Expenses → Investment. Edit to adjust totals if needed.
+        </div>
         {invEdit ? (
           <div>
+            <div style={{ font: 'var(--t-caption)', color: 'var(--warn)', marginBottom: 8, padding: '6px 10px', background: 'rgba(234,179,8,0.08)', borderRadius: 6 }}>
+              These totals include amounts already recorded via Add Expenses. Editing replaces the full total — do not re-enter amounts you already recorded.
+            </div>
             {(['stocks', 'insurance', 'others', 'universal_pension'] as const).map((k) => (
               <label key={k} style={{ display: 'block', marginBottom: 8 }}>
-                <div style={{ font: 'var(--t-label)', marginBottom: 4, textTransform: 'capitalize' }}>{k} (৳)</div>
+                <div style={{ font: 'var(--t-label)', marginBottom: 4, textTransform: 'capitalize' }}>{k.replace('_', ' ')} (৳)</div>
                 <input
                   type="number" min="0" step="0.01"
                   value={invEdit[k]}
@@ -306,8 +312,39 @@ function Row({ label, value, color, bold }: { label: string; value: string; colo
 const COL_INV = '1fr 1fr 150px 130px';
 const COL_INV_MIN = 580;
 
-function InvestmentsTab({ result }: { result: TaxResult }) {
+interface InvTransaction {
+  id: string;
+  description: string;
+  amount_paisa: number;
+  date: string;
+  created_at: string;
+  payment_method: string;
+}
+
+// Groups investment transactions by label (strips the "Investment — " prefix)
+function groupInvTx(txs: InvTransaction[]): { label: string; total: number; rows: InvTransaction[] }[] {
+  const map = new Map<string, { total: number; rows: InvTransaction[] }>();
+  for (const tx of txs) {
+    const label = tx.description.replace(/^Investment\s*[—\-]\s*/i, '') || tx.description;
+    const existing = map.get(label) ?? { total: 0, rows: [] };
+    existing.total += tx.amount_paisa;
+    existing.rows.push(tx);
+    map.set(label, existing);
+  }
+  return Array.from(map.entries()).map(([label, v]) => ({ label, ...v }));
+}
+
+function InvestmentsTab({ result, fy }: { result: TaxResult; fy: string }) {
   const rebate_pct = result.tax_rebate_paisa > 0 ? (result.tax_rebate_paisa / result.eligible_investment_paisa * 100).toFixed(0) : '0';
+  const [invTxs, setInvTxs] = useState<InvTransaction[]>([]);
+
+  useEffect(() => {
+    api.get(`/investments?fiscal_year=${fy}`)
+      .then(({ data }) => setInvTxs(data.transactions ?? []))
+      .catch(() => {});
+  }, [fy]);
+
+  const grouped = groupInvTx(invTxs);
 
   return (
     <div>
@@ -347,6 +384,48 @@ function InvestmentsTab({ result }: { result: TaxResult }) {
       <div style={{ marginTop: 12, font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>
         Rebate = MIN(Gross Income × 3%, Eligible Investment × 10%, ৳10,00,000) = {fmt(result.tax_rebate_paisa)} · {rebate_pct}%
       </div>
+
+      {/* Investment transaction records (from Add Expenses > Investment) */}
+      {grouped.length > 0 && (
+        <div style={{ marginTop: 24 }}>
+          <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 10 }}>INVESTMENT RECORDS THIS YEAR</div>
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+            {grouped.map((g, gi) => (
+              <div key={g.label}>
+                {/* Group header */}
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '10px 16px',
+                  background: gi % 2 === 0 ? 'var(--bg-raised)' : 'var(--bg-surface)',
+                  borderBottom: '1px solid var(--border)',
+                }}>
+                  <div style={{ font: 'var(--t-body)', fontWeight: 600 }}>{g.label}</div>
+                  <div style={{ font: 'var(--t-data)', fontVariantNumeric: 'tabular-nums', color: 'var(--accent)' }}>
+                    {fmt(g.total)}
+                  </div>
+                </div>
+                {/* Individual rows */}
+                {g.rows.map((tx) => (
+                  <div key={tx.id} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '7px 16px 7px 32px',
+                    borderBottom: '1px solid var(--border)',
+                    background: 'var(--bg-sunken)',
+                  }}>
+                    <div style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>
+                      {new Date(tx.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      {' · '}{tx.payment_method}
+                    </div>
+                    <div style={{ font: 'var(--t-data)', fontVariantNumeric: 'tabular-nums', color: 'var(--fg-primary)' }}>
+                      {fmt(tx.amount_paisa)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -948,7 +1027,7 @@ export default function TaxPage() {
           {tab === 'Overview' && (
             <OverviewTab result={result} investments={investments} fy={fy} onInvestmentsChange={load} />
           )}
-          {tab === 'Investments' && <InvestmentsTab result={result} />}
+          {tab === 'Investments' && <InvestmentsTab result={result} fy={fy} />}
           {tab === 'Forecast' && <ForecastTab fy={fy} />}
           {tab === 'Compare Years' && <CompareTab fy={fy} />}
         </>

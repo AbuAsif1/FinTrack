@@ -22,12 +22,14 @@ export default defineConfig({
     hookTimeout: 30000,
     environmentMatchGlobs: [
       ['components/**/*.test.tsx', 'jsdom'],
+      ['app/**/*.test.tsx', 'jsdom'],
     ],
     setupFiles: ['./tests/setup.ts'],
     include: [
       'packages/*/src/**/*.test.ts',
       'tests/api/**/*.test.ts',
       'components/**/*.test.tsx',
+      'app/**/*.test.tsx',
     ],
     coverage: {
       provider: 'v8',

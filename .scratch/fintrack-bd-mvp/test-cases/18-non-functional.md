@@ -2,6 +2,18 @@
 
 Ticket 21. Read `README.md` in this folder first. `Check` cases are measured or inspected and recorded in the UAT checklist.
 
+## Suite classification
+
+| Suite | Included case IDs |
+|-------|------------------|
+| **Smoke** | TC-NFR-015, TC-NFR-016 |
+| **Happy Path** | Smoke + TC-NFR-001, TC-NFR-002, TC-NFR-004, TC-NFR-009, TC-NFR-012, TC-NFR-013, TC-NFR-017 |
+| **Full Regression** | All cases above plus TC-NFR-003, TC-NFR-005, TC-NFR-006, TC-NFR-007, TC-NFR-008, TC-NFR-010, TC-NFR-011, TC-NFR-014 |
+
+> **Smoke** runs the CI smoke suite and the production health check — passes only if the app is deployed and working. **Happy Path** covers P1 manifest, install, layout, performance and log-privacy checks. **Full Regression** adds P2 offline mode, touch targets, contrast, keyboard navigation, Lighthouse, error boundary and skeleton cases.
+
+---
+
 | ID | Test case | Expected | Seam | P | Covers |
 |---|---|---|---|---|---|
 | TC-NFR-001 | The web app manifest | Name, 192 px and 512 px icons, `theme_color` #3A5FCD, `display: standalone` | Check | P1 | architecture §Frontend |

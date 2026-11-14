@@ -42,7 +42,8 @@ async function createSavingsAccount(ctx: Ctx, user: TestUser) {
 }
 
 async function createTemplate(ctx: Ctx, user: TestUser, overrides: Record<string, unknown> = {}) {
-  const cat = await createCategory(ctx, user);
+  // Use a unique name per call so multiple templates per user don't hit the unique-name constraint.
+  const cat = await createCategory(ctx, user, `Cat-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const headers = await ctx.authHeader(user);
   return ctx.makeRequest('POST', '/api/v1/fixed-expenses', {
     headers,

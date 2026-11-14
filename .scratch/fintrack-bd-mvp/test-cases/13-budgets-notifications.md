@@ -4,6 +4,18 @@ Ticket 10. Read `README.md` in this folder first. "Today" is set by the test clo
 
 ## Budgets
 
+## Suite classification
+
+| Suite | Included case IDs |
+|-------|------------------|
+| **Smoke** | TC-NOTIF-001 |
+| **Happy Path** | Smoke + TC-BUD-001, TC-BUD-002, TC-BUD-003, TC-BUD-004, TC-BUD-007, TC-NOTIF-002, TC-NOTIF-003, TC-NOTIF-004, TC-NOTIF-005, TC-NOTIF-006, TC-NOTIF-007, TC-NOTIF-008, TC-NOTIF-009, TC-NOTIF-010 |
+| **Full Regression** | All cases above plus TC-BUD-005, TC-BUD-006, TC-NOTIF-011 |
+
+> **Smoke** proves the due-soon notification is generated for an instance due in 3 days. **Happy Path** covers every P1 budget-state transition and notification type. **Full Regression** adds P2 rollover-absence and ordering cases.
+
+---
+
 | ID | Test case | Expected | Seam | P | Covers |
 |---|---|---|---|---|---|
 | TC-BUD-001 | Set a ৳3,500 limit on Groceries | The month's budget shows limit, spent, remaining and percentage | API | P1 | FR-10 |

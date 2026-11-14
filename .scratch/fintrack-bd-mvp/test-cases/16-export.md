@@ -2,6 +2,18 @@
 
 Ticket 23. Read `README.md` in this folder first.
 
+## Suite classification
+
+| Suite | Included case IDs |
+|-------|------------------|
+| **Smoke** | TC-EXP-001 |
+| **Happy Path** | Smoke + TC-EXP-003, TC-EXP-004, TC-EXP-005, TC-EXP-006, TC-EXP-007, TC-EXP-009, TC-EXP-011 |
+| **Full Regression** | All cases above plus TC-EXP-002, TC-EXP-008, TC-EXP-010, TC-EXP-012 |
+
+> **Smoke** proves the full JSON backup can be downloaded and contains a `schema_version` and every table. **Happy Path** covers every P1 export format and data-isolation case. **Full Regression** adds P2 deleted-record flag, monthly-summary CSV, BOM encoding and UI button cases.
+
+---
+
 | ID | Test case | Expected | Seam | P | Covers |
 |---|---|---|---|---|---|
 | TC-EXP-001 | Full export for a user with data in every area | One JSON file with `schema_version`, `exported_at` and every record the user owns | API | P1 | FR-12 |

@@ -479,7 +479,7 @@ function DetailPanel({
         ) : (
           <>
             {/* Header */}
-            <div style={{ display: 'grid', gridTemplateColumns: '90px 100px 100px 1fr 100px 44px', padding: '10px 16px', background: 'var(--bg-raised)', borderBottom: '2px solid var(--border)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '90px 100px 120px 1fr 140px 44px', padding: '10px 16px', background: 'var(--bg-raised)', borderBottom: '2px solid var(--border)' }}>
               {['DATE', 'DIRECTION', 'AMOUNT', 'REASON', 'BALANCE', ''].map((h) => (
                 <div key={h} style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>{h}</div>
               ))}
@@ -488,7 +488,7 @@ function DetailPanel({
             {entries.map((entry) => {
               const dueStatus = dueSoonStatus(entry.return_due_date);
               return (
-                <div key={entry.id} style={{ display: 'grid', gridTemplateColumns: '90px 100px 100px 1fr 100px 44px', padding: '12px 16px', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
+                <div key={entry.id} style={{ display: 'grid', gridTemplateColumns: '90px 100px 120px 1fr 140px 44px', padding: '12px 16px', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
                   <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>
                     {fmtDate(entry.date)}
                     {dueStatus && (
@@ -507,13 +507,13 @@ function DetailPanel({
                   <div style={{ font: 'var(--t-body)', color: entry.direction === 'GIVEN' ? 'var(--danger)' : 'var(--ok)' }}>
                     {entry.direction === 'GIVEN' ? 'Given' : 'Received'}
                   </div>
-                  <div style={{ font: 'var(--t-data)', color: entry.direction === 'GIVEN' ? 'var(--danger)' : 'var(--ok)', fontVariantNumeric: 'tabular-nums' }}>
+                  <div style={{ font: 'var(--t-data)', color: entry.direction === 'GIVEN' ? 'var(--danger)' : 'var(--ok)', fontVariantNumeric: 'tabular-nums', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                     {entry.direction === 'GIVEN' ? '−' : '+'}{fmt(entry.amount_paisa)}
                   </div>
                   <div style={{ font: 'var(--t-body)', color: entry.is_settlement ? 'var(--ok)' : 'var(--fg-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={entry.is_settlement ? 'Settlement' : (entry.reason ?? undefined)}>
                     {entry.is_settlement ? '✓ Settlement' : (entry.reason ?? '—')}
                   </div>
-                  <div style={{ font: 'var(--t-data)', color: balanceColor(entry.running_balance_paisa), fontVariantNumeric: 'tabular-nums' }}>
+                  <div style={{ font: 'var(--t-data)', color: balanceColor(entry.running_balance_paisa), fontVariantNumeric: 'tabular-nums', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                     {entry.running_balance_paisa >= 0 ? '+' : '−'}{fmt(entry.running_balance_paisa)}
                   </div>
                   <div>

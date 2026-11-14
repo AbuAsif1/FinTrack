@@ -2,6 +2,18 @@
 
 Ticket 07. Read `README.md` in this folder first.
 
+## Suite classification
+
+| Suite | Included case IDs |
+|-------|------------------|
+| **Smoke** | TC-INC-001 |
+| **Happy Path** | Smoke + TC-INC-002, TC-INC-003, TC-INC-004, TC-INC-007, TC-INC-008, TC-INC-009, TC-INC-010, TC-INC-011, TC-INC-012, TC-INC-015, TC-INC-016, TC-INC-018 |
+| **Full Regression** | All cases above plus TC-INC-005, TC-INC-006, TC-INC-013, TC-INC-014, TC-INC-017, TC-INC-019, TC-INC-020 |
+
+> **Smoke** proves a Salary entry can be created with correct In-Hand Income calculation. **Happy Path** covers every P1 income type, fiscal year boundary, locked year and idempotency case. **Full Regression** adds P2 taxable-flag, Cheer, timeline, pre-fill and Holiday Support rate cases, plus the new bank account field case.
+
+---
+
 | ID | Test case | Expected | Seam | P | Covers |
 |---|---|---|---|---|---|
 | TC-INC-001 | Create a Salary entry with gross ৳1,53,383 and TDS ৳12,000 | Saved; In-Hand Income ৳1,41,383.00 | API | P1 | FR-03 |
@@ -23,3 +35,4 @@ Ticket 07. Read `README.md` in this folder first.
 | TC-INC-017 | A new Holiday Support entry of the same rate type | The rate is pre-filled from the latest entry of that type | API | P2 | FR-03 |
 | TC-INC-018 | Add a later entry at a higher rate | Earlier entries keep their rate and amount | API | P1 | GAP-08 |
 | TC-INC-019 | The month's Holiday Support total | The sum of that month's log entries | API | P2 | FR-03 |
+| TC-INC-020 | Create a Salary entry with a bank account name | The bank account name is saved and returned in the entry | API | P2 | FR-03 |

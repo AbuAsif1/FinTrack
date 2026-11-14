@@ -29,6 +29,7 @@ export enum IncomeType {
 export enum SavingsAccountType {
   SAVINGS = 'SAVINGS',
   DPS = 'DPS',
+  FDR = 'FDR',
   SANCHAYPATRA = 'SANCHAYPATRA',
   INVESTMENT = 'INVESTMENT',
   CASH = 'CASH',

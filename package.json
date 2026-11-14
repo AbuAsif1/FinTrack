@@ -26,7 +26,10 @@
     "user:reset-password": "tsx scripts/reset-password.ts",
     "user:set-role": "tsx scripts/set-role.ts",
     "seed:e2e": "tsx scripts/e2e-seed.ts",
-    "test:e2e:happy": "playwright test --config playwright.happy-path.config.ts"
+    "test:e2e:happy": "playwright test --config playwright.happy-path.config.ts",
+    "test:happy": "playwright test --config playwright.happy-path.config.ts",
+    "test:smoke": "playwright test --config playwright.smoke.config.ts",
+    "test:regression": "playwright test --config playwright.regression.config.ts"
   },
   "dependencies": {
     "@fintrack/shared": "workspace:*",
