@@ -53,7 +53,11 @@ Ticket 24 is `ready-for-human`: the owner confirms tax parameters against NBR ru
 
 ### Phase 3
 
-`.scratch/fintrack-bd-phase-3/spec.md`, status `needs-triage`: a possible subscription feature.
+`.scratch/fintrack-bd-phase-3/spec.md`, status `done`: two deliverables (delete account, restore from export) implemented. All other Phase 3 items moved to Phase 4.
+
+### Phase 4
+
+`.scratch/fintrack-bd-phase-4/spec.md`, status `needs-triage`: subscription features (p4-01 through p4-06) and deferred items from Phase 2/3 (p4-07 through p4-11). No owner decisions made yet; all tickets are `needs-triage`.
 
 ---
 
@@ -78,8 +82,13 @@ FinTrack/
     │   └── test-cases/                — regression test matrix, 19 files of TC-… cases
     ├── fintrack-bd-phase-2/
     │   └── spec.md                    — Phase 2 backlog
-    └── fintrack-bd-phase-3/
-        └── spec.md                    — Phase 3 ideas (subscription)
+    ├── fintrack-bd-phase-3/
+    │   ├── spec.md                    — Phase 3 (done): delete account, restore from export
+    │   └── issues/                    — 07-delete-account-and-data.md, 13-restore-from-export.md
+    └── fintrack-bd-phase-4/
+        ├── spec.md                    — Phase 4 backlog: subscription + deferred items
+        ├── issues/                    — p4-01 through p4-11
+        └── test-cases/README.md       — test case conventions for Phase 4
 ```
 
 ---

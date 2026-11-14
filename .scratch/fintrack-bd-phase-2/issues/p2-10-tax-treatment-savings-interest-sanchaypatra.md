@@ -1,6 +1,6 @@
 # p2-10: Tax Treatment of Savings Interest and Sanchaypatra Profit
 
-**Status:** needs-triage
+**Status:** done
 **Phase:** 2
 **Spec ref:** Phase 2 §10
 

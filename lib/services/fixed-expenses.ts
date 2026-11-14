@@ -51,6 +51,14 @@ export async function ensureInstances(userId: string, month: string): Promise<vo
     // Skip if this month is after the template's end
     if (endMonth && compareYM(month, endMonth) > 0) continue;
 
+    // Skip months that are not due for non-monthly cadences
+    if (tmpl.cadence === 'QUARTERLY' && tmpl.dueMonth != null) {
+      const diff = ((mo - tmpl.dueMonth + 12) % 12);
+      if (diff % 3 !== 0) continue;
+    } else if (tmpl.cadence === 'ANNUAL' && tmpl.dueMonth != null) {
+      if (mo !== tmpl.dueMonth) continue;
+    }
+
     const dueDay = clampDueDay(year, mo, tmpl.dueDay);
     const dueDateStr = `${month}-${String(dueDay).padStart(2, '0')}`;
 

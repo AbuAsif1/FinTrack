@@ -1,6 +1,6 @@
 # p2-04: Overall Monthly Spending Limit with Dashboard Chart
 
-**Status:** needs-triage
+**Status:** done
 **Phase:** 2
 **Spec ref:** Phase 2 §4
 

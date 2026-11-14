@@ -36,6 +36,8 @@ enum IncomeType {
   CERTIFICATION
   HOLIDAY_SUPPORT
   OTHER
+  SAVINGS_INTEREST
+  SANCHAYPATRA_PROFIT
 }
 
 enum SavingsAccountType {
@@ -51,6 +53,12 @@ enum FixedExpenseStatus {
   PENDING
   PAID
   SKIPPED
+}
+
+enum FixedExpenseCadence {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
 }
 
 enum LoanDirection {
@@ -84,6 +92,11 @@ enum UserRole {
   ADMIN
 }
 
+enum GoalStatus {
+  ACTIVE
+  ARCHIVED
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
@@ -96,9 +109,10 @@ model User {
   deactivatedAt      DateTime? @map("deactivated_at")
   deactivatedUntil   DateTime? @map("deactivated_until")
   deactivationReason String?   @map("deactivation_reason")
-  lastLoginAt        DateTime? @map("last_login_at")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
+  lastLoginAt           DateTime? @map("last_login_at")
+  monthlyLimitPaisa     BigInt?   @map("monthly_limit_paisa")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   refreshTokens          RefreshToken[]
   emailTokens            EmailToken[]
@@ -119,6 +133,15 @@ model User {
   importBatches          ImportBatch[]
   wallets                Wallet[]
   walletTransfers        WalletTransfer[]
+  tags                   Tag[]
+  savingsGoals           SavingsGoal[]
+  transactionTemplates   TransactionTemplate[]
+  pushSubscriptions      PushSubscription[]
+  notificationPrefsJson  Json?                 @map("notification_prefs_json")
+  preferredPeriod        String?               @map("preferred_period")
+  backupPrefsJson        Json?                 @map("backup_prefs_json")
+
+  backupRuns             BackupRun[]
 
   @@map("users")
 }
@@ -199,6 +222,7 @@ model Category {
   transactions          Transaction[]
   fixedExpenses         FixedExpense[]
   budgets               Budget[]
+  transactionTemplates  TransactionTemplate[]
 
   @@unique([userId, name])
   @@map("categories")
@@ -230,11 +254,36 @@ model Transaction {
   bankSource           SavingsAccount?       @relation("TxBankSource", fields: [bankSourceId], references: [id])
   loanEntry            LoanEntry?
   fixedExpenseInstance FixedExpenseInstance?
+  tags                 TransactionTag[]
 
   @@unique([userId, idempotencyKey])
   @@index([userId, date])
   @@index([userId, savingsAccountId])
   @@map("transactions")
+}
+
+model Tag {
+  id           String           @id @default(cuid())
+  userId       String           @map("user_id")
+  name         String
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions TransactionTag[]
+
+  @@unique([userId, name])
+  @@map("tags")
+}
+
+model TransactionTag {
+  transactionId String @map("transaction_id")
+  tagId         String @map("tag_id")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  tag         Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([transactionId, tagId])
+  @@map("transaction_tags")
 }
 
 model SavingsAccount {
@@ -258,6 +307,7 @@ model SavingsAccount {
   bankSourceTransactions Transaction[] @relation("TxBankSource")
   fixedExpenses          FixedExpense[]
   incomeEntries          IncomeEntry[]
+  savingsGoals           SavingsGoal[]
 
   @@map("savings_accounts")
 }
@@ -342,17 +392,19 @@ model HolidaySupportEntry {
 }
 
 model FixedExpense {
-  id                  String    @id @default(cuid())
-  userId              String    @map("user_id")
+  id                  String                @id @default(cuid())
+  userId              String                @map("user_id")
   name                String
-  standardAmountPaisa BigInt    @map("standard_amount_paisa")
-  dueDay              Int       @map("due_day")
-  categoryId          String    @map("category_id")
-  savingsAccountId    String?   @map("savings_account_id")
-  startMonth          DateTime  @db.Date @map("start_month")
-  endMonth            DateTime? @db.Date @map("end_month")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
+  standardAmountPaisa BigInt                @map("standard_amount_paisa")
+  dueDay              Int                   @map("due_day")
+  cadence             FixedExpenseCadence   @default(MONTHLY)
+  dueMonth            Int?                  @map("due_month")
+  categoryId          String                @map("category_id")
+  savingsAccountId    String?               @map("savings_account_id")
+  startMonth          DateTime              @db.Date @map("start_month")
+  endMonth            DateTime?             @db.Date @map("end_month")
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @updatedAt @map("updated_at")
 
   user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   category       Category               @relation(fields: [categoryId], references: [id])
@@ -393,9 +445,10 @@ model TaxYear {
   configConfirmedAt  DateTime? @map("config_confirmed_at")
   filedOn            DateTime? @db.Date @map("filed_on")
   filedResultJson    Json?     @map("filed_result_json")
-  isLocked           Boolean   @default(false) @map("is_locked")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
+  isLocked              Boolean   @default(false) @map("is_locked")
+  checklistItemsJson    Json?     @map("checklist_items_json")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -434,6 +487,78 @@ model Budget {
 
   @@unique([userId, categoryId, effectiveFromMonth])
   @@map("budgets")
+}
+
+model SavingsGoal {
+  id                String     @id @default(cuid())
+  userId            String     @map("user_id")
+  name              String
+  targetAmountPaisa BigInt     @map("target_amount_paisa")
+  targetDate        DateTime   @db.Date @map("target_date")
+  linkedAccountId   String?    @map("linked_account_id")
+  status            GoalStatus @default(ACTIVE)
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedAccount SavingsAccount? @relation(fields: [linkedAccountId], references: [id], onDelete: SetNull)
+
+  @@map("savings_goals")
+}
+
+model PushSubscription {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  endpoint    String
+  authKey     String    @map("auth_key")
+  p256dhKey   String    @map("p256dh_key")
+  deviceLabel String?   @map("device_label")
+  lastActiveAt DateTime? @map("last_active_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint])
+  @@map("push_subscriptions")
+}
+
+model SiteSettings {
+  key       String   @id
+  valueJson Json     @map("value_json")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_settings")
+}
+
+model DefaultCategory {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  routingType RoutingType @map("routing_type")
+  colorHex    String      @map("color_hex")
+  isArchived  Boolean     @default(false) @map("is_archived")
+  sortOrder   Int         @default(0) @map("sort_order")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@map("default_categories")
+}
+
+model TransactionTemplate {
+  id            String        @id @default(cuid())
+  userId        String        @map("user_id")
+  name          String
+  description   String?
+  amountPaisa   BigInt        @map("amount_paisa")
+  categoryId    String        @map("category_id")
+  paymentMethod PaymentMethod @map("payment_method")
+  lastUsedAt    DateTime?     @map("last_used_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@map("transaction_templates")
 }
 
 model Notification {
@@ -507,4 +632,20 @@ model ImportBatch {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("import_batches")
+}
+
+model BackupRun {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  runAt          DateTime @default(now()) @map("run_at")
+  recordCount    Int      @default(0) @map("record_count")
+  deliveryMethod String   @map("delivery_method")
+  status         String
+  errorMessage   String?  @map("error_message")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, runAt])
+  @@map("backup_runs")
 }

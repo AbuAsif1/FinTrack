@@ -59,6 +59,8 @@ interface DashboardData {
     is_provisional: boolean;
   };
   unread_notification_count: number;
+  net_worth_paisa?: number;
+  monthly_limit_paisa?: number | null;
 }
 
 type Period = 'this-month' | 'last-month' | 'this-fy' | 'last-30' | 'custom';
@@ -296,6 +298,150 @@ function SpendingByCategory({ categories, totalPaisa }: { categories: DashboardD
   );
 }
 
+// ── Monthly Limit Modal ───────────────────────────────────────────────────
+
+function MonthlyLimitModal({ current, onClose, onSave }: {
+  current: number | null;
+  onClose: () => void;
+  onSave: (val: number | null) => void;
+}) {
+  const [value, setValue] = useState(current != null ? String(Math.round(current / 100)) : '');
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    const paisa = value.trim() === '' ? null : parseInt(value.replace(/,/g, ''), 10) * 100;
+    try {
+      await api.put('/budgets/monthly-limit', { monthly_limit_paisa: paisa });
+      onSave(paisa);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 50,
+      background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+    }} onClick={onClose}>
+      <div style={{
+        background: 'var(--bg-surface)', borderRadius: 12, padding: 24, width: '100%', maxWidth: 360,
+        border: '1px solid var(--border)',
+      }} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ margin: '0 0 16px', font: '600 18px var(--font-space-grotesk, system-ui)' }}>
+          Monthly spending limit
+        </h3>
+        <form onSubmit={handleSubmit}>
+          <label style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)', display: 'block', marginBottom: 6 }}>
+            Limit (Tk) — leave blank to remove
+          </label>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="e.g. 25000"
+            style={{
+              width: '100%', padding: '10px 12px', borderRadius: 8,
+              border: '1px solid var(--border)', background: 'var(--bg-sunken)',
+              color: 'var(--fg-primary)', font: 'var(--t-body)', boxSizing: 'border-box',
+              marginBottom: 16,
+            }}
+          />
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button type="button" onClick={onClose} style={{
+              padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)',
+              background: 'var(--bg-surface)', color: 'var(--fg-secondary)', cursor: 'pointer', font: 'var(--t-body)',
+            }}>Cancel</button>
+            <button type="submit" disabled={saving} style={{
+              padding: '8px 20px', borderRadius: 8, border: 'none',
+              background: 'var(--accent)', color: 'var(--accent-fg)', cursor: 'pointer',
+              font: 'var(--t-body)', fontWeight: 600, opacity: saving ? 0.7 : 1,
+            }}>Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Budget Health Ring ────────────────────────────────────────────────────
+
+function BudgetHealthRing({ spentPaisa, limitPaisa, onEdit }: {
+  spentPaisa: number;
+  limitPaisa: number | null;
+  onEdit: () => void;
+}) {
+  const SIZE = 96;
+  const STROKE = 9;
+  const R = (SIZE - STROKE) / 2;
+  const CIRCUMFERENCE = 2 * Math.PI * R;
+
+  if (limitPaisa == null) {
+    return (
+      <button onClick={onEdit} aria-label="Set monthly spending limit" style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+        background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+      }}>
+        <div style={{
+          width: SIZE, height: SIZE, borderRadius: '50%',
+          border: `${STROKE}px dashed var(--border)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', textAlign: 'center', fontSize: 10, lineHeight: 1.3 }}>
+            Set<br />limit
+          </span>
+        </div>
+        <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>No limit</span>
+      </button>
+    );
+  }
+
+  const pct = Math.min(limitPaisa > 0 ? (spentPaisa / limitPaisa) : 0, 1.5);
+  const displayPct = Math.round(Math.min(pct, 1) * 100);
+  const offset = CIRCUMFERENCE * (1 - Math.min(pct, 1));
+  const color = pct >= 1 ? 'var(--danger)' : pct >= 0.75 ? 'var(--warn)' : 'var(--ok)';
+
+  return (
+    <button onClick={onEdit} aria-label={`Monthly budget: ${displayPct}% of limit used. Click to edit.`} style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+      background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+    }}>
+      <div style={{ position: 'relative', width: SIZE, height: SIZE }}>
+        <svg width={SIZE} height={SIZE} style={{ transform: 'rotate(-90deg)' }} aria-hidden="true">
+          <circle cx={SIZE / 2} cy={SIZE / 2} r={R} fill="none" stroke="var(--bg-sunken)" strokeWidth={STROKE} />
+          <circle
+            cx={SIZE / 2} cy={SIZE / 2} r={R}
+            fill="none"
+            stroke={color}
+            strokeWidth={STROKE}
+            strokeDasharray={CIRCUMFERENCE}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            style={{ transition: 'stroke-dashoffset 500ms, stroke 300ms' }}
+          />
+        </svg>
+        <div style={{
+          position: 'absolute', inset: 0, display: 'flex',
+          alignItems: 'center', justifyContent: 'center',
+          flexDirection: 'column',
+        }}>
+          <span style={{ font: '700 18px var(--font-space-grotesk, system-ui)', color, lineHeight: 1 }}>
+            {displayPct}%
+          </span>
+          <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', fontSize: 9, marginTop: 2 }}>used</span>
+        </div>
+      </div>
+      <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', textAlign: 'center', lineHeight: 1.4 }}>
+        Monthly budget
+      </span>
+    </button>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -303,6 +449,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showLimitModal, setShowLimitModal] = useState(false);
 
   const fetchDashboard = useCallback(async (p: Period) => {
     setLoading(true);
@@ -430,6 +577,43 @@ export default function DashboardPage() {
           />
         </div>
       ) : null}
+
+      {/* Net worth card */}
+      {data && data.net_worth_paisa != null && (
+        <div style={{
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 10,
+          padding: '16px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
+        }}>
+          <div>
+            <span style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              Net Worth
+            </span>
+            <div style={{
+              font: 'var(--t-data)',
+              marginTop: 4,
+              color: data.net_worth_paisa >= 0 ? 'var(--ok)' : 'var(--danger)',
+            }}>
+              <Amount paisa={Math.abs(data.net_worth_paisa)} />
+              {data.net_worth_paisa < 0 && <span style={{ font: 'var(--t-caption)', marginLeft: 4 }}>(deficit)</span>}
+            </div>
+          </div>
+          <Link href="/wallets" style={{
+            font: 'var(--t-caption)',
+            color: 'var(--accent)',
+            textDecoration: 'none',
+            fontWeight: 500,
+            whiteSpace: 'nowrap',
+          }}>
+            View Wallets →
+          </Link>
+        </div>
+      )}
 
       {/* Main grid: cash flow + tax */}
       {data && hasData && (
@@ -571,11 +755,32 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Monthly limit modal */}
+      {showLimitModal && data && (
+        <MonthlyLimitModal
+          current={data.monthly_limit_paisa ?? null}
+          onClose={() => setShowLimitModal(false)}
+          onSave={(val) => {
+            setData((prev) => prev ? { ...prev, monthly_limit_paisa: val } : prev);
+            setShowLimitModal(false);
+          }}
+        />
+      )}
+
       {/* Spending by category + recent transactions */}
       {data && hasData && (
         <div className="r-content">
           <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
-            <SpendingByCategory categories={data.spending_by_category} totalPaisa={data.tiles.total_spending_paisa} />
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 14 }}>
+              <div style={{ flex: 1 }}>
+                <SpendingByCategory categories={data.spending_by_category} totalPaisa={data.tiles.total_spending_paisa} />
+              </div>
+              <BudgetHealthRing
+                spentPaisa={data.tiles.total_spending_paisa}
+                limitPaisa={data.monthly_limit_paisa ?? null}
+                onEdit={() => setShowLimitModal(true)}
+              />
+            </div>
           </div>
 
           <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>

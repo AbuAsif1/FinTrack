@@ -1,6 +1,6 @@
 # p2-06: Savings Goals
 
-**Status:** needs-triage
+**Status:** done
 **Phase:** 2
 **Spec ref:** Phase 2 §6
 

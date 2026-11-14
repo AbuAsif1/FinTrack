@@ -1,6 +1,6 @@
 # p3-13: Restore from Export and Scheduled Backups
 
-**Status:** needs-triage
+**Status:** done
 **Phase:** 3
 **Moved from:** Phase 2 §17
 **Spec ref:** Phase 3 — Deferred features
@@ -91,3 +91,4 @@ The manual export (ticket 23) exists, but only helps if the user remembers to ru
 ## Comments
 
 <!-- Append discussion below this line -->
+2026-11-14: Implemented. BackupRun model + backupPrefsJson on User added to schema (prisma db push applied). Restore service: lib/services/restore-service.ts handles all entity types with ID remapping (category/savings/loanperson name-match, transaction/income idempotency-key dedup, undelete of soft-deleted records). POST /api/v1/data/restore, GET/PATCH /api/v1/data/backup/schedule, GET /api/v1/data/backup/history, POST /api/v1/cron/backup (guarded by CRON_SECRET). UI: Restore and AutoBackup sections added to /settings/export. Restore strategy: merge (adds missing, keeps existing, undeletes soft-deleted). Delivery: EMAIL only in this release.

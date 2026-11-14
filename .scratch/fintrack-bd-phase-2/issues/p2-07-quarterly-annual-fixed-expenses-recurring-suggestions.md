@@ -1,6 +1,6 @@
 # p2-07: Quarterly and Annual Fixed Expenses, and Recurring-Payment Suggestions
 
-**Status:** needs-triage
+**Status:** done
 **Phase:** 2
 **Spec ref:** Phase 2 §7
 

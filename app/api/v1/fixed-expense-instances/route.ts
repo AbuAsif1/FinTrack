@@ -126,6 +126,14 @@ export async function GET(req: Request) {
         if (month < startMonth) continue;
         if (endMonth && month > endMonth) continue;
 
+        // Skip months that are not due for non-monthly cadences
+        if (tmpl.cadence === 'QUARTERLY' && tmpl.dueMonth != null) {
+          const diff = ((m - tmpl.dueMonth + 12) % 12);
+          if (diff % 3 !== 0) continue;
+        } else if (tmpl.cadence === 'ANNUAL' && tmpl.dueMonth != null) {
+          if (m !== tmpl.dueMonth) continue;
+        }
+
         const dueDay = clampDueDay(y, m, tmpl.dueDay);
         const dueDateStr = `${month}-${String(dueDay).padStart(2, '0')}`;
 

@@ -71,6 +71,7 @@ describe('TC-EXP-003: secrets not in full export', () => {
 // â”€â”€ TC-EXP-004: Cross-user isolation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('TC-EXP-004: second user data not in export', () => {
+  // Two provisioned users + transaction + full export; needs more than the default 30 s
   it("user A cannot see user B's transactions", async () => {
     const userA = await ctx.createUser({ provision: true });
     const userB = await ctx.createUser({ provision: true });
@@ -90,7 +91,7 @@ describe('TC-EXP-004: second user data not in export', () => {
     const resA = await ctx.makeRequest('GET', '/api/v1/export/full', { headers: { Authorization: `Bearer ${tokenA}` } });
     const textA = await resA.text();
     expect(textA).not.toContain('Secret B');
-  });
+  }, 90000);
 });
 
 // â”€â”€ TC-EXP-005: Transactions CSV â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

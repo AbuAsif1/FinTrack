@@ -25,6 +25,9 @@ async function cleanupTestData() {
   // immediately visible across the entire test run.
   await globalPrisma.user.deleteMany({ where: { email: { notIn: SEED_EMAILS } } });
   await globalPrisma.authRateLimit.deleteMany({});
+  // Global tables that tests may pollute; lazy seeding regenerates standard rows on next access
+  await globalPrisma.defaultCategory.deleteMany({});
+  await globalPrisma.siteSettings.deleteMany({});
 }
 
 export type TestUser = {

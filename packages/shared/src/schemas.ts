@@ -82,8 +82,11 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(10, 'Password must be at least 10 characters'),
 });
 
+const VALID_PERIODS = ['this_month', 'last_month', 'last_3_months', 'last_6_months', 'all_time', 'custom'] as const;
+
 export const patchMeSchema = z.object({
-  name: z.string().min(1).max(100),
+  name: z.string().min(1).max(100).optional(),
+  preferred_period: z.enum(VALID_PERIODS).optional(),
 });
 
 export const verifyEmailSchema = z.object({
@@ -147,7 +150,8 @@ export const createTransactionSchema = z.object({
 export const createIncomeEntrySchema = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/),
   incomeType: z.enum(['SALARY', 'CHEER', 'PROFIT_SHARE', 'EID_BONUS',
-    'LEAVE_ENCASHMENT', 'CERTIFICATION', 'HOLIDAY_SUPPORT', 'OTHER']),
+    'LEAVE_ENCASHMENT', 'CERTIFICATION', 'HOLIDAY_SUPPORT', 'OTHER',
+    'SAVINGS_INTEREST', 'SANCHAYPATRA_PROFIT']),
   grossPaisa: paisaSchema.positive(),
   tdsPaisa: paisaSchema.min(0),
   isTaxable: z.boolean().default(true),

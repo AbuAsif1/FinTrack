@@ -14,7 +14,17 @@ export async function provisionNewUser(
 ): Promise<void> {
   const db = tx ?? prisma;
 
-  for (const cat of starterCategories) {
+  // Use admin-managed DB defaults when available; fall back to hardcoded list
+  const dbDefaults = await prisma.defaultCategory.findMany({
+    where: { isArchived: false },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+  });
+
+  const categoriesToProvision = dbDefaults.length > 0
+    ? dbDefaults.map((d) => ({ name: d.name, routingType: d.routingType, colorHex: d.colorHex }))
+    : starterCategories;
+
+  for (const cat of categoriesToProvision) {
     await db.category.upsert({
       where: { userId_name: { userId, name: cat.name } },
       update: {},

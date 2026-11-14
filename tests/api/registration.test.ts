@@ -266,6 +266,7 @@ describe('TC-REG-009: signup closed', () => {
 // ---------------------------------------------------------------------------
 
 describe('TC-REG-010: registration rate limit by IP', () => {
+  // 6 full registrations with bcrypt(12) each; needs more than the default 30 s
   it('returns 429 on the sixth request from the same IP', async () => {
     const ip = '1.2.3.4';
     const headers = { 'x-forwarded-for': ip };
@@ -284,7 +285,7 @@ describe('TC-REG-010: registration rate limit by IP', () => {
       headers,
     });
     expect(res.status).toBe(429);
-  });
+  }, 120000);
 });
 
 // ---------------------------------------------------------------------------

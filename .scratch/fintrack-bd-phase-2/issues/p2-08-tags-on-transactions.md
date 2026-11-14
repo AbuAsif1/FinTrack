@@ -1,6 +1,6 @@
 # p2-08: Tags on Transactions
 
-**Status:** needs-triage
+**Status:** done
 **Phase:** 2
 **Spec ref:** Phase 2 §8
 

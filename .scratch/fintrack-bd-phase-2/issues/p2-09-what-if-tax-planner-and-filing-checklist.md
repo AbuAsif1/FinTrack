@@ -1,6 +1,6 @@
 # p2-09: What-If Tax Planner and Filing Checklist
 
-**Status:** needs-triage
+**Status:** done
 **Phase:** 2
 **Spec ref:** Phase 2 §9
 

@@ -24,6 +24,8 @@ export enum IncomeType {
   CERTIFICATION = 'CERTIFICATION',
   HOLIDAY_SUPPORT = 'HOLIDAY_SUPPORT',
   OTHER = 'OTHER',
+  SAVINGS_INTEREST = 'SAVINGS_INTEREST',
+  SANCHAYPATRA_PROFIT = 'SANCHAYPATRA_PROFIT',
 }
 
 export enum SavingsAccountType {
@@ -39,6 +41,12 @@ export enum FixedExpenseStatus {
   PENDING = 'PENDING',
   PAID = 'PAID',
   SKIPPED = 'SKIPPED',
+}
+
+export enum FixedExpenseCadence {
+  MONTHLY = 'MONTHLY',
+  QUARTERLY = 'QUARTERLY',
+  ANNUAL = 'ANNUAL',
 }
 
 export enum LoanDirection {

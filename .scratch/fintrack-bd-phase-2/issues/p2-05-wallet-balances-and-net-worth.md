@@ -1,6 +1,6 @@
 # p2-05: Wallet Balances and Net Worth
 
-**Status:** needs-triage
+**Status:** done
 **Phase:** 2
 **Spec ref:** Phase 2 §5
 

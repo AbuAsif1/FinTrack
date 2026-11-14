@@ -1,6 +1,6 @@
 # p2-18: Browser Push Notifications and Daily Scheduler
 
-**Status:** needs-triage
+**Status:** done
 **Phase:** 2
 **Spec ref:** Phase 2 §18
 

@@ -1,6 +1,6 @@
 # p2-19: Offline Entry Queue
 
-**Status:** needs-triage
+**Status:** ready-for-human
 **Phase:** 2
 **Spec ref:** Phase 2 §19
 

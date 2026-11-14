@@ -1,6 +1,6 @@
 # p2-20: Bangla Language Toggle
 
-**Status:** needs-triage
+**Status:** ready-for-human
 **Phase:** 2
 **Spec ref:** Phase 2 §20
 

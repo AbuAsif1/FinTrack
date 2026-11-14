@@ -1,44 +1,42 @@
-# FinTrack BD Phase 3 — Ideas
+# FinTrack BD Phase 3 — Done
 
-**Status:** needs-triage
+**Status:** done
 **Created:** 2026-11-12
+**Completed:** 2026-11-14
 
-> **Owns:** ideas beyond Phase 2. Nothing here is specified or ready to build.
-> Phase 2 backlog: `.scratch/fintrack-bd-phase-2/spec.md`. MVP scope: `.scratch/docs/brd.md` §3.
-
----
-
-## Subscription (original Phase 3 idea)
-
-### 1. Subscription plans and payments
-
-Users pay to use the app. The owner has said this may be introduced; nothing about it is decided.
-
-- **Builds on:** the admin's manual payment-date log in the MVP (`brd.md` FR-14), which already records date paid, amount and the date a payment covers until.
-- **To decide before any work:**
-  - Plans and prices, and whether there is a free tier or a trial
-  - Payment method: bKash, card, bank transfer, or manual confirmation by the admin
-  - What happens when a subscription lapses: reminder only, read-only access, or deactivation
-  - Whether existing users are moved onto a plan or exempted
-  - Refunds and receipts
-- **Constraint to keep:** admins manage accounts and payments and never see users' financial data (ADR-0011).
-- **Issue tickets:** `issues/01-subscription-plans.md` through `issues/06-existing-user-migration.md`
+> **Owns:** the two Phase 3 deliverables that have been implemented. Everything else moved to Phase 4.
+> Phase 2 backlog: `.scratch/fintrack-bd-phase-2/spec.md`. Phase 4 backlog: `.scratch/fintrack-bd-phase-4/spec.md`.
 
 ---
 
-## Deferred from Phase 2
+## Phase 3 deliverables (both done)
 
-The following items were originally in the Phase 2 backlog but moved here because they carry unresolved external dependencies, require significant infrastructure decisions, or are lower priority than other Phase 2 work. Each has a full ticket in `issues/`.
+Phase 3 had two items to build. Both are implemented.
 
-| # | Ticket | Moved from | Reason for deferral |
-|---|--------|------------|---------------------|
-| p3-07 | [Delete my account and data](issues/07-delete-account-and-data.md) | Phase 2 §2 | Needs ADR for hard-delete exception; lower urgency than active-user features |
-| p3-08 | [Passkey / two-factor sign-in](issues/08-passkey-or-two-factor-signin.md) | Phase 2 §3 | Non-trivial auth infrastructure; ship after the core feature set stabilises |
-| p3-09 | [Shareable loan statement + reminder](issues/09-shareable-loan-statement-and-reminder.md) | Phase 2 §12 | Requires server-side PDF/image rendering decision |
-| p3-10 | [Statement import with column mapping](issues/10-statement-import-with-column-mapping.md) | Phase 2 §13 | Significant extension of the import pipeline; prioritise core money features first |
-| p3-11 | [Automatic bank sync](issues/11-automatic-bank-sync.md) | Phase 2 §14 | Hard external dependency: no BD bank API available yet |
-| p3-12 | [Receipt photos + document vault](issues/12-receipt-photos-and-document-vault.md) | Phase 2 §16 | Requires file-storage provider and privacy ADR before any work |
-| p3-13 | [Restore from export + scheduled backups](issues/13-restore-from-export-and-scheduled-backups.md) | Phase 2 §17 | Depends on p3-12 (vault) and Phase 2 p2-18 (scheduler) |
+| # | Ticket | Status | Notes |
+|---|--------|--------|-------|
+| p3-07 | [Delete my account and data](issues/07-delete-account-and-data.md) | done | 2-step modal (export offer → email confirmation); `DELETE /api/v1/me`; ADR-0013 |
+| p3-13 | [Restore from export + scheduled backups](issues/13-restore-from-export-and-scheduled-backups.md) | done | Restore from JSON export; `POST /api/v1/data/restore`; backup schedule + history; cron endpoint |
+
+---
+
+## Items moved to Phase 4
+
+The following items were originally drafted as Phase 3 but moved to Phase 4 before any work started. They are not in `issues/` here — their tickets live in `.scratch/fintrack-bd-phase-4/issues/`.
+
+| Former ref | Phase 4 ticket | Reason for move |
+|---|---|---|
+| p3-01 | p4-01 Subscription plans and pricing | Subscription not ready; owner decisions pending |
+| p3-02 | p4-02 Automated payment via bKash or card | Depends on p4-01; gateway agreement needed |
+| p3-03 | p4-03 Manual bank transfer payment | Depends on p4-01 |
+| p3-04 | p4-04 Subscription access enforcement | Depends on p4-01 |
+| p3-05 | p4-05 Subscription notifications and reminders | Depends on p4-01, p4-04 |
+| p3-06 | p4-06 Migration of existing users | Depends on p4-01 through p4-05 |
+| p3-08 | p4-07 Passkey / two-factor sign-in | Non-trivial auth infrastructure |
+| p3-09 | p4-08 Shareable loan statement + reminder | PDF/image rendering decision needed |
+| p3-10 | p4-09 Statement import with column mapping | Extension of import pipeline |
+| p3-11 | p4-10 Automatic bank sync | No BD bank API available yet |
+| p3-12 | p4-11 Receipt photos + document vault | File-storage ADR required first |
 
 ## Comments
 

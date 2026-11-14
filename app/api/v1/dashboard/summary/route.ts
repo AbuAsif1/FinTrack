@@ -75,15 +75,19 @@ export async function GET(req: Request) {
   const prevNetSavings = prevIncome - prevSpending - prevTaxPaid;
   const prevSavingsRate = prevIncome > 0 ? Math.round((prevNetSavings / prevIncome) * 10000) : null;
 
+  // Sub-item C: show change indicators only when prior period has real data
+  const hasPriorPeriodData = prevIncome > 0 || prevSpending > 0;
+
   const tiles = {
     in_hand_income_paisa: income,
-    in_hand_income_change_paisa: prevIncome > 0 ? income - prevIncome : null,
+    in_hand_income_change_paisa: hasPriorPeriodData ? income - prevIncome : null,
     total_spending_paisa: spending,
-    total_spending_change_paisa: prevSpending > 0 ? spending - prevSpending : null,
+    total_spending_change_paisa: hasPriorPeriodData ? spending - prevSpending : null,
     net_savings_paisa: netSavings,
-    net_savings_change_paisa: prevIncome > 0 ? netSavings - prevNetSavings : null,
+    net_savings_change_paisa: hasPriorPeriodData ? netSavings - prevNetSavings : null,
     savings_rate_bps: savingsRate,
-    savings_rate_change_bps: prevSavingsRate !== null && savingsRate !== null ? savingsRate - prevSavingsRate : null,
+    savings_rate_change_bps: hasPriorPeriodData && prevSavingsRate !== null && savingsRate !== null ? savingsRate - prevSavingsRate : null,
+    has_prior_period_data: hasPriorPeriodData,
   };
 
   // ── Current month panel ───────────────────────────────────────────────────
@@ -190,15 +194,76 @@ export async function GET(req: Request) {
     where: { userId: user.id, isRead: false, resolvedAt: null },
   });
 
+  // ── Upcoming events (sub-item H): loan returns + savings maturity ─────────
+  const thirtyDaysFromNow = new Date(todayDate.getTime() + 30 * 86400000);
+  const [upcomingLoans, upcomingSavings] = await Promise.all([
+    prisma.loanEntry.findMany({
+      where: {
+        userId: user.id,
+        returnDueDate: { gte: todayDate, lte: thirtyDaysFromNow },
+        isSettlement: false,
+        transaction: { isDeleted: false },
+      },
+      include: {
+        loanPerson: { select: { name: true } },
+        transaction: { select: { amountPaisa: true } },
+      },
+      orderBy: { returnDueDate: 'asc' },
+    }),
+    prisma.savingsAccount.findMany({
+      where: {
+        userId: user.id,
+        closedOn: null,
+        maturityDate: { gte: todayDate, lte: thirtyDaysFromNow },
+      },
+      select: { id: true, name: true, bankName: true, maturityDate: true, openingBalancePaisa: true },
+      orderBy: { maturityDate: 'asc' },
+    }),
+  ]);
+  const upcomingEvents = [
+    ...upcomingLoans.map((e) => ({
+      type: 'loan_return_due',
+      date: fromDbDate(e.returnDueDate!).slice(0, 10),
+      label: `${e.loanPerson.name} loan return due`,
+      amount_paisa: Number(e.transaction.amountPaisa),
+      entity_id: e.id,
+    })),
+    ...upcomingSavings.map((s) => ({
+      type: 'savings_maturity',
+      date: fromDbDate(s.maturityDate!).slice(0, 10),
+      label: `${s.name} at ${s.bankName} matures`,
+      amount_paisa: Number(s.openingBalancePaisa),
+      entity_id: s.id,
+    })),
+  ].sort((a, b) => a.date.localeCompare(b.date));
+
+  // ── Net worth ─────────────────────────────────────────────────────────────
+  // Sum opening balances across all enabled wallets and open savings accounts.
+  // Full transaction-based balance is available via GET /api/v1/wallets.
+  const [wallets, openSavings, userRecord] = await Promise.all([
+    prisma.wallet.findMany({ where: { userId: user.id, isEnabled: true }, select: { openingBalancePaisa: true } }),
+    prisma.savingsAccount.findMany({ where: { userId: user.id, closedOn: null }, select: { openingBalancePaisa: true } }),
+    prisma.user.findUnique({ where: { id: user.id }, select: { monthlyLimitPaisa: true } }),
+  ]);
+  const net_worth_paisa =
+    wallets.reduce((s, w) => s + Number(w.openingBalancePaisa), 0) +
+    openSavings.reduce((s, a) => s + Number(a.openingBalancePaisa), 0);
+  const monthly_limit_paisa = userRecord?.monthlyLimitPaisa !== null && userRecord?.monthlyLimitPaisa !== undefined
+    ? Number(userRecord.monthlyLimitPaisa)
+    : null;
+
   return Response.json({
     tiles,
     current_month: currentMonthPanel,
     spending_by_category: categorySpending,
     six_month_trend: trend,
     fixed_expense_panel: fixedExpensePanel,
+    upcoming_events: upcomingEvents,
     recent_transactions: recentTransactions,
     loan_summary: loanSummary,
     tax_snapshot: taxSnapshot,
     unread_notification_count: unreadCount,
+    net_worth_paisa,
+    monthly_limit_paisa,
   });
 }

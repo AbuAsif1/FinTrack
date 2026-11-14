@@ -1,6 +1,6 @@
 # p2-15: Direct .xlsx Import
 
-**Status:** needs-triage
+**Status:** ready-for-human
 **Phase:** 2
 **Spec ref:** Phase 2 §15
 

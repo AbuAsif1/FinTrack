@@ -1,7 +1,8 @@
 ﻿'use client';
 
-import { useState } from 'react';
-import { getAccessToken } from '@/lib/api';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import api, { getAccessToken } from '@/lib/api';
 import { DatePicker } from '@/components/ui/DatePicker';
 
 function downloadUrl(path: string) {
@@ -38,6 +39,248 @@ function ExportCard({ title, desc, children }: ExportCardProps) {
   );
 }
 
+// ── Restore Section ───────────────────────────────────────────────────────
+
+interface RestoreSummaryRow {
+  created: number;
+  restored?: number;
+  skipped: number;
+}
+
+interface RestoreResult {
+  ok: boolean;
+  total_in_file: number;
+  restored: number;
+  summary: Record<string, RestoreSummaryRow>;
+  errors: string[];
+}
+
+function RestoreSection() {
+  const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<{ totalInFile: number; schemaVersion: string } | null>(null);
+  const [filePayload, setFilePayload] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  const [result, setResult] = useState<RestoreResult | null>(null);
+  const [error, setError] = useState('');
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setError('');
+    setResult(null);
+    setPreview(null);
+    try {
+      const text = await f.text();
+      const json = JSON.parse(text);
+      if (!json.schema_version) throw new Error('Not a FinTrack export file (missing schema_version).');
+      const count =
+        (json.transactions?.length ?? 0) +
+        (json.income_entries?.length ?? 0) +
+        (json.loan_entries?.length ?? 0) +
+        (json.categories?.length ?? 0) +
+        (json.savings_accounts?.length ?? 0) +
+        (json.loan_persons?.length ?? 0) +
+        (json.tax_years?.length ?? 0) +
+        (json.tax_investments?.length ?? 0) +
+        (json.holiday_support_entries?.length ?? 0);
+      setPreview({ totalInFile: count, schemaVersion: json.schema_version });
+      setFilePayload(text);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function doRestore() {
+    if (!filePayload) return;
+    setRestoring(true);
+    setError('');
+    setResult(null);
+    try {
+      const { data } = await api.post<RestoreResult>('/data/restore', JSON.parse(filePayload));
+      setResult(data);
+      router.refresh();
+    } catch {
+      setError('Restore failed — please try again.');
+    } finally {
+      setRestoring(false);
+    }
+  }
+
+  return (
+    <ExportCard title="Restore from Backup" desc="Upload a full JSON export to merge records into your current account. Existing records are not deleted; duplicates are skipped.">
+      <input ref={fileRef} type="file" accept=".json,application/json" onChange={handleFile} style={{ display: 'none' }} />
+      {!preview ? (
+        <button
+          onClick={() => fileRef.current?.click()}
+          style={{ padding: '8px 20px', borderRadius: 6, background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', cursor: 'pointer', font: 'var(--t-label)' }}
+        >
+          Choose backup file
+        </button>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <p style={{ margin: 0, font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>
+            File contains <strong>{preview.totalInFile}</strong> records (schema v{preview.schemaVersion}).
+          </p>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={doRestore}
+              disabled={restoring}
+              style={{ padding: '8px 20px', borderRadius: 6, background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', cursor: 'pointer', font: 'var(--t-label)' }}
+            >
+              {restoring ? 'Restoring…' : 'Restore'}
+            </button>
+            <button
+              onClick={() => { setPreview(null); setFilePayload(null); if (fileRef.current) fileRef.current.value = ''; }}
+              style={{ padding: '8px 16px', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-primary)', font: 'var(--t-label)', cursor: 'pointer' }}
+            >
+              Choose different file
+            </button>
+          </div>
+        </div>
+      )}
+      {error && <p style={{ color: 'var(--danger)', font: 'var(--t-caption)', marginTop: 10 }}>{error}</p>}
+      {result && (
+        <div style={{ marginTop: 14, padding: '12px 16px', background: 'var(--bg-sunken)', borderRadius: 8 }}>
+          <p style={{ margin: '0 0 8px', font: 'var(--t-label)', color: 'var(--savings)' }}>
+            Restored {result.restored} records ({result.total_in_file - result.restored} duplicates skipped)
+          </p>
+          <table style={{ width: '100%', font: 'var(--t-caption)', color: 'var(--fg-secondary)', borderCollapse: 'collapse' }}>
+            <tbody>
+              {Object.entries(result.summary).map(([k, v]) => (
+                (v.created + (v.restored ?? 0) + v.skipped) > 0 && (
+                  <tr key={k}>
+                    <td style={{ padding: '2px 0' }}>{k.replace(/_/g, ' ')}</td>
+                    <td style={{ textAlign: 'right' }}>+{v.created}{v.restored ? ` (${v.restored} undeleted)` : ''}, {v.skipped} skipped</td>
+                  </tr>
+                )
+              ))}
+            </tbody>
+          </table>
+          {result.errors.length > 0 && (
+            <details style={{ marginTop: 8 }}>
+              <summary style={{ cursor: 'pointer', color: 'var(--danger)', font: 'var(--t-caption)' }}>{result.errors.length} errors</summary>
+              <ul style={{ margin: '8px 0 0', paddingLeft: 20, font: 'var(--t-caption)', color: 'var(--danger)' }}>
+                {result.errors.map((e, i) => <li key={i}>{e}</li>)}
+              </ul>
+            </details>
+          )}
+        </div>
+      )}
+    </ExportCard>
+  );
+}
+
+// ── Automatic Backup Section ──────────────────────────────────────────────
+
+interface BackupRun {
+  id: string;
+  run_at: string;
+  record_count: number;
+  delivery_method: string;
+  status: string;
+  error_message: string | null;
+}
+
+function AutoBackupSection() {
+  const [cadence, setCadence] = useState<'OFF' | 'WEEKLY' | 'MONTHLY'>('OFF');
+  const [saving, setSaving] = useState(false);
+  const [runs, setRuns] = useState<BackupRun[]>([]);
+  const [loadingPrefs, setLoadingPrefs] = useState(true);
+  const [saveMsg, setSaveMsg] = useState('');
+
+  useEffect(() => {
+    Promise.all([
+      api.get<{ cadence: 'OFF' | 'WEEKLY' | 'MONTHLY' }>('/data/backup/schedule'),
+      api.get<BackupRun[]>('/data/backup/history'),
+    ]).then(([prefsRes, histRes]) => {
+      setCadence(prefsRes.data.cadence);
+      setRuns(histRes.data);
+      setLoadingPrefs(false);
+    }).catch(() => setLoadingPrefs(false));
+  }, []);
+
+  async function saveSchedule(newCadence: 'OFF' | 'WEEKLY' | 'MONTHLY') {
+    setCadence(newCadence);
+    setSaving(true);
+    setSaveMsg('');
+    try {
+      await api.patch('/data/backup/schedule', { cadence: newCadence, delivery: 'EMAIL' });
+      setSaveMsg('Saved.');
+      setTimeout(() => setSaveMsg(''), 2000);
+    } catch {
+      setSaveMsg('Failed to save.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loadingPrefs) return (
+    <ExportCard title="Automatic Backups" desc="Receive a full JSON backup by email on a schedule.">
+      <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>Loading…</span>
+    </ExportCard>
+  );
+
+  return (
+    <ExportCard title="Automatic Backups" desc="Receive a full JSON backup by email on a schedule. Delivery: email.">
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        {(['OFF', 'WEEKLY', 'MONTHLY'] as const).map((opt) => (
+          <button
+            key={opt}
+            onClick={() => saveSchedule(opt)}
+            disabled={saving}
+            style={{
+              padding: '8px 18px',
+              borderRadius: 6,
+              border: '1px solid var(--border)',
+              background: cadence === opt ? 'var(--accent)' : 'var(--bg-raised)',
+              color: cadence === opt ? 'var(--accent-fg)' : 'var(--fg-primary)',
+              font: 'var(--t-label)',
+              cursor: 'pointer',
+            }}
+          >
+            {opt === 'OFF' ? 'Off' : opt === 'WEEKLY' ? 'Weekly (Sunday)' : 'Monthly (1st)'}
+          </button>
+        ))}
+        {saveMsg && <span style={{ font: 'var(--t-caption)', color: 'var(--savings)', alignSelf: 'center' }}>{saveMsg}</span>}
+      </div>
+      {runs.length > 0 && (
+        <>
+          <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 6 }}>Backup history</div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', font: 'var(--t-caption)' }}>
+            <thead>
+              <tr style={{ color: 'var(--fg-secondary)', borderBottom: '1px solid var(--border)' }}>
+                <th style={{ textAlign: 'left', padding: '4px 0' }}>Date</th>
+                <th style={{ textAlign: 'right', padding: '4px 8px' }}>Records</th>
+                <th style={{ textAlign: 'right', padding: '4px 0' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {runs.map((r) => (
+                <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={{ padding: '6px 0' }}>{r.run_at.slice(0, 10)}</td>
+                  <td style={{ textAlign: 'right', padding: '6px 8px' }}>{r.record_count}</td>
+                  <td style={{ textAlign: 'right', padding: '6px 0', color: r.status === 'COMPLETED' ? 'var(--savings)' : 'var(--danger)' }}>
+                    {r.status === 'COMPLETED' ? 'Completed' : 'Failed'}
+                    {r.error_message && <span title={r.error_message}> ⚠</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+      {runs.length === 0 && cadence !== 'OFF' && (
+        <p style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', margin: '8px 0 0' }}>
+          No backups yet. The first backup will run on the next scheduled day.
+        </p>
+      )}
+    </ExportCard>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────
+
 export default function ExportPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -61,7 +304,7 @@ export default function ExportPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 760 }}>
-      <h1 style={{ font: 'var(--t-page)', margin: 0 }}>Export Data</h1>
+      <h1 style={{ font: 'var(--t-page)', margin: 0 }}>Export &amp; Data</h1>
       {error && (
         <div style={{ padding: '12px 16px', background: 'rgba(var(--danger-rgb), 0.1)', border: '1px solid var(--danger)', borderRadius: 8, color: 'var(--danger)', font: 'var(--t-body)' }}>
           {error}
@@ -138,6 +381,9 @@ export default function ExportPage() {
           </button>
         </div>
       </ExportCard>
+
+      <RestoreSection />
+      <AutoBackupSection />
     </div>
   );
 }

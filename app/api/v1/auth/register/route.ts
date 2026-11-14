@@ -6,6 +6,17 @@ import { provisionNewUser } from '@/lib/provision';
 import { getEmailTransport, verificationEmailHtml } from '@/lib/email';
 import type { Prisma } from '@prisma/client';
 
+async function isRegistrationOpen(): Promise<boolean> {
+  // Env var takes priority (allows tests and deploy overrides to work)
+  if (process.env.SIGNUP_MODE === 'closed') return false;
+  const row = await prisma.siteSettings.findUnique({ where: { key: 'registration_open' } });
+  if (row) {
+    const val = row.valueJson as { enabled?: boolean };
+    return val.enabled !== false;
+  }
+  return true;
+}
+
 const registerSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email'),
@@ -17,7 +28,7 @@ const OK_RESPONSE = { message: 'If that email is not registered, a verification 
 type TxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
 export async function POST(req: Request) {
-  if (process.env.SIGNUP_MODE === 'closed') {
+  if (!(await isRegistrationOpen())) {
     return Response.json({ error: 'Registration is closed', code: 'SIGNUP_CLOSED' }, { status: 403 });
   }
 

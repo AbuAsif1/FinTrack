@@ -94,6 +94,31 @@ export async function buildRouter() {
     exportIncomeMod,
     exportLoanPersonMod,
     exportMonthlySummaryMod,
+    walletsMod,
+    walletsTransfersMod,
+    walletsMethodTxsMod,
+    walletsMethodMod,
+    tagsMod,
+    tagsIdMod,
+    tagsMergeMod,
+    budgetsMonthlyLimitMod,
+    savingsGoalsMod,
+    savingsGoalsIdMod,
+    taxPlannerMod,
+    taxFilingChecklistMod,
+    salaryProposalMod,
+    salaryProposalConfirmMod,
+    transactionTemplatesMod,
+    transactionTemplateIdMod,
+    transactionTemplateUseMod,
+    adminSettingsRegistrationMod,
+    adminDefaultCategoriesMod,
+    adminDefaultCategoryIdMod,
+    adminHealthMod,
+    pushSubscribeMod,
+    pushSubscriptionsMod,
+    pushSubscriptionIdMod,
+    pushPreferencesMod,
   ] = await Promise.all([
     import('../../app/api/v1/health/route'),
     import('../../app/api/v1/auth/login/route'),
@@ -168,6 +193,31 @@ export async function buildRouter() {
     import('../../app/api/v1/export/income/route'),
     import('../../app/api/v1/export/loan-persons/[id]/route'),
     import('../../app/api/v1/export/monthly-summary/route'),
+    import('../../app/api/v1/wallets/route'),
+    import('../../app/api/v1/wallets/transfers/route'),
+    import('../../app/api/v1/wallets/[method]/transactions/route'),
+    import('../../app/api/v1/wallets/[method]/route'),
+    import('../../app/api/v1/tags/route'),
+    import('../../app/api/v1/tags/[id]/route'),
+    import('../../app/api/v1/tags/[id]/merge/route'),
+    import('../../app/api/v1/budgets/monthly-limit/route'),
+    import('../../app/api/v1/savings-goals/route'),
+    import('../../app/api/v1/savings-goals/[id]/route'),
+    import('../../app/api/v1/tax/planner/route'),
+    import('../../app/api/v1/tax/filing-checklist/route'),
+    import('../../app/api/v1/income-entries/salary-proposal/route'),
+    import('../../app/api/v1/income-entries/salary-proposal/confirm/route'),
+    import('../../app/api/v1/transaction-templates/route'),
+    import('../../app/api/v1/transaction-templates/[id]/route'),
+    import('../../app/api/v1/transaction-templates/[id]/use/route'),
+    import('../../app/api/v1/admin/settings/registration/route'),
+    import('../../app/api/v1/admin/settings/defaults/categories/route'),
+    import('../../app/api/v1/admin/settings/defaults/categories/[id]/route'),
+    import('../../app/api/v1/admin/health/route'),
+    import('../../app/api/v1/push/subscribe/route'),
+    import('../../app/api/v1/push/subscriptions/route'),
+    import('../../app/api/v1/push/subscriptions/[id]/route'),
+    import('../../app/api/v1/push/preferences/route'),
   ]);
 
   routes.length = 0;
@@ -177,7 +227,7 @@ export async function buildRouter() {
   addRoute('/api/v1/auth/refresh', { POST: refreshMod.POST });
   addRoute('/api/v1/auth/logout', { POST: logoutMod.POST });
   addRoute('/api/v1/auth/change-password', { POST: changePasswordMod.POST });
-  addRoute('/api/v1/me', { GET: meMod.GET, PATCH: meMod.PATCH });
+  addRoute('/api/v1/me', { GET: meMod.GET, PATCH: meMod.PATCH, DELETE: meMod.DELETE });
   addRoute('/api/v1/auth/register', { POST: registerMod.POST });
   addRoute('/api/v1/auth/verify-email', { POST: verifyEmailMod.POST });
   addRoute('/api/v1/auth/resend-verification', { POST: resendMod.POST });
@@ -213,8 +263,10 @@ export async function buildRouter() {
   addRoute('/api/v1/loan-persons/:id/settle', { POST: loanSettleMod.POST });
   addRoute('/api/v1/loan-persons/:id', { PATCH: loanPersonIdMod.PATCH });
 
-  // Income — summary before :id
+  // Income — specific sub-routes before :id
   addRoute('/api/v1/income-entries/summary', { GET: incomeSummaryMod.GET });
+  addRoute('/api/v1/income-entries/salary-proposal/confirm', { POST: salaryProposalConfirmMod.POST });
+  addRoute('/api/v1/income-entries/salary-proposal', { GET: salaryProposalMod.GET });
   addRoute('/api/v1/income-entries', { GET: incomeEntriesMod.GET, POST: incomeEntriesMod.POST });
   addRoute('/api/v1/income-entries/:id', { PATCH: incomeEntryIdMod.PATCH, DELETE: incomeEntryIdMod.DELETE });
 
@@ -230,7 +282,8 @@ export async function buildRouter() {
   addRoute('/api/v1/fixed-expense-instances/:id/skip', { POST: fixedInstanceSkipMod.POST });
   addRoute('/api/v1/fixed-expense-instances/:id/reopen', { POST: fixedInstanceReopenMod.POST });
 
-  // Budgets
+  // Budgets — monthly-limit before :categoryId to avoid shadowing
+  addRoute('/api/v1/budgets/monthly-limit', { GET: budgetsMonthlyLimitMod.GET, PUT: budgetsMonthlyLimitMod.PUT });
   addRoute('/api/v1/budgets', { GET: budgetsMod.GET });
   addRoute('/api/v1/budgets/:categoryId', { PUT: budgetCategoryIdMod.PUT, DELETE: budgetCategoryIdMod.DELETE });
 
@@ -287,6 +340,42 @@ export async function buildRouter() {
   addRoute('/api/v1/export/income', { GET: exportIncomeMod.GET });
   addRoute('/api/v1/export/monthly-summary', { GET: exportMonthlySummaryMod.GET });
   addRoute('/api/v1/export/loan-persons/:id', { GET: exportLoanPersonMod.GET });
+
+  // Wallets — transfers and :method/transactions before :method
+  addRoute('/api/v1/wallets/transfers', { POST: walletsTransfersMod.POST });
+  addRoute('/api/v1/wallets/:method/transactions', { GET: walletsMethodTxsMod.GET });
+  addRoute('/api/v1/wallets/:method', { PUT: walletsMethodMod.PUT });
+  addRoute('/api/v1/wallets', { GET: walletsMod.GET });
+
+  // Tags — merge before :id
+  addRoute('/api/v1/tags/:id/merge', { POST: tagsMergeMod.POST });
+  addRoute('/api/v1/tags/:id', { PATCH: tagsIdMod.PATCH, DELETE: tagsIdMod.DELETE });
+  addRoute('/api/v1/tags', { GET: tagsMod.GET, POST: tagsMod.POST });
+
+  // Savings Goals
+  addRoute('/api/v1/savings-goals/:id', { PATCH: savingsGoalsIdMod.PATCH, DELETE: savingsGoalsIdMod.DELETE });
+  addRoute('/api/v1/savings-goals', { GET: savingsGoalsMod.GET, POST: savingsGoalsMod.POST });
+
+  // Tax Planner + Filing Checklist
+  addRoute('/api/v1/tax/planner', { GET: taxPlannerMod.GET });
+  addRoute('/api/v1/tax/filing-checklist', { GET: taxFilingChecklistMod.GET, PATCH: taxFilingChecklistMod.PATCH });
+
+  // Transaction Templates — :id/use before :id
+  addRoute('/api/v1/transaction-templates/:id/use', { POST: transactionTemplateUseMod.POST });
+  addRoute('/api/v1/transaction-templates/:id', { PATCH: transactionTemplateIdMod.PATCH, DELETE: transactionTemplateIdMod.DELETE });
+  addRoute('/api/v1/transaction-templates', { GET: transactionTemplatesMod.GET, POST: transactionTemplatesMod.POST });
+
+  // Admin settings — static sub-routes before parametric
+  addRoute('/api/v1/admin/settings/registration', { GET: adminSettingsRegistrationMod.GET, PUT: adminSettingsRegistrationMod.PUT });
+  addRoute('/api/v1/admin/settings/defaults/categories/:id', { PATCH: adminDefaultCategoryIdMod.PATCH, DELETE: adminDefaultCategoryIdMod.DELETE });
+  addRoute('/api/v1/admin/settings/defaults/categories', { GET: adminDefaultCategoriesMod.GET, POST: adminDefaultCategoriesMod.POST });
+  addRoute('/api/v1/admin/health', { GET: adminHealthMod.GET });
+
+  // Push Notifications — subscribe, subscriptions/:id before subscriptions, preferences
+  addRoute('/api/v1/push/subscribe', { POST: pushSubscribeMod.POST });
+  addRoute('/api/v1/push/subscriptions/:id', { DELETE: pushSubscriptionIdMod.DELETE });
+  addRoute('/api/v1/push/subscriptions', { GET: pushSubscriptionsMod.GET });
+  addRoute('/api/v1/push/preferences', { GET: pushPreferencesMod.GET, PATCH: pushPreferencesMod.PATCH });
 }
 
 export function routeRequest(req: Request): Response | Promise<Response> {

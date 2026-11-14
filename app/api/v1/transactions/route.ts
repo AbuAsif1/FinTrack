@@ -22,6 +22,7 @@ const createSchema = z.object({
   return_due_date: z.string().optional(),
   reason: z.string().optional(),
   tax_fiscal_year: z.string().optional(),
+  tag_ids: z.array(z.string()).optional().default([]),
 });
 
 function txRow(tx: {
@@ -39,6 +40,7 @@ function txRow(tx: {
   createdAt: Date;
   updatedAt: Date;
   fixedExpenseInstance?: { month: Date } | null;
+  tags?: { tagId: string }[];
 }) {
   return {
     id: tx.id,
@@ -55,6 +57,7 @@ function txRow(tx: {
     savings_account_id: tx.savingsAccountId,
     tax_fiscal_year: tx.taxFiscalYear,
     idempotency_key: tx.idempotencyKey,
+    tag_ids: (tx.tags ?? []).map((t) => t.tagId),
     created_at: tx.createdAt.toISOString(),
     updated_at: tx.updatedAt.toISOString(),
   };
@@ -78,6 +81,7 @@ export async function GET(req: Request) {
   const min_paisa = url.searchParams.get('min_paisa');
   const max_paisa = url.searchParams.get('max_paisa');
   const q = url.searchParams.get('q');
+  const tag_ids_param = url.searchParams.getAll('tag_ids');
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
   const page_size = Math.min(100, Math.max(1, parseInt(url.searchParams.get('page_size') ?? '20', 10)));
 
@@ -99,13 +103,14 @@ export async function GET(req: Request) {
     ...(type && { type: type as any }),
     ...((min_paisa || max_paisa) && { amountPaisa: amountFilter }),
     ...(q && { description: { contains: q, mode: 'insensitive' as const } }),
+    ...(tag_ids_param.length > 0 && { tags: { some: { tagId: { in: tag_ids_param } } } }),
   };
 
   const [total, items] = await Promise.all([
     prisma.transaction.count({ where }),
     prisma.transaction.findMany({
       where,
-      include: { category: true, fixedExpenseInstance: { select: { month: true } } },
+      include: { category: true, fixedExpenseInstance: { select: { month: true } }, tags: { select: { tagId: true } } },
       orderBy: [{ createdAt: 'desc' }],
       skip: (page - 1) * page_size,
       take: page_size,
@@ -129,11 +134,22 @@ export async function POST(req: Request) {
   try {
     const svc = new CategoryRoutingService(user.id);
     const today = new Date().toISOString().slice(0, 10);
-    const result = await svc.create({ ...r.data, date: r.data.date ?? today });
+    const { tag_ids, ...txData } = r.data;
+    const result = await svc.create({ ...txData, date: txData.date ?? today });
     if (result.duplicate) {
       return Response.json({ code: 'DUPLICATE', transaction: result.transaction }, { status: 409 });
     }
-    return Response.json({ ...result.transaction, routing: result.routing ?? null }, { status: 201 });
+
+    // Link tags after transaction creation
+    const txId = (result.transaction as { id: string }).id;
+    if (tag_ids && tag_ids.length > 0) {
+      await prisma.transactionTag.createMany({
+        data: tag_ids.map((tagId) => ({ transactionId: txId, tagId })),
+        skipDuplicates: true,
+      });
+    }
+
+    return Response.json({ ...result.transaction, tag_ids: tag_ids ?? [], routing: result.routing ?? null }, { status: 201 });
   } catch (err) {
     if (err instanceof RoutingError) {
       return Response.json({ error: err.message, code: err.code }, { status: err.status });

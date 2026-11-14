@@ -1,6 +1,6 @@
 # p2-11: Recurring Income and Transaction Templates
 
-**Status:** needs-triage
+**Status:** done
 **Phase:** 2
 **Spec ref:** Phase 2 §11
 

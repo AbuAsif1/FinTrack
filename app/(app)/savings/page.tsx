@@ -29,6 +29,7 @@ interface SavingsAccount {
   monthly_installment_paisa?: number | null;
   maturity_date?: string | null;
   interest_rate_bps?: number | null;
+  projected_principal_paisa?: number | null;
 }
 
 interface AccountsSummary {

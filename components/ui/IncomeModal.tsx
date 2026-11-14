@@ -41,6 +41,8 @@ const INCOME_TYPES = [
   { value: 'LEAVE_ENCASHMENT', label: 'Leave Encashment' },
   { value: 'CERTIFICATION', label: 'Certification Reimbursement' },
   { value: 'HOLIDAY_SUPPORT', label: 'Holiday Support' },
+  { value: 'SAVINGS_INTEREST', label: 'Bank Savings Interest' },
+  { value: 'SANCHAYPATRA_PROFIT', label: 'Sanchaypatra Profit' },
   { value: 'OTHER', label: 'Other' },
 ];
 

@@ -1,6 +1,6 @@
 # p3-07: Delete My Account and Data
 
-**Status:** needs-triage
+**Status:** done
 **Phase:** 3
 **Moved from:** Phase 2 §2
 **Spec ref:** Phase 3 — Deferred features
@@ -90,3 +90,4 @@ The app holds sensitive financial data. Users need a credible way to leave — b
 ## Comments
 
 <!-- Append discussion below this line -->
+2026-11-14: Implemented. ADR-0013 written. DELETE /api/v1/me added with email-confirmation guard. Settings DangerZone section with 2-step modal (export offer → email confirmation → redirect to /login). Hard-delete via prisma.user.delete(); cascade removes all owned rows. Idempotent: repeated call returns 404.

@@ -3,11 +3,20 @@ import { getAuthUser } from '@/lib/auth';
 import { toDbDate, fromDbDate } from '@fintrack/shared';
 import { todayInDhaka } from '@fintrack/shared';
 
+function monthlyEquivalent(amountPaisa: bigint, cadence: string): number {
+  const n = Number(amountPaisa);
+  if (cadence === 'QUARTERLY') return Math.round(n / 3);
+  if (cadence === 'ANNUAL') return Math.round(n / 12);
+  return n;
+}
+
 function templateToJson(t: {
   id: string;
   name: string;
   standardAmountPaisa: bigint;
   dueDay: number;
+  cadence: string;
+  dueMonth: number | null;
   categoryId: string;
   savingsAccountId: string | null;
   startMonth: Date;
@@ -20,6 +29,9 @@ function templateToJson(t: {
     name: t.name,
     standard_amount_paisa: Number(t.standardAmountPaisa),
     due_day: t.dueDay,
+    cadence: t.cadence,
+    due_month: t.dueMonth ?? null,
+    monthly_equivalent_paisa: monthlyEquivalent(t.standardAmountPaisa, t.cadence),
     category_id: t.categoryId,
     savings_account_id: t.savingsAccountId,
     start_month: fromDbDate(t.startMonth).slice(0, 7),
@@ -56,13 +68,20 @@ export async function POST(req: Request) {
   if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
 
   const body = await req.json();
-  const { name, standard_amount_paisa, due_day, category_id, savings_account_id, start_month } = body;
+  const { name, standard_amount_paisa, due_day, category_id, savings_account_id, start_month,
+    cadence = 'MONTHLY', due_month } = body;
 
   if (!name || standard_amount_paisa == null || !due_day || !category_id) {
     return Response.json({ error: 'Missing required fields', code: 'VALIDATION_ERROR' }, { status: 422 });
   }
   if (due_day < 1 || due_day > 31) {
     return Response.json({ error: 'due_day must be 1–31', code: 'VALIDATION_ERROR' }, { status: 422 });
+  }
+  if (!['MONTHLY', 'QUARTERLY', 'ANNUAL'].includes(cadence)) {
+    return Response.json({ error: 'cadence must be MONTHLY, QUARTERLY, or ANNUAL', code: 'VALIDATION_ERROR' }, { status: 422 });
+  }
+  if ((cadence === 'QUARTERLY' || cadence === 'ANNUAL') && (due_month == null || due_month < 1 || due_month > 12)) {
+    return Response.json({ error: 'due_month (1–12) is required for QUARTERLY and ANNUAL cadences', code: 'VALIDATION_ERROR' }, { status: 422 });
   }
 
   // Verify category belongs to user
@@ -93,6 +112,8 @@ export async function POST(req: Request) {
       name,
       standardAmountPaisa: BigInt(standard_amount_paisa),
       dueDay: due_day,
+      cadence,
+      dueMonth: due_month ?? null,
       categoryId: category_id,
       savingsAccountId: savings_account_id ?? null,
       startMonth: toDbDate(startMonth + '-01'),

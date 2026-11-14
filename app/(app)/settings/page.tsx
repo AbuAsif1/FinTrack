@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import api from '@/lib/api';
+import api, { getAccessToken } from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { InstallPrompt } from '@/components/ui/InstallPrompt';
 
@@ -300,6 +300,142 @@ function CategoriesSection() {
   );
 }
 
+// ── Danger Zone ───────────────────────────────────────────────────────────
+
+function DangerZone({ userEmail }: { userEmail: string }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [emailInput, setEmailInput] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState('');
+
+  function openModal() { setOpen(true); setStep(1); setEmailInput(''); setError(''); }
+  function closeModal() { if (deleting) return; setOpen(false); setStep(1); setEmailInput(''); setError(''); }
+
+  async function downloadExport() {
+    setExporting(true);
+    setError('');
+    try {
+      const token = getAccessToken();
+      const res = await fetch('/api/v1/export/full', { headers: { Authorization: `Bearer ${token ?? ''}` } });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fintrack_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError('Export failed — please try again.');
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function confirmDelete() {
+    setDeleting(true);
+    setError('');
+    try {
+      await api.delete('/me', { data: { email: emailInput } });
+      router.replace('/login?deleted=1');
+    } catch {
+      setError('Deletion failed — please try again.');
+      setDeleting(false);
+    }
+  }
+
+  const canDelete = emailInput.toLowerCase() === userEmail.toLowerCase();
+
+  return (
+    <>
+      <section style={{ background: 'var(--bg-surface)', border: '1px solid var(--danger)', borderRadius: 10, padding: 24 }}>
+        <h2 style={{ font: 'var(--t-section)', margin: '0 0 8px', color: 'var(--danger)' }}>Danger Zone</h2>
+        <p style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)', margin: '0 0 16px' }}>
+          Permanently delete your account and all financial data. This cannot be undone.
+        </p>
+        <button
+          onClick={openModal}
+          style={{ padding: '8px 20px', borderRadius: 6, border: '1px solid var(--danger)', background: 'transparent', color: 'var(--danger)', font: 'var(--t-label)', cursor: 'pointer' }}
+        >
+          Delete my account and all data
+        </button>
+      </section>
+
+      {open && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 28, width: '100%', maxWidth: 440, boxShadow: '0 8px 32px rgba(0,0,0,0.24)' }}>
+            {step === 1 ? (
+              <>
+                <h3 style={{ font: 'var(--t-section)', margin: '0 0 12px' }}>Before you go</h3>
+                <p style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)', margin: '0 0 20px' }}>
+                  Would you like to download a copy of your data? This is your last chance — once your account is deleted nothing can be recovered.
+                </p>
+                {error && <p style={{ color: 'var(--danger)', font: 'var(--t-caption)', marginBottom: 12 }}>{error}</p>}
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={downloadExport}
+                    disabled={exporting}
+                    style={{ padding: '9px 18px', borderRadius: 6, background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', cursor: 'pointer', font: 'var(--t-label)' }}
+                  >
+                    {exporting ? 'Downloading…' : 'Download my data'}
+                  </button>
+                  <button
+                    onClick={() => setStep(2)}
+                    style={{ padding: '9px 18px', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-primary)', font: 'var(--t-label)', cursor: 'pointer' }}
+                  >
+                    Skip and continue
+                  </button>
+                  <button
+                    onClick={closeModal}
+                    style={{ padding: '9px 18px', borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--fg-muted)', font: 'var(--t-label)', cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 style={{ font: 'var(--t-section)', margin: '0 0 12px', color: 'var(--danger)' }}>Confirm deletion</h3>
+                <p style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)', margin: '0 0 16px' }}>
+                  To permanently delete your account, type your email address below.
+                </p>
+                <input
+                  type="email"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  placeholder={userEmail}
+                  disabled={deleting}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', color: 'var(--fg-primary)', marginBottom: 16 }}
+                />
+                {error && <p style={{ color: 'var(--danger)', font: 'var(--t-caption)', marginBottom: 12 }}>{error}</p>}
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={confirmDelete}
+                    disabled={!canDelete || deleting}
+                    style={{ padding: '9px 18px', borderRadius: 6, background: canDelete ? 'var(--danger)' : 'var(--bg-raised)', color: canDelete ? '#fff' : 'var(--fg-muted)', border: 'none', cursor: canDelete ? 'pointer' : 'default', font: 'var(--t-label)', transition: 'background 0.15s' }}
+                  >
+                    {deleting ? 'Deleting…' : 'Delete my account'}
+                  </button>
+                  <button
+                    onClick={closeModal}
+                    disabled={deleting}
+                    style={{ padding: '9px 18px', borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--fg-muted)', font: 'var(--t-label)', cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -327,6 +463,7 @@ export default function SettingsPage() {
       <AppearanceSection />
       <CategoriesSection />
       <InstallPrompt inline />
+      {me && <DangerZone userEmail={me.email} />}
 
       {/* Links to other settings pages */}
       <section style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 24 }}>
@@ -335,7 +472,7 @@ export default function SettingsPage() {
           {[
             { href: '/settings/tax-years', label: 'Tax Year Settings', desc: 'Slabs, exemptions, filing status' },
             { href: '/settings/import', label: 'Import Data', desc: 'Upload income, transactions, or loan history' },
-            { href: '/settings/export', label: 'Export Data', desc: 'Download your data as CSV or JSON' },
+            { href: '/settings/export', label: 'Export, Restore & Backups', desc: 'Download, restore from backup, or set up automatic backups' },
           ].map((item) => (
             <Link
               key={item.href}

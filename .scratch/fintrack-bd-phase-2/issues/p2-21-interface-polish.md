@@ -1,6 +1,6 @@
 # p2-21: Interface Polish
 
-**Status:** needs-triage
+**Status:** done
 **Phase:** 2
 **Spec ref:** Phase 2 §21
 

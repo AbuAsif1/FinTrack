@@ -12,6 +12,7 @@ const navItems = [
   { href: '/budgets', label: 'Budgets', icon: '◧' },
   { href: '/fixed-expenses', label: 'Fixed Expenses', icon: '◉' },
   { href: '/savings', label: 'Bank & Savings', icon: '◈' },
+  { href: '/wallets', label: 'Wallets', icon: '◫' },
   { href: '/loans', label: 'Loans', icon: '⟺' },
   { href: '/tax', label: 'Tax Dashboard', icon: '◎' },
   { href: '/history', label: 'History', icon: '▦' },
