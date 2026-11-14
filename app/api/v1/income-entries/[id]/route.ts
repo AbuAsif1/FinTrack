@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { toDbDate, fromDbDate, fiscalYear } from '@fintrack/shared';
 import type { IncomeType } from '@prisma/client';
+import { validateReceivingAccount, AccountRuleError } from '@/lib/services/accounts';
 
 function entryToJson(entry: {
   id: string;
@@ -73,6 +74,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const newTds = tds_paisa != null ? Number(tds_paisa) : Number(entry.tdsPaisa);
   if (newTds < 0 || newTds > newGross) {
     return Response.json({ error: 'TDS must be between 0 and gross', code: 'VALIDATION_ERROR' }, { status: 422 });
+  }
+
+  if (savings_account_id) {
+    try {
+      await validateReceivingAccount(user.id, savings_account_id);
+    } catch (err) {
+      if (err instanceof AccountRuleError) return Response.json({ error: err.message, code: err.code }, { status: err.status });
+      throw err;
+    }
   }
 
   let newFY = entry.fiscalYear;

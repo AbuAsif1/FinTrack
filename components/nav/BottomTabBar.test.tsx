@@ -63,9 +63,9 @@ describe('TC-UI-006 BottomTabBar More sheet', () => {
     expect(sheet).toBeInTheDocument();
     // Extra sections exposed in the More sheet
     expect(screen.getByRole('link', { name: /income/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /bank.*savings|savings/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /bank.*wallet/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /loans/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /tax dashboard/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^\W*tax$/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /history/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /settings/i })).toBeInTheDocument();
   });

@@ -83,7 +83,7 @@ export async function PATCH(req: Request) {
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { backupPrefsJson: updated },
+    data: { backupPrefsJson: { ...updated } },
   });
 
   return Response.json(updated);

@@ -1,103 +1,28 @@
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
-import { toDbDate, fromDbDate, fiscalYear, todayInDhaka } from '@fintrack/shared';
+import { toDbDate, fiscalYear, todayInDhaka } from '@fintrack/shared';
+import {
+  loadAccountsWithBalances,
+  accountTotals,
+  accountToJson as acctToJson,
+  validateParentAccount,
+  AccountRuleError,
+} from '@/lib/services/accounts';
 
-function acctToJson(
-  acct: {
-    id: string;
-    name: string;
-    type: string;
-    bankName: string;
-    lastFour: string | null;
-    openingBalancePaisa: bigint;
-    openingDate: Date;
-    monthlyInstallmentPaisa: bigint | null;
-    maturityDate: Date | null;
-    interestRateBps: number | null;
-    closedOn: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-  },
-  balancePaisa: number,
-) {
-  return {
-    id: acct.id,
-    name: acct.name,
-    type: acct.type,
-    bank_name: acct.bankName,
-    last_four: acct.lastFour ?? null,
-    opening_balance_paisa: Number(acct.openingBalancePaisa),
-    opening_date: fromDbDate(acct.openingDate),
-    monthly_installment_paisa: acct.monthlyInstallmentPaisa != null ? Number(acct.monthlyInstallmentPaisa) : null,
-    maturity_date: acct.maturityDate ? fromDbDate(acct.maturityDate) : null,
-    interest_rate_bps: acct.interestRateBps ?? null,
-    closed_on: acct.closedOn ? fromDbDate(acct.closedOn) : null,
-    balance_paisa: balancePaisa,
-    created_at: acct.createdAt.toISOString(),
-    updated_at: acct.updatedAt.toISOString(),
-  };
-}
+const VALID_TYPES = ['SAVINGS', 'MFS', 'DPS', 'FDR', 'SANCHAYPATRA', 'UNIVERSAL_PENSION', 'STOCKS', 'INSURANCE', 'INVESTMENT', 'CASH'];
 
 export async function GET(req: Request) {
   const user = await getAuthUser(req);
   if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
 
-  const accounts = await prisma.savingsAccount.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: 'asc' },
-  });
+  const { accounts, balances } = await loadAccountsWithBalances(user.id);
 
-  // Fetch all transaction sums grouped by savingsAccountId and type
-  const txSums = await prisma.transaction.groupBy({
-    by: ['savingsAccountId', 'type'],
-    where: { userId: user.id, isDeleted: false, savingsAccountId: { not: null } },
-    _sum: { amountPaisa: true },
-  });
-
-  // Build a map: accountId → { DEPOSIT, INTEREST, WITHDRAWAL, SPENDING }
-  const sumMap = new Map<string, { DEPOSIT: bigint; INTEREST: bigint; WITHDRAWAL: bigint; SPENDING: bigint }>();
-  for (const row of txSums) {
-    if (!row.savingsAccountId) continue;
-    if (!sumMap.has(row.savingsAccountId)) {
-      sumMap.set(row.savingsAccountId, { DEPOSIT: 0n, INTEREST: 0n, WITHDRAWAL: 0n, SPENDING: 0n });
-    }
-    const entry = sumMap.get(row.savingsAccountId)!;
-    const amount = row._sum.amountPaisa ?? 0n;
-    if (row.type === 'SAVINGS_DEPOSIT') entry.DEPOSIT = amount;
-    else if (row.type === 'SAVINGS_INTEREST') entry.INTEREST = amount;
-    else if (row.type === 'SAVINGS_WITHDRAWAL') entry.WITHDRAWAL = amount;
-    else if (row.type === 'NONE') entry.SPENDING = amount;
-  }
-
-  // Savings deposits funded from a bank account reduce that bank's balance
-  const fundedSums = await prisma.transaction.groupBy({
-    by: ['bankSourceId'],
-    where: { userId: user.id, isDeleted: false, bankSourceId: { not: null } },
-    _sum: { amountPaisa: true },
-  });
-  const fundedMap = new Map<string, bigint>();
-  for (const row of fundedSums) {
-    if (row.bankSourceId) fundedMap.set(row.bankSourceId, row._sum.amountPaisa ?? 0n);
-  }
-
-  const balances = new Map<string, number>();
-  for (const acct of accounts) {
-    const sums = sumMap.get(acct.id) ?? { DEPOSIT: 0n, INTEREST: 0n, WITHDRAWAL: 0n, SPENDING: 0n };
-    const balance = Number(acct.openingBalancePaisa) + Number(sums.DEPOSIT) + Number(sums.INTEREST) - Number(sums.WITHDRAWAL) - Number(sums.SPENDING) - Number(fundedMap.get(acct.id) ?? 0n);
-    balances.set(acct.id, balance);
-  }
-
-  // Totals
   const today = todayInDhaka();
   const currentFY = fiscalYear(today);
   const [fyStart] = currentFY.split('-');
   const fyStartDate = `${fyStart}-07-01`;
   const monthStart = today.slice(0, 7) + '-01';
 
-  // Total saved = sum of all account balances
-  const totalSavedPaisa = Array.from(balances.values()).reduce((sum, b) => sum + b, 0);
-
-  // This month's deposits
   const thisMonthDeposits = await prisma.transaction.aggregate({
     where: {
       userId: user.id,
@@ -108,18 +33,11 @@ export async function GET(req: Request) {
     _sum: { amountPaisa: true },
   });
 
-  // This FY's deposits
   const thisFYDeposits = await prisma.transaction.aggregate({
-    where: {
-      userId: user.id,
-      isDeleted: false,
-      type: 'SAVINGS_DEPOSIT',
-      date: { gte: toDbDate(fyStartDate) },
-    },
+    where: { userId: user.id, isDeleted: false, type: 'SAVINGS_DEPOSIT', date: { gte: toDbDate(fyStartDate) } },
     _sum: { amountPaisa: true },
   });
 
-  // DPS accounts this FY
   const dpsAccountIds = accounts.filter((a) => a.type === 'DPS').map((a) => a.id);
   let dpsFYPaisa = 0;
   if (dpsAccountIds.length > 0) {
@@ -136,7 +54,6 @@ export async function GET(req: Request) {
     dpsFYPaisa = Number(dpsFYDeposits._sum.amountPaisa ?? 0n);
   }
 
-  // DPS cap from current FY tax settings
   let dpsCapPaisa: number | null = null;
   const taxYear = await prisma.taxYear.findUnique({
     where: { userId_fiscalYear: { userId: user.id, fiscalYear: currentFY } },
@@ -146,10 +63,13 @@ export async function GET(req: Request) {
     dpsCapPaisa = config.investment_caps_paisa?.dps ?? null;
   }
 
+  const groupTotals = accountTotals(accounts, balances);
+
   return Response.json({
     accounts: accounts.map((a) => acctToJson(a, balances.get(a.id) ?? Number(a.openingBalancePaisa))),
     totals: {
-      total_saved_paisa: totalSavedPaisa,
+      ...groupTotals,
+      total_saved_paisa: groupTotals.net_worth_paisa,
       this_month_deposits_paisa: Number(thisMonthDeposits._sum.amountPaisa ?? 0n),
       this_fy_deposits_paisa: Number(thisFYDeposits._sum.amountPaisa ?? 0n),
       dps_this_fy_paisa: dpsFYPaisa,
@@ -163,22 +83,35 @@ export async function POST(req: Request) {
   if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
 
   const body = await req.json();
-  const { name, type, bank_name, last_four, opening_balance_paisa, opening_date,
-    monthly_installment_paisa, maturity_date, interest_rate_bps } = body;
+  const { name, type, last_four, opening_balance_paisa, opening_date,
+    monthly_installment_paisa, maturity_date, interest_rate_bps, parent_account_id } = body;
+  const bank_name = type === 'CASH' ? (body.bank_name || 'In-Hand') : body.bank_name;
 
   if (!name || !type || !bank_name || opening_balance_paisa == null || !opening_date) {
     return Response.json({ error: 'Missing required fields', code: 'VALIDATION_ERROR' }, { status: 422 });
   }
 
-  const validTypes = ['SAVINGS', 'DPS', 'FDR', 'SANCHAYPATRA', 'INVESTMENT', 'CASH'];
-  if (!validTypes.includes(type)) {
+  if (!VALID_TYPES.includes(type)) {
     return Response.json({ error: 'Invalid type', code: 'VALIDATION_ERROR' }, { status: 422 });
   }
 
-  // last_four must be exactly 4 digits if provided
   if (last_four != null) {
     if (!/^\d{4}$/.test(String(last_four))) {
       return Response.json({ error: 'last_four must be exactly 4 digits', code: 'VALIDATION_ERROR' }, { status: 422 });
+    }
+  }
+
+  try {
+    await validateParentAccount(user.id, type, parent_account_id);
+  } catch (err) {
+    if (err instanceof AccountRuleError) return Response.json({ error: err.message, code: err.code }, { status: err.status });
+    throw err;
+  }
+
+  if (type === 'CASH') {
+    const existingCash = await prisma.savingsAccount.findFirst({ where: { userId: user.id, type: 'CASH', closedOn: null } });
+    if (existingCash) {
+      return Response.json({ error: 'You already have an In-Hand Cash account', code: 'CASH_ACCOUNT_EXISTS' }, { status: 409 });
     }
   }
 
@@ -189,6 +122,7 @@ export async function POST(req: Request) {
       type,
       bankName: bank_name,
       lastFour: last_four ?? null,
+      parentAccountId: parent_account_id ?? null,
       openingBalancePaisa: BigInt(opening_balance_paisa),
       openingDate: toDbDate(opening_date),
       monthlyInstallmentPaisa: monthly_installment_paisa != null ? BigInt(monthly_installment_paisa) : null,

@@ -1,19 +1,19 @@
 /* Design tokens — light theme */
 :root {
-  --bg-base:     #F7F8FC;
+  --bg-base:     #EEF2F7;
   --bg-surface:  #FFFFFF;
-  --bg-raised:   #EEF0F8;
-  --bg-sunken:   #E8EAF4;
+  --bg-raised:   #E3EAF4;
+  --bg-sunken:   #D6DFEE;
 
-  --border:      #D4D7E8;
-  --border-focus:#3A5FCD;
+  --border:      #CBD5E1;
+  --border-focus:#2D5BE3;
 
   --fg-primary:  #111827;
   --fg-secondary:#4B5563;
   --fg-muted:    #9CA3AF;
 
-  --accent:      #6366F1;
-  --accent-hover:#4F46E5;
+  --accent:      #2D5BE3;
+  --accent-hover:#1E50D4;
   --accent-fg:   #FFFFFF;
 
   --ok:          #15803D;
@@ -56,8 +56,8 @@
     --fg-primary:  #F1F3FC;
     --fg-secondary:#9BA3BC;
     --fg-muted:    #4B5363;
-    --accent:      #818CF8;
-    --accent-hover:#6366F1;
+    --accent:      #5B8EF4;
+    --accent-hover:#4477E8;
     --accent-fg:   #0F1117;
     --ok:          #4ADE80;
     --ok-bg:       #052E16;
@@ -114,6 +114,11 @@ body {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.45; }
+}
+
+@keyframes dialog-pop {
+  from { opacity: 0; transform: scale(0.95) translateY(6px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
 }
 
 /* Action button styles */
@@ -205,10 +210,11 @@ button, [role="button"], a {
     align-items: center;
     justify-content: flex-end;
     gap: 10px;
-    padding: 0 24px;
-    height: 52px;
+    padding: 0 28px;
+    height: 56px;
     background: var(--bg-surface);
     border-bottom: 1px solid var(--border);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
   }
 }
 

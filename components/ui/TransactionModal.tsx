@@ -19,6 +19,7 @@ export interface SavingsAccount {
   balance_paisa: number;
   opening_balance_paisa?: number;
   monthly_installment_paisa?: number | null;
+  closed_on?: string | null;
 }
 
 export interface LoanPerson {
@@ -77,20 +78,19 @@ interface Form {
   transfer_to_id: string;
   idempotency_key: string;
   fixed_expense_id: string;
-  investment_type: string;
-  investment_custom_label: string;
   investment_account_id: string;
 }
 
-const INVESTMENT_TYPES = [
-  { value: 'sanchaypatra', label: 'Sanchaypatra' },
-  { value: 'fixed_deposit', label: 'Fixed Deposit' },
-  { value: 'stocks',        label: 'Stocks' },
-  { value: 'insurance',     label: 'Insurance' },
-  { value: 'others',        label: 'Others' },
-];
+const INVESTMENT_KIND_LABEL: Record<string, string> = {
+  SANCHAYPATRA: 'Sanchaypatra',
+  UNIVERSAL_PENSION: 'UPension',
+  STOCKS: 'Stocks',
+  INSURANCE: 'Insurance',
+  INVESTMENT: 'Other investment',
+};
 
-const PAYMENT_METHODS = ['CASH', 'BANK', 'BKASH', 'NAGAD', 'ROCKET', 'CARD'];
+const PAYMENT_METHODS = ['BANK', 'CASH'];
+const PAYMENT_METHOD_LABEL: Record<string, string> = { BANK: 'Bank / MFS', CASH: 'Cash', BKASH: 'bKash', CARD: 'Card' };
 
 function fmt(paisa: number) {
   return '৳' + (paisa / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -382,8 +382,6 @@ export function TransactionModal({
     transfer_to_id: '',
     idempotency_key: crypto.randomUUID(),
     fixed_expense_id: '',
-    investment_type: '',
-    investment_custom_label: '',
     investment_account_id: '',
   }));
   const [saving, setSaving] = useState(false);
@@ -402,7 +400,18 @@ export function TransactionModal({
   const isSavings = routingType === 'SAVINGS_DEPOSIT' || routingType === 'SAVINGS_WITHDRAWAL';
   const isLoan = routingType === 'LOAN_GIVEN' || routingType === 'LOAN_RECEIVED';
   const isTax = routingType === 'TAX_PAYMENT';
-  const savingsOnly = savingsAccounts.filter((a) => a.type === 'SAVINGS');
+  const openAccounts = savingsAccounts.filter((a) => !a.closed_on);
+  // Bank / MFS lists every bank savings and MFS account; Cash uses the In-Hand Cash account
+  const savingsOnly = openAccounts.filter((a) => a.type === 'SAVINGS' || a.type === 'MFS');
+  const paymentAccounts = openAccounts.filter((a) => a.type === 'SAVINGS' || a.type === 'MFS' || a.type === 'CASH');
+  const cashAccount = openAccounts.find((a) => a.type === 'CASH');
+  // Routing types where money leaves or enters a Payment Account the user picks
+  const usesFundingAccount = ['NONE', 'SAVINGS_DEPOSIT', 'LOAN_GIVEN', 'LOAN_RECEIVED', 'TAX_PAYMENT'].includes(routingType);
+  const fundingLabel = routingType === 'LOAN_RECEIVED' ? 'Which account receives the money?' : 'Which account are you paying from?';
+  const methodOptions = PAYMENT_METHODS.includes(form.payment_method) ? PAYMENT_METHODS : [...PAYMENT_METHODS, form.payment_method];
+  const cashNote = cashAccount
+    ? <>Paid from In-Hand Cash ({fmt(cashAccount.balance_paisa)} available).</>
+    : <>Add an In-Hand Cash account on Bank &amp; Wallet to track your cash balance.</>;
 
   // Hide categories already covered by a fixed expense template (only when adding new)
   const fixedExpenseCategoryIds = isEdit
@@ -412,10 +421,7 @@ export function TransactionModal({
   // Hide "Investment (Sanchaypatra)" from the flat list — it now lives under __INVESTMENT__
   const isSanchCategory = (c: { name: string }) => c.name.toLowerCase().includes('sanchaypatra') || c.name.toLowerCase().includes('sanch');
 
-  // Investment sub-type helpers
-  const investIsSavingsType = form.investment_type === 'sanchaypatra' || form.investment_type === 'fixed_deposit';
-  const sanchAccounts = savingsAccounts.filter((a) => a.type === 'SANCHAYPATRA');
-  const fdAccounts = savingsAccounts.filter((a) => a.type !== 'CASH');
+  const investmentAccounts = openAccounts.filter((a) => a.type in INVESTMENT_KIND_LABEL);
 
   // Category options: regular categories + Investment + Fixed Expenses + Transfer
   const categoryOptions: SelectOption[] = [
@@ -424,7 +430,7 @@ export function TransactionModal({
       .map((c) => ({ value: c.id, label: c.name })),
     ...(!isEdit ? [{ value: '__INVESTMENT__', label: 'Investment', group: 'Special' }] : []),
     ...(!isEdit ? [{ value: '__FIXED_EXPENSE__', label: 'Fixed Expenses', group: 'Special' }] : []),
-    ...(!isEdit && savingsOnly.length >= 2 ? [{ value: '__TRANSFER__', label: 'Transfer between accounts', group: 'Special' }] : []),
+    ...(!isEdit && paymentAccounts.length >= 2 ? [{ value: '__TRANSFER__', label: 'Transfer between accounts', group: 'Special' }] : []),
   ];
 
   const inputStyle: React.CSSProperties = {
@@ -436,10 +442,7 @@ export function TransactionModal({
     const val = e.target.value;
     setForm((f) => {
       const next = { ...f, [k]: val };
-      if (k === 'payment_method' && val !== 'BANK') {
-        next.savings_account_id = isFixedExpenseMode && isSavings ? f.savings_account_id : '';
-        next.bank_account_id = '';
-      }
+      if (k === 'payment_method' && val !== 'BANK') next.bank_account_id = '';
       return next;
     });
   };
@@ -453,8 +456,6 @@ export function TransactionModal({
       savings_account_id: '',
       bank_account_id: '',
       fixed_expense_id: '',
-      investment_type: '',
-      investment_custom_label: '',
       investment_account_id: '',
     }));
   }
@@ -471,23 +472,13 @@ export function TransactionModal({
       return;
     }
 
-    if (isInvestmentMode && !form.investment_type) {
-      setError('Please select the type of investment.');
-      setSaving(false);
-      return;
-    }
-    if (isInvestmentMode && form.investment_type === 'others' && !form.investment_custom_label.trim()) {
-      setError('Please enter the investment type name.');
-      setSaving(false);
-      return;
-    }
-    if (isInvestmentMode && investIsSavingsType && !form.investment_account_id) {
-      setError('Please select the account to deposit into.');
+    if (isInvestmentMode && !form.investment_account_id) {
+      setError('Choose which investment you are paying into.');
       setSaving(false);
       return;
     }
     if (isInvestmentMode && form.payment_method === 'BANK' && !form.bank_account_id) {
-      setError('Please select the bank account to pay from.');
+      setError('Choose the account you are paying from.');
       setSaving(false);
       return;
     }
@@ -514,15 +505,8 @@ export function TransactionModal({
       return;
     }
 
-    // For non-savings BANK: require savings_account_id (the bank source)
-    if (!isTransfer && form.payment_method === 'BANK' && !isSavings && !isLoan && !isTax && savingsOnly.length > 0 && !form.savings_account_id) {
-      setError('Please select a bank account for BANK payment.');
-      setSaving(false);
-      return;
-    }
-    // For savings BANK (DPS fixed expense): require bank_account_id
-    if (!isTransfer && form.payment_method === 'BANK' && isSavings && isFixedExpenseMode && savingsOnly.length > 0 && !form.bank_account_id) {
-      setError('Please select the bank account you are transferring from.');
+    if (!isEdit && !isTransfer && !isInvestmentMode && usesFundingAccount && form.payment_method === 'BANK' && savingsOnly.length > 0 && !form.bank_account_id) {
+      setError(routingType === 'LOAN_RECEIVED' ? 'Choose the account that receives the money.' : 'Choose the account you are paying from.');
       setSaving(false);
       return;
     }
@@ -531,11 +515,9 @@ export function TransactionModal({
       try {
         if (isInvestmentMode) {
           await api.post('/investments', {
-            investment_type: form.investment_type,
-            ...(form.investment_type === 'others' && form.investment_custom_label ? { custom_label: form.investment_custom_label.trim() } : {}),
+            savings_account_id: form.investment_account_id,
             amount_paisa: amountPaisa,
             payment_method: form.payment_method,
-            ...(investIsSavingsType && form.investment_account_id ? { savings_account_id: form.investment_account_id } : {}),
             ...(form.payment_method === 'BANK' && form.bank_account_id ? { bank_account_id: form.bank_account_id } : {}),
             description: form.description || undefined,
             idempotency_key: form.idempotency_key,
@@ -568,9 +550,10 @@ export function TransactionModal({
             ...(forMonthToSend ? { for_month: forMonthToSend, fixed_expense_id: form.fixed_expense_id } : {}),
           };
           if (isSavings && form.savings_account_id) body.savings_account_id = form.savings_account_id;
-          if (isSavings && form.payment_method === 'BANK' && form.bank_account_id) body.bank_account_id = form.bank_account_id;
-          if (!isSavings && !isLoan && !isTax && form.payment_method === 'BANK' && form.savings_account_id) {
-            body.savings_account_id = form.savings_account_id;
+          if (usesFundingAccount && form.payment_method === 'BANK' && form.bank_account_id) {
+            // Spending names its paying account in savings_account_id; the others use bank_account_id
+            if (routingType === 'NONE') body.savings_account_id = form.bank_account_id;
+            else body.bank_account_id = form.bank_account_id;
           }
           if (isLoan) {
             body.loan_person_name = form.loan_person_name;
@@ -601,6 +584,40 @@ export function TransactionModal({
     await doSave();
   }
 
+  const showFundingPicker = form.payment_method === 'BANK' && usesFundingAccount && !isEdit;
+  const paymentFields = (
+    <>
+      <div style={{ marginBottom: showFundingPicker ? 0 : 12 }}>
+        <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Payment Method</div>
+        <select value={form.payment_method} onChange={set('payment_method')} style={inputStyle}>
+          {methodOptions.map((m) => <option key={m} value={m}>{PAYMENT_METHOD_LABEL[m] ?? m}</option>)}
+        </select>
+        {form.payment_method === 'CASH' && usesFundingAccount && !isEdit && (
+          <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginTop: 6 }}>{cashNote}</div>
+        )}
+      </div>
+      {showFundingPicker && (
+        <div style={{ marginLeft: 14, paddingLeft: 12, borderLeft: '2px solid var(--ok)', marginTop: 10, marginBottom: 12 }}>
+          <div style={{ font: 'var(--t-caption)', color: 'var(--ok)', marginBottom: 6, fontWeight: 600 }}>
+            {fundingLabel}
+          </div>
+          {savingsOnly.length === 0 ? (
+            <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-sunken)' }}>
+              No bank or MFS accounts yet. Add one on Bank &amp; Wallet.
+            </div>
+          ) : (
+            <select required value={form.bank_account_id} onChange={set('bank_account_id')} style={inputStyle}>
+              <option value="">Choose an account…</option>
+              {savingsOnly.map((a) => (
+                <option key={a.id} value={a.id}>{a.name} · {fmt(a.balance_paisa)}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
@@ -629,146 +646,64 @@ export function TransactionModal({
               />
             </div>
 
-            {/* Investment step 2 — immediately after Category */}
+            {/* Investment step 2 — which Investment Account */}
             {isInvestmentMode && (
               <div style={{ marginLeft: 14, paddingLeft: 12, borderLeft: '2px solid var(--accent)', marginTop: 10, marginBottom: 4 }}>
                 <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 6, fontWeight: 600 }}>
-                  Step 2 — Type of Investment
+                  Step 2 — Which investment?
                 </div>
-                <select
-                  required
-                  value={form.investment_type}
-                  onChange={(e) => {
-                    const t = e.target.value;
-                    const label = INVESTMENT_TYPES.find((it) => it.value === t)?.label ?? '';
-                    setForm((f) => ({
-                      ...f,
-                      investment_type: t,
-                      investment_custom_label: '',
-                      investment_account_id: '',
-                      // Pre-fill description for non-savings types; savings types fill it from the account selector
-                      ...(['stocks', 'insurance', 'others'].includes(t) ? { description: label } : { description: '' }),
-                    }));
-                  }}
-                  style={inputStyle}
-                >
-                  <option value="">Select investment type…</option>
-                  {INVESTMENT_TYPES.map((it) => (
-                    <option key={it.value} value={it.value}>{it.label}</option>
-                  ))}
-                </select>
-
-                {/* Custom label for Others */}
-                {form.investment_type === 'others' && (
-                  <label style={{ display: 'block', marginTop: 10 }}>
-                    <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Investment type name</div>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Real Estate, NFT, Mutual Fund…"
-                      value={form.investment_custom_label}
-                      onChange={(e) => setForm((f) => ({ ...f, investment_custom_label: e.target.value, description: e.target.value }))}
-                      style={inputStyle}
-                    />
-                  </label>
+                {investmentAccounts.length === 0 ? (
+                  <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-sunken)' }}>
+                    No investment accounts yet. Add one on Bank &amp; Wallet, for example your Sanchaypatra or UPension.
+                  </div>
+                ) : (
+                  <select
+                    required
+                    value={form.investment_account_id}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      const acct = investmentAccounts.find((a) => a.id === id);
+                      setForm((f) => ({
+                        ...f,
+                        investment_account_id: id,
+                        ...(acct?.monthly_installment_paisa ? { amount_paisa: String(acct.monthly_installment_paisa / 100) } : {}),
+                        ...(acct ? { description: acct.name } : {}),
+                      }));
+                    }}
+                    style={inputStyle}
+                  >
+                    <option value="">Select investment…</option>
+                    {investmentAccounts.map((a) => (
+                      <option key={a.id} value={a.id}>{a.name} ({INVESTMENT_KIND_LABEL[a.type] ?? a.type}) · {fmt(a.balance_paisa)}</option>
+                    ))}
+                  </select>
                 )}
-
-                {/* Destination account for Sanchaypatra */}
-                {form.investment_type === 'sanchaypatra' && (
-                  <label style={{ display: 'block', marginTop: 10 }}>
-                    <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Sanchaypatra Account</div>
-                    {sanchAccounts.length === 0 ? (
-                      <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-sunken)' }}>
-                        No Sanchaypatra accounts found. Add one on the Savings page.
-                      </div>
-                    ) : (
-                      <select
-                        required
-                        value={form.investment_account_id}
-                        onChange={(e) => {
-                          const id = e.target.value;
-                          const acct = sanchAccounts.find((a) => a.id === id);
-                          setForm((f) => ({
-                            ...f,
-                            investment_account_id: id,
-                            // Auto-fill from monthly installment if available, else opening balance
-                            ...(acct && (acct.monthly_installment_paisa ?? acct.opening_balance_paisa ?? 0) > 0
-                              ? { amount_paisa: String((acct.monthly_installment_paisa ?? acct.opening_balance_paisa ?? 0) / 100) }
-                              : {}),
-                            ...(acct ? { description: acct.name } : {}),
-                          }));
-                        }}
-                        style={inputStyle}
-                      >
-                        <option value="">Select account…</option>
-                        {sanchAccounts.map((a) => (
-                          <option key={a.id} value={a.id}>{a.name} · {fmt(a.balance_paisa)}</option>
-                        ))}
-                      </select>
-                    )}
-                  </label>
-                )}
-
-                {/* Destination account for Fixed Deposit */}
-                {form.investment_type === 'fixed_deposit' && (
-                  <label style={{ display: 'block', marginTop: 10 }}>
-                    <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Fixed Deposit Account</div>
-                    {fdAccounts.length === 0 ? (
-                      <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-sunken)' }}>
-                        No savings accounts found. Add one on the Savings page.
-                      </div>
-                    ) : (
-                      <select
-                        required
-                        value={form.investment_account_id}
-                        onChange={(e) => {
-                          const id = e.target.value;
-                          const acct = fdAccounts.find((a) => a.id === id);
-                          setForm((f) => ({
-                            ...f,
-                            investment_account_id: id,
-                            // Auto-fill amount from opening balance; fallback to balance
-                            ...(acct && (acct.opening_balance_paisa ?? acct.balance_paisa) > 0
-                              ? { amount_paisa: String((acct.opening_balance_paisa ?? acct.balance_paisa) / 100) }
-                              : {}),
-                            ...(acct ? { description: acct.name } : {}),
-                          }));
-                        }}
-                        style={inputStyle}
-                      >
-                        <option value="">Select account…</option>
-                        {fdAccounts.map((a) => (
-                          <option key={a.id} value={a.id}>{a.name} · {fmt(a.balance_paisa)}</option>
-                        ))}
-                      </select>
-                    )}
-                  </label>
-                )}
-
-                {/* Info for financial investment types */}
-                {(form.investment_type === 'stocks' || form.investment_type === 'insurance' || form.investment_type === 'others') && form.investment_type && (
+                {form.investment_account_id && (
                   <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginTop: 6 }}>
-                    Amount will be recorded as an expense and added to Tax &gt; Investments automatically.
+                    Adds to this investment&apos;s balance and to Tax &gt; Investments for the rebate.
                   </div>
                 )}
               </div>
             )}
 
             {/* Investment HOW section — payment method + bank deduction */}
-            {isInvestmentMode && form.investment_type && (
+            {isInvestmentMode && form.investment_account_id && (
               <div style={{ marginLeft: 14, paddingLeft: 12, borderLeft: '2px solid var(--ok)', marginTop: 10, marginBottom: 4 }}>
                 <div style={{ font: 'var(--t-caption)', color: 'var(--ok)', marginBottom: 6, fontWeight: 600 }}>
                   Step 3 — How are you paying?
                 </div>
                 <select value={form.payment_method} onChange={set('payment_method')} style={inputStyle}>
-                  {['CASH', 'BANK', 'BKASH', 'CARD'].map((m) => <option key={m} value={m}>{m}</option>)}
+                  {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{PAYMENT_METHOD_LABEL[m]}</option>)}
                 </select>
+                {form.payment_method === 'CASH' && (
+                  <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginTop: 6 }}>{cashNote}</div>
+                )}
                 {form.payment_method === 'BANK' && (
                   <div style={{ marginTop: 8 }}>
-                    <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Deduct from bank account</div>
+                    <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Which account are you paying from?</div>
                     {savingsOnly.length === 0 ? (
                       <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-sunken)' }}>
-                        No bank accounts set up yet.
+                        No bank or MFS accounts yet. Add one on Bank &amp; Wallet.
                       </div>
                     ) : (
                       <select
@@ -868,34 +803,7 @@ export function TransactionModal({
                 HOW
               </div>
 
-              {/* Payment Method */}
-              <div style={{ marginBottom: form.payment_method === 'BANK' && !isSavings && !isLoan && !isTax && !isTransfer ? 0 : 12 }}>
-                <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Payment Method</div>
-                <select value={form.payment_method} onChange={set('payment_method')} style={inputStyle}>
-                  {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-
-              {/* Bank Account step 2 — immediately after Payment Method when BANK */}
-              {!isTransfer && form.payment_method === 'BANK' && !isSavings && !isLoan && !isTax && (
-                <div style={{ marginLeft: 14, paddingLeft: 12, borderLeft: '2px solid var(--ok)', marginTop: 10, marginBottom: 4 }}>
-                  <div style={{ font: 'var(--t-caption)', color: 'var(--ok)', marginBottom: 6, fontWeight: 600 }}>
-                    Step 2 — Which bank account to deduct from?
-                  </div>
-                  {savingsOnly.length === 0 ? (
-                    <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-sunken)' }}>
-                      No bank accounts set up yet. Add one on the Savings page first.
-                    </div>
-                  ) : (
-                    <select required value={form.savings_account_id} onChange={set('savings_account_id')} style={inputStyle}>
-                      <option value="">Select bank account…</option>
-                      {savingsOnly.map((a) => (
-                        <option key={a.id} value={a.id}>{a.name} · {fmt(a.balance_paisa)}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              )}
+              {paymentFields}
             </div>
           )}
 
@@ -905,37 +813,7 @@ export function TransactionModal({
               <div style={{ font: 'var(--t-label)', color: 'var(--fg-muted)', marginBottom: 8, letterSpacing: '0.04em' }}>
                 HOW
               </div>
-              <div style={{ marginBottom: form.payment_method === 'BANK' ? 0 : 12 }}>
-                <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Payment Method</div>
-                <select value={form.payment_method} onChange={set('payment_method')} style={inputStyle}>
-                  {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-              {/* Bank step-2: show for BANK regardless of savings routing */}
-              {form.payment_method === 'BANK' && (
-                <div style={{ marginLeft: 14, paddingLeft: 12, borderLeft: '2px solid var(--ok)', marginTop: 10, marginBottom: 4 }}>
-                  <div style={{ font: 'var(--t-caption)', color: 'var(--ok)', marginBottom: 6, fontWeight: 600 }}>
-                    Step 2 — Which bank account to deduct from?
-                  </div>
-                  {savingsOnly.length === 0 ? (
-                    <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-sunken)' }}>
-                      No bank accounts set up yet. Add one on the Savings page first.
-                    </div>
-                  ) : (
-                    <select
-                      required
-                      value={isSavings ? form.bank_account_id : form.savings_account_id}
-                      onChange={isSavings ? set('bank_account_id') : set('savings_account_id')}
-                      style={inputStyle}
-                    >
-                      <option value="">Select bank account…</option>
-                      {savingsOnly.map((a) => (
-                        <option key={a.id} value={a.id}>{a.name} · {fmt(a.balance_paisa)}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              )}
+              {paymentFields}
             </div>
           )}
 
@@ -964,14 +842,14 @@ export function TransactionModal({
           {isTransfer && (
             <div style={{ background: 'rgba(58,95,205,0.08)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
               <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 10 }}>
-                Moves money between your savings accounts. Both balances update instantly.
+                Moves money between your bank, MFS and cash accounts. Both balances update instantly.
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <label>
                   <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>From account</div>
                   <select required value={form.transfer_from_id} onChange={set('transfer_from_id')} style={inputStyle}>
                     <option value="">Select…</option>
-                    {savingsOnly.map((a) => (
+                    {paymentAccounts.map((a) => (
                       <option key={a.id} value={a.id}>{a.name} · {fmt(a.balance_paisa)}</option>
                     ))}
                   </select>
@@ -980,7 +858,7 @@ export function TransactionModal({
                   <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>To account</div>
                   <select required value={form.transfer_to_id} onChange={set('transfer_to_id')} style={inputStyle}>
                     <option value="">Select…</option>
-                    {savingsOnly.filter((a) => a.id !== form.transfer_from_id).map((a) => (
+                    {paymentAccounts.filter((a) => a.id !== form.transfer_from_id).map((a) => (
                       <option key={a.id} value={a.id}>{a.name} · {fmt(a.balance_paisa)}</option>
                     ))}
                   </select>
@@ -999,7 +877,7 @@ export function TransactionModal({
                 <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Savings Account</div>
                 <select required value={form.savings_account_id} onChange={set('savings_account_id')} style={inputStyle}>
                   <option value="">Select account…</option>
-                  {savingsAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {openAccounts.filter((a) => a.type !== 'CASH').map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </label>
             </div>

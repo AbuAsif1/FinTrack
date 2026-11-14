@@ -1,34 +1,11 @@
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
-import { toDbDate, fromDbDate, todayInDhaka } from '@fintrack/shared';
+import { toDbDate, todayInDhaka } from '@fintrack/shared';
+import type { SavingsAccount } from '@prisma/client';
+import { accountBalance, accountToJson, validateParentAccount, AccountRuleError } from '@/lib/services/accounts';
 
-async function computeBalance(accountId: string, userId: string): Promise<number> {
-  const acct = await prisma.savingsAccount.findFirst({
-    where: { id: accountId, userId },
-  });
-  if (!acct) return 0;
-
-  const txSums = await prisma.transaction.groupBy({
-    by: ['type'],
-    where: { savingsAccountId: accountId, userId, isDeleted: false },
-    _sum: { amountPaisa: true },
-  });
-
-  let deposit = 0n;
-  let interest = 0n;
-  let withdrawal = 0n;
-  for (const row of txSums) {
-    const amount = row._sum.amountPaisa ?? 0n;
-    if (row.type === 'SAVINGS_DEPOSIT') deposit = amount;
-    else if (row.type === 'SAVINGS_INTEREST') interest = amount;
-    else if (row.type === 'SAVINGS_WITHDRAWAL') withdrawal = amount;
-  }
-
-  const funded = await prisma.transaction.aggregate({
-    where: { bankSourceId: accountId, userId, isDeleted: false },
-    _sum: { amountPaisa: true },
-  });
-  return Number(acct.openingBalancePaisa) + Number(deposit) + Number(interest) - Number(withdrawal) - Number(funded._sum.amountPaisa ?? 0n);
+function computeBalance(accountId: string, userId: string): Promise<number> {
+  return accountBalance(userId, accountId);
 }
 
 function dpsProjectedPrincipal(
@@ -54,41 +31,8 @@ function dpsProjectedPrincipal(
   return balancePaisa + Number(monthlyInstallmentPaisa) * months;
 }
 
-function acctToJson(
-  acct: {
-    id: string;
-    name: string;
-    type: string;
-    bankName: string;
-    lastFour: string | null;
-    openingBalancePaisa: bigint;
-    openingDate: Date;
-    monthlyInstallmentPaisa: bigint | null;
-    maturityDate: Date | null;
-    interestRateBps: number | null;
-    closedOn: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-  },
-  balancePaisa: number,
-  includeProjection = false,
-) {
-  const base = {
-    id: acct.id,
-    name: acct.name,
-    type: acct.type,
-    bank_name: acct.bankName,
-    last_four: acct.lastFour ?? null,
-    opening_balance_paisa: Number(acct.openingBalancePaisa),
-    opening_date: fromDbDate(acct.openingDate),
-    monthly_installment_paisa: acct.monthlyInstallmentPaisa != null ? Number(acct.monthlyInstallmentPaisa) : null,
-    maturity_date: acct.maturityDate ? fromDbDate(acct.maturityDate) : null,
-    interest_rate_bps: acct.interestRateBps ?? null,
-    closed_on: acct.closedOn ? fromDbDate(acct.closedOn) : null,
-    balance_paisa: balancePaisa,
-    created_at: acct.createdAt.toISOString(),
-    updated_at: acct.updatedAt.toISOString(),
-  };
+function acctToJson(acct: SavingsAccount, balancePaisa: number, includeProjection = false) {
+  const base = accountToJson(acct, balancePaisa);
 
   if (includeProjection && acct.type === 'DPS') {
     return {
@@ -123,7 +67,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!acct) return Response.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 });
 
   const body = await req.json();
-  const { name, bank_name, last_four, monthly_installment_paisa, maturity_date, interest_rate_bps, closed_on } = body;
+  const { name, bank_name, last_four, monthly_installment_paisa, maturity_date, interest_rate_bps, closed_on, parent_account_id } = body;
 
   // Validate last_four if provided
   if (last_four != null) {
@@ -132,12 +76,31 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
   }
 
-  // closed_on only allowed when balance is zero
+  if (parent_account_id !== undefined) {
+    if (parent_account_id === acct.id) {
+      return Response.json({ error: 'An account cannot be its own parent', code: 'INVALID_PARENT' }, { status: 422 });
+    }
+    try {
+      await validateParentAccount(user.id, acct.type, parent_account_id);
+    } catch (err) {
+      if (err instanceof AccountRuleError) return Response.json({ error: err.message, code: err.code }, { status: err.status });
+      throw err;
+    }
+  }
+
+  // closed_on only allowed when balance is zero and no open DPS/FDR sits under the account
   if (closed_on != null) {
     const balance = await computeBalance(acct.id, user.id);
     if (balance !== 0) {
       return Response.json(
         { error: 'Account must have zero balance to close', code: 'BALANCE_NOT_ZERO' },
+        { status: 422 },
+      );
+    }
+    const openChildren = await prisma.savingsAccount.count({ where: { userId: user.id, parentAccountId: acct.id, closedOn: null } });
+    if (openChildren > 0) {
+      return Response.json(
+        { error: 'Close the DPS/FDR accounts under this account first', code: 'HAS_CHILD_ACCOUNTS' },
         { status: 422 },
       );
     }
@@ -153,6 +116,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       ...(maturity_date !== undefined && { maturityDate: maturity_date ? toDbDate(maturity_date) : null }),
       ...(interest_rate_bps !== undefined && { interestRateBps: interest_rate_bps ?? null }),
       ...(closed_on !== undefined && { closedOn: closed_on ? toDbDate(closed_on) : null }),
+      ...(parent_account_id !== undefined && { parentAccountId: parent_account_id ?? null }),
     },
   });
 

@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { toDbDate, fromDbDate } from '@fintrack/shared';
-import { CategoryRoutingService } from '@/lib/services/category-routing';
+import { CategoryRoutingService, RoutingError } from '@/lib/services/category-routing';
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const user = await getAuthUser(req);
@@ -32,7 +32,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   const body = await req.json();
-  const { actual_amount_paisa, paid_date, payment_method } = body;
+  const { actual_amount_paisa, paid_date, payment_method, bank_account_id } = body;
 
   if (!actual_amount_paisa || actual_amount_paisa <= 0) {
     return Response.json({ error: 'actual_amount_paisa is required', code: 'VALIDATION_ERROR' }, { status: 422 });
@@ -45,16 +45,25 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const idempotencyKey = `fix-pay-${instance.id}`;
 
   // Create Transaction through CategoryRoutingService
+  // Spending names its paying account in savings_account_id; a deposit names its target there and the payer in bank_account_id
+  const isSpending = tmpl.category.routingType === 'NONE';
   const routing = new CategoryRoutingService(user.id);
-  const txResult = await routing.create({
-    amount_paisa: actual_amount_paisa,
-    date: paid_date,
-    description: tmpl.name,
-    category_id: tmpl.categoryId,
-    payment_method: payment_method ?? 'BANK',
-    idempotency_key: idempotencyKey,
-    savings_account_id: tmpl.savingsAccountId ?? undefined,
-  });
+  let txResult;
+  try {
+    txResult = await routing.create({
+      amount_paisa: actual_amount_paisa,
+      date: paid_date,
+      description: tmpl.name,
+      category_id: tmpl.categoryId,
+      payment_method: payment_method ?? 'BANK',
+      idempotency_key: idempotencyKey,
+      savings_account_id: isSpending ? (bank_account_id ?? undefined) : (tmpl.savingsAccountId ?? undefined),
+      bank_account_id: isSpending ? undefined : (bank_account_id ?? undefined),
+    });
+  } catch (err) {
+    if (err instanceof RoutingError) return Response.json({ error: err.message, code: err.code }, { status: err.status });
+    throw err;
+  }
 
   // Mark instance as PAID
   const updated = await prisma.fixedExpenseInstance.update({

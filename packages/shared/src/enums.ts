@@ -30,12 +30,39 @@ export enum IncomeType {
 
 export enum SavingsAccountType {
   SAVINGS = 'SAVINGS',
+  MFS = 'MFS',
   DPS = 'DPS',
   FDR = 'FDR',
   SANCHAYPATRA = 'SANCHAYPATRA',
+  UNIVERSAL_PENSION = 'UNIVERSAL_PENSION',
+  STOCKS = 'STOCKS',
+  INSURANCE = 'INSURANCE',
+  /** "Other" investment kind */
   INVESTMENT = 'INVESTMENT',
   CASH = 'CASH',
 }
+
+/** Payment Accounts: the only accounts that pay Spending, receive income and send transfers. */
+export const PAYMENT_ACCOUNT_TYPES: readonly string[] = ['SAVINGS', 'MFS', 'CASH'];
+
+/** Account types that must sit under a Parent Account. */
+export const CHILD_ACCOUNT_TYPES: readonly string[] = ['DPS', 'FDR'];
+
+/** Account types that can be a Parent Account. */
+export const PARENT_ACCOUNT_TYPES: readonly string[] = ['SAVINGS', 'MFS'];
+
+/** Investment Account kinds, each feeding the Tax Rebate bucket of the same kind. */
+export const INVESTMENT_ACCOUNT_TYPES: readonly string[] = ['SANCHAYPATRA', 'UNIVERSAL_PENSION', 'STOCKS', 'INSURANCE', 'INVESTMENT'];
+
+/** Tax Rebate investment bucket that a deposit into each account type counts toward. */
+export const REBATE_BUCKET_BY_ACCOUNT_TYPE: Readonly<Record<string, 'dps' | 'sanchaypatra' | 'universal_pension' | 'stocks' | 'insurance' | 'others'>> = {
+  DPS: 'dps',
+  SANCHAYPATRA: 'sanchaypatra',
+  UNIVERSAL_PENSION: 'universal_pension',
+  STOCKS: 'stocks',
+  INSURANCE: 'insurance',
+  INVESTMENT: 'others',
+};
 
 export enum FixedExpenseStatus {
   PENDING = 'PENDING',

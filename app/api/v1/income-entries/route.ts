@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
 import { toDbDate, fromDbDate, fiscalYear } from '@fintrack/shared';
 import type { IncomeType } from '@prisma/client';
+import { validateReceivingAccount, AccountRuleError } from '@/lib/services/accounts';
 
 const NOT_TAXABLE_BY_DEFAULT: IncomeType[] = ['CERTIFICATION'];
 
@@ -86,6 +87,15 @@ export async function POST(req: Request) {
 
   if (tds_paisa < 0 || tds_paisa > gross_paisa) {
     return Response.json({ error: 'TDS must be between 0 and gross', code: 'VALIDATION_ERROR' }, { status: 422 });
+  }
+
+  if (savings_account_id) {
+    try {
+      await validateReceivingAccount(user.id, savings_account_id);
+    } catch (err) {
+      if (err instanceof AccountRuleError) return Response.json({ error: err.message, code: err.code }, { status: err.status });
+      throw err;
+    }
   }
 
   const fy = fiscalYear(`${month}-01`);

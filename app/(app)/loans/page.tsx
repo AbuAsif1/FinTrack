@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { DatePicker } from '@/components/ui/DatePicker';
+import { EditIcon } from '@/components/ui/icons';
+import { SkeletonTableRows, SK, SkeletonCard } from '@/components/ui/Skeleton';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -314,6 +317,7 @@ function EditEntryModal({
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [delConfirm, setDelConfirm] = useState(false);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -342,7 +346,6 @@ function EditEntryModal({
   }
 
   async function del() {
-    if (!confirm('Delete this loan entry?')) return;
     setSaving(true);
     try {
       await api.delete(`/loan-persons/${personId}/entries/${entry.id}`);
@@ -400,7 +403,7 @@ function EditEntryModal({
         {error && <div style={{ color: 'var(--danger)', font: 'var(--t-caption)', marginBottom: 10 }}>{error}</div>}
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
-          <button onClick={del} disabled={saving} style={{ padding: '8px 14px', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+          <button onClick={() => setDelConfirm(true)} disabled={saving} style={{ padding: '8px 14px', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
             Delete
           </button>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -411,6 +414,108 @@ function EditEntryModal({
           </div>
         </div>
       </div>
+      <ConfirmDialog
+        open={delConfirm}
+        title="Delete loan entry?"
+        message="This entry will be permanently removed and the balance will be recalculated."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { setDelConfirm(false); del(); }}
+        onCancel={() => setDelConfirm(false)}
+      />
+    </div>
+  );
+}
+
+// ── Edit Person Modal ──────────────────────────────────────────────────────
+
+function EditPersonModal({
+  person,
+  onClose,
+  onSaved,
+  onDeleted,
+}: {
+  person: LoanPerson;
+  onClose: () => void;
+  onSaved: () => void;
+  onDeleted: () => void;
+}) {
+  const [name, setName] = useState(person.name);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [delConfirm, setDelConfirm] = useState(false);
+
+  async function save() {
+    if (!name.trim()) { setError('Name is required.'); return; }
+    setSaving(true); setError('');
+    try {
+      await api.patch(`/loan-persons/${person.id}`, { name: name.trim() });
+      onSaved();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to save.';
+      setError(msg);
+    } finally { setSaving(false); }
+  }
+
+  async function del() {
+    setSaving(true);
+    try {
+      await api.delete(`/loan-persons/${person.id}`);
+      onDeleted();
+    } catch { setError('Failed to delete.'); setSaving(false); }
+  }
+
+  const delMessage = person.running_balance_paisa !== 0
+    ? `${person.name} has an outstanding balance of ${fmt(person.running_balance_paisa)}. All their entries will be permanently deleted.`
+    : `This will delete ${person.name} and all their loan entries.`;
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6,
+    font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box',
+  };
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 28, maxWidth: 400, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+        <h3 style={{ font: 'var(--t-section)', marginBottom: 20 }}>Edit Person</h3>
+
+        <label style={{ display: 'block', marginBottom: 20 }}>
+          <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Name</div>
+          <input
+            type="text" required value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && save()}
+            style={inputStyle}
+            autoFocus
+          />
+        </label>
+
+        {error && <div style={{ color: 'var(--danger)', font: 'var(--t-caption)', marginBottom: 10 }}>{error}</div>}
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
+          <button onClick={() => setDelConfirm(true)} disabled={saving} style={{ padding: '8px 14px', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+            Delete Person
+          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={onClose} style={{ padding: '8px 14px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: 'pointer' }}>Cancel</button>
+            <button onClick={save} disabled={saving} style={{ padding: '8px 14px', background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 6, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </div>
+      <ConfirmDialog
+        open={delConfirm}
+        title={`Delete ${person.name}?`}
+        message={delMessage}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { setDelConfirm(false); del(); }}
+        onCancel={() => setDelConfirm(false)}
+      />
     </div>
   );
 }
@@ -473,7 +578,7 @@ function DetailPanel({
       {/* Entry table */}
       <div className="table-scroll" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--fg-muted)', font: 'var(--t-body)' }}>Loading…</div>
+          <SkeletonTableRows rows={5} cols={SK.loans} />
         ) : entries.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--fg-muted)', font: 'var(--t-body)' }}>No entries yet.</div>
         ) : (
@@ -523,7 +628,7 @@ function DetailPanel({
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', padding: 4, display: 'flex', alignItems: 'center' }}
                         title="Edit"
                       >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21.731 2.269a2.625 2.625 0 00-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 000-3.712zM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 00-1.32 2.214l-.8 2.685a.75.75 0 00.933.933l2.685-.8a5.25 5.25 0 002.214-1.32L19.513 8.2z"/></svg>
+                        <EditIcon size={14} />
                       </button>
                     )}
                   </div>
@@ -562,6 +667,7 @@ export default function LoansPage() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForPersonId, setAddForPersonId] = useState<string | null>(null);
+  const [editPerson, setEditPerson] = useState<LoanPerson | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -590,32 +696,52 @@ export default function LoansPage() {
         description="Per-person running balances for informal lending between friends."
       />
 
-      {/* Summary Tiles */}
+      {/* V2 hero banner */}
       {summary && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
-          <SummaryTile
-            label="THEY OWE ME"
-            value={fmt(summary.owed_to_me_paisa)}
-            sub={`${persons.filter(p => p.running_balance_paisa > 0).length} people`}
-            color="var(--ok)"
-          />
-          <SummaryTile
-            label="I OWE THEM"
-            value={fmt(summary.i_owe_paisa)}
-            sub={`${persons.filter(p => p.running_balance_paisa < 0).length} people`}
-            color="var(--danger)"
-          />
-          <SummaryTile
-            label="NET POSITION"
-            value={(summary.net_paisa >= 0 ? '+' : '−') + fmt(summary.net_paisa)}
-            sub="net"
-            color={summary.net_paisa >= 0 ? 'var(--ok)' : 'var(--danger)'}
-          />
+        <div style={{
+          background: 'linear-gradient(135deg, #2D5BE3 0%, #1A2340 100%)',
+          borderRadius: 16, padding: '24px 28px', marginBottom: 24,
+          display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap',
+        }}>
+          <div style={{ flex: '1 1 180px', minWidth: 180 }}>
+            <div style={{ color: 'rgba(148,196,255,0.85)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+              Net Position
+            </div>
+            <div style={{ color: summary.net_paisa < 0 ? '#FCA5A5' : '#FFFFFF', font: '700 30px var(--font-space-grotesk, system-ui)', lineHeight: 1.1 }}>
+              {summary.net_paisa < 0 && <span style={{ fontSize: 20, marginRight: 2, opacity: 0.8 }}>−</span>}
+              {fmt(Math.abs(summary.net_paisa))}
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 6 }}>
+              {summary.net_paisa >= 0 ? 'Others owe you more' : 'You owe more overall'}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {([
+              { label: 'They Owe Me', value: fmt(summary.owed_to_me_paisa), sub: `${persons.filter(p => p.running_balance_paisa > 0).length} people`, accent: '#86EFAC' },
+              { label: 'I Owe Them', value: fmt(summary.i_owe_paisa), sub: `${persons.filter(p => p.running_balance_paisa < 0).length} people`, accent: '#FCA5A5' },
+            ]).map((kpi) => (
+              <div key={kpi.label} style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, padding: '10px 14px', minWidth: 130 }}>
+                <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>{kpi.label}</div>
+                <div style={{ color: kpi.accent, font: '700 14px var(--font-space-grotesk, system-ui)', fontVariantNumeric: 'tabular-nums' }}>{kpi.value}</div>
+                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 3 }}>{kpi.sub}</div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {loading ? (
-        <div style={{ padding: 60, textAlign: 'center', color: 'var(--fg-muted)', font: 'var(--t-body)' }}>Loading…</div>
+        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+          {/* Person list sidebar skeleton */}
+          <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[0, 1, 2, 3].map((i) => <SkeletonCard key={i} height={52} />)}
+          </div>
+          {/* Detail panel skeleton */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <SkeletonCard height={44} />
+            <SkeletonCard height={180} />
+          </div>
+        </div>
       ) : (
         <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
           {/* Person List */}
@@ -632,22 +758,31 @@ export default function LoansPage() {
                     onClick={() => setSelectedPersonId(p.id)}
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '12px 16px', borderBottom: '1px solid var(--border)',
+                      padding: '10px 12px 10px 16px', borderBottom: '1px solid var(--border)',
                       cursor: 'pointer',
                       background: selectedPersonId === p.id ? 'var(--bg-raised)' : 'transparent',
                       borderLeft: selectedPersonId === p.id ? '3px solid var(--accent)' : '3px solid transparent',
+                      gap: 6,
                     }}
                   >
-                    <div>
-                      <div style={{ font: 'var(--t-body)', fontWeight: 600 }}>{p.name}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ font: 'var(--t-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
                     </div>
                     <span style={{
-                      font: 'var(--t-caption)', fontWeight: 600, padding: '3px 10px', borderRadius: 999,
+                      font: 'var(--t-caption)', fontWeight: 600, padding: '3px 8px', borderRadius: 999,
                       background: balanceBg(p.running_balance_paisa),
                       color: balanceColor(p.running_balance_paisa),
+                      flexShrink: 0,
                     }}>
                       {p.running_balance_paisa === 0 ? '৳0.00' : (p.running_balance_paisa > 0 ? '+' : '−') + fmt(p.running_balance_paisa)}
                     </span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setEditPerson(p); }}
+                      title="Edit person"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', padding: '2px 4px', flexShrink: 0, display: 'flex', alignItems: 'center', borderRadius: 4 }}
+                    >
+                      <EditIcon size={13} />
+                    </button>
                   </div>
                 ))
               )}
@@ -676,6 +811,18 @@ export default function LoansPage() {
           personId={addForPersonId}
           onClose={() => setShowAddModal(false)}
           onSaved={() => { setShowAddModal(false); load(); }}
+        />
+      )}
+      {editPerson && (
+        <EditPersonModal
+          person={editPerson}
+          onClose={() => setEditPerson(null)}
+          onSaved={() => { setEditPerson(null); load(); }}
+          onDeleted={() => {
+            setEditPerson(null);
+            if (selectedPersonId === editPerson.id) setSelectedPersonId(null);
+            load();
+          }}
         />
       )}
     </div>

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { ensureInstances } from '@/lib/services/fixed-expenses';
 import { refreshNotifications } from '@/lib/services/notifications';
 import { buildTaxInput, currentFY } from '@/lib/services/tax';
+import { netWorthPaisa } from '@/lib/services/accounts';
 import {
   inHandIncome,
   totalSpending,
@@ -237,17 +238,10 @@ export async function GET(req: Request) {
     })),
   ].sort((a, b) => a.date.localeCompare(b.date));
 
-  // ── Net worth ─────────────────────────────────────────────────────────────
-  // Sum opening balances across all enabled wallets and open savings accounts.
-  // Full transaction-based balance is available via GET /api/v1/wallets.
-  const [wallets, openSavings, userRecord] = await Promise.all([
-    prisma.wallet.findMany({ where: { userId: user.id, isEnabled: true }, select: { openingBalancePaisa: true } }),
-    prisma.savingsAccount.findMany({ where: { userId: user.id, closedOn: null }, select: { openingBalancePaisa: true } }),
+  const [net_worth_paisa, userRecord] = await Promise.all([
+    netWorthPaisa(user.id),
     prisma.user.findUnique({ where: { id: user.id }, select: { monthlyLimitPaisa: true } }),
   ]);
-  const net_worth_paisa =
-    wallets.reduce((s, w) => s + Number(w.openingBalancePaisa), 0) +
-    openSavings.reduce((s, a) => s + Number(a.openingBalancePaisa), 0);
   const monthly_limit_paisa = userRecord?.monthlyLimitPaisa !== null && userRecord?.monthlyLimitPaisa !== undefined
     ? Number(userRecord.monthlyLimitPaisa)
     : null;

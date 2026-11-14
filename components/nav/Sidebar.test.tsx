@@ -56,7 +56,7 @@ describe('TC-UI-006 Sidebar nav structure', () => {
     wrap();
     const labels = [
       'Dashboard', 'Income', 'Transactions', 'Budgets',
-      'Fixed Expenses', 'Bank & Savings', 'Loans', 'Tax Dashboard', 'History',
+      'Fixed Expenses', 'Bank & Wallet', 'Loans', 'Tax', 'History',
     ];
     for (const label of labels) {
       expect(screen.getByText(label)).toBeInTheDocument();

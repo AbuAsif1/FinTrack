@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { SkeletonCard } from '@/components/ui/Skeleton';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -46,13 +47,6 @@ interface TaxResult {
   is_provisional: boolean;
   is_locked: boolean;
   filed_on: string | null;
-}
-
-interface TaxInvestments {
-  stocks_paisa: number;
-  insurance_paisa: number;
-  others_paisa: number;
-  universal_pension_paisa: number;
 }
 
 interface TaxYearConfig {
@@ -120,51 +114,50 @@ function ProgressBar({ pct, color }: { pct: number; color: string }) {
 
 // ── Overview Tab ───────────────────────────────────────────────────────────
 
-function OverviewTab({
-  result,
-  investments,
-  fy,
-  onInvestmentsChange,
-}: {
-  result: TaxResult;
-  investments: TaxInvestments;
-  fy: string;
-  onInvestmentsChange: () => void;
-}) {
-  const [invEdit, setInvEdit] = useState<{ stocks: string; insurance: string; others: string; universal_pension: string } | null>(null);
-  const [saving, setSaving] = useState(false);
+const INVESTMENT_LABEL: Record<string, string> = {
+  dps: 'DPS',
+  sanchaypatra: 'Sanchaypatra',
+  universal_pension: 'Universal Pension Scheme',
+  stocks: 'Stocks',
+  insurance: 'Insurance',
+  others: 'Other investments',
+};
 
+function OverviewTab({ result }: { result: TaxResult }) {
   const remaining = result.remaining_tax_paisa;
   const tdsProgress = result.tax_paid_paisa > 0
     ? Math.round((result.tax_paid_paisa / Math.max(result.net_tax_payable_paisa, 1)) * 100)
     : 0;
 
-  async function saveInvestments() {
-    if (!invEdit) return;
-    setSaving(true);
-    await api.put(`/tax-investments/${fy}`, {
-      stocks_paisa: Math.round(parseFloat(invEdit.stocks || '0') * 100),
-      insurance_paisa: Math.round(parseFloat(invEdit.insurance || '0') * 100),
-      others_paisa: Math.round(parseFloat(invEdit.others || '0') * 100),
-      universal_pension_paisa: Math.round(parseFloat(invEdit.universal_pension || '0') * 100),
-    }).catch(() => {});
-    setSaving(false);
-    setInvEdit(null);
-    onInvestmentsChange();
-  }
-
   return (
     <div>
-      {/* Three Tax Tiles */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
-        <Tile label="GROSS TAX" value={fmt(result.gross_tax_paisa)} />
-        <Tile label="TOTAL REBATE" value={fmt(result.tax_rebate_paisa)} color="var(--ok)" />
-        <Tile
-          label="NET TAX PAYABLE"
-          value={fmt(result.net_tax_payable_paisa)}
-          color={remaining < 0 ? 'var(--ok)' : 'var(--fg-primary)'}
-          sub={result.minimum_tax_applied ? '⚠ Minimum tax applied' : undefined}
-        />
+      {/* V2 hero banner */}
+      <div style={{
+        background: 'linear-gradient(135deg, #2D5BE3 0%, #1A2340 100%)',
+        borderRadius: 16, padding: '20px 24px', marginBottom: 24,
+        display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap',
+      }}>
+        <div style={{ flex: '1 1 160px', minWidth: 160 }}>
+          <div style={{ color: 'rgba(148,196,255,0.85)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Net Tax Payable</div>
+          <div style={{ color: '#FFFFFF', font: '700 28px var(--font-space-grotesk, system-ui)', lineHeight: 1.1 }}>{fmt(result.net_tax_payable_paisa)}</div>
+          <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 6 }}>
+            FY {result.fiscal_year}{result.is_projection ? ' · Projection' : ''}
+            {result.minimum_tax_applied ? ' · Min tax applied' : ''}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {([
+            { label: 'Gross Tax', value: fmt(result.gross_tax_paisa), accent: '#93C5FD' },
+            { label: 'Rebate', value: `−${fmt(result.tax_rebate_paisa)}`, accent: '#86EFAC' },
+            { label: 'TDS Paid', value: fmt(result.tds_paisa), accent: '#86EFAC' },
+            { label: remaining < 0 ? 'Overpaid' : 'Remaining', value: fmt(Math.abs(remaining)), accent: remaining < 0 ? '#86EFAC' : '#FCA5A5' },
+          ] as Array<{ label: string; value: string; accent: string }>).map((kpi) => (
+            <div key={kpi.label} style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, padding: '10px 14px', minWidth: 100 }}>
+              <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>{kpi.label}</div>
+              <div style={{ color: kpi.accent, font: '700 14px var(--font-space-grotesk, system-ui)', fontVariantNumeric: 'tabular-nums' }}>{kpi.value}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Taxable Income Breakdown + Slab Breakdown */}
@@ -236,62 +229,19 @@ function OverviewTab({
         )}
       </div>
 
-      {/* Investments (manual entry) */}
+      {/* Investments — from DPS and Investment accounts on Bank & Wallet */}
       <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-          <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>INVESTMENTS</div>
-          {!result.is_locked && !invEdit && (
-            <button
-              onClick={() => setInvEdit({
-                stocks: String(investments.stocks_paisa / 100),
-                insurance: String(investments.insurance_paisa / 100),
-                others: String(investments.others_paisa / 100),
-                universal_pension: String(investments.universal_pension_paisa / 100),
-              })}
-              style={{ font: 'var(--t-caption)', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}
-            >
-              Edit
-            </button>
-          )}
-        </div>
+        <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 4 }}>INVESTMENTS</div>
         <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginBottom: 10 }}>
-          Recorded via Add Expenses → Investment. Edit to adjust totals if needed.
+          Payments this Fiscal Year into your DPS and Investment accounts on Bank &amp; Wallet. Record them with Add Expenses → Investment.
         </div>
-        {invEdit ? (
-          <div>
-            <div style={{ font: 'var(--t-caption)', color: 'var(--warn)', marginBottom: 8, padding: '6px 10px', background: 'rgba(234,179,8,0.08)', borderRadius: 6 }}>
-              These totals include amounts already recorded via Add Expenses. Editing replaces the full total — do not re-enter amounts you already recorded.
-            </div>
-            {(['stocks', 'insurance', 'others', 'universal_pension'] as const).map((k) => (
-              <label key={k} style={{ display: 'block', marginBottom: 8 }}>
-                <div style={{ font: 'var(--t-label)', marginBottom: 4, textTransform: 'capitalize' }}>{k.replace('_', ' ')} (৳)</div>
-                <input
-                  type="number" min="0" step="0.01"
-                  value={invEdit[k]}
-                  onChange={(e) => setInvEdit((f) => f ? { ...f, [k]: e.target.value } : f)}
-                  style={{ width: '100%', padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box' }}
-                />
-              </label>
-            ))}
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button onClick={saveInvestments} disabled={saving} style={{ padding: '7px 14px', background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
-                {saving ? '…' : 'Save'}
-              </button>
-              <button onClick={() => setInvEdit(null)} style={{ padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: 'pointer' }}>Cancel</button>
-            </div>
+        {result.investment_breakdown.map((inv) => (
+          <Row key={inv.category} label={INVESTMENT_LABEL[inv.category] ?? inv.category} value={fmt(inv.invested)} />
+        ))}
+        {result.further_investment_for_max_rebate_paisa > 0 && (
+          <div style={{ marginTop: 10, font: 'var(--t-caption)', color: 'var(--accent)' }}>
+            Need {fmt(result.further_investment_for_max_rebate_paisa)} more for maximum rebate
           </div>
-        ) : (
-          <>
-            <Row label="Stocks" value={fmt(investments.stocks_paisa)} />
-            <Row label="Insurance" value={fmt(investments.insurance_paisa)} />
-            <Row label="Other Investments" value={fmt(investments.others_paisa)} />
-            <Row label="Universal Pension Scheme" value={fmt(investments.universal_pension_paisa)} />
-            {result.further_investment_for_max_rebate_paisa > 0 && (
-              <div style={{ marginTop: 10, font: 'var(--t-caption)', color: 'var(--accent)' }}>
-                Need {fmt(result.further_investment_for_max_rebate_paisa)} more for maximum rebate
-              </div>
-            )}
-          </>
         )}
       </div>
     </div>
@@ -319,13 +269,14 @@ interface InvTransaction {
   date: string;
   created_at: string;
   payment_method: string;
+  account_name: string | null;
 }
 
-// Groups investment transactions by label (strips the "Investment — " prefix)
+// Groups payments by the Investment Account they went into
 function groupInvTx(txs: InvTransaction[]): { label: string; total: number; rows: InvTransaction[] }[] {
   const map = new Map<string, { total: number; rows: InvTransaction[] }>();
   for (const tx of txs) {
-    const label = tx.description.replace(/^Investment\s*[—\-]\s*/i, '') || tx.description;
+    const label = tx.account_name ?? tx.description;
     const existing = map.get(label) ?? { total: 0, rows: [] };
     existing.total += tx.amount_paisa;
     existing.rows.push(tx);
@@ -444,7 +395,7 @@ function ForecastTab({ fy }: { fy: string }) {
       .finally(() => setLoading(false));
   }, [fy]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--fg-muted)' }}>Loading…</div>;
+  if (loading) return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}><SkeletonCard height={110} /><SkeletonCard height={180} /></div>;
   if (!forecast) return null;
 
   return (
@@ -507,7 +458,7 @@ function CompareTab({ fy }: { fy: string }) {
       .finally(() => setLoading(false));
   }, [fy]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--fg-muted)' }}>Loading…</div>;
+  if (loading) return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}><SkeletonCard height={110} /><SkeletonCard height={180} /></div>;
   if (!compare) return null;
 
   const cols = [
@@ -900,7 +851,6 @@ export default function TaxPage() {
   const [fy, setFy] = useState(fys[0]);
   const [tab, setTab] = useState<Tab>('Overview');
   const [result, setResult] = useState<TaxResult | null>(null);
-  const [investments, setInvestments] = useState<TaxInvestments>({ stocks_paisa: 0, insurance_paisa: 0, others_paisa: 0, universal_pension_paisa: 0 });
   const [taxYear, setTaxYear] = useState<TaxYearRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
@@ -909,13 +859,11 @@ export default function TaxPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [sumRes, invRes, tyRes] = await Promise.all([
+    const [sumRes, tyRes] = await Promise.all([
       api.get(`/tax/summary?fiscal_year=${fy}`).catch(() => null),
-      api.get(`/tax-investments/${fy}`).catch(() => null),
       api.get(`/tax-years/${fy}`).catch(() => null),
     ]);
     if (sumRes) setResult(sumRes.data);
-    if (invRes) setInvestments(invRes.data);
     if (tyRes) setTaxYear(tyRes.data);
     setLoading(false);
   }, [fy]);
@@ -952,7 +900,7 @@ export default function TaxPage() {
     <div>
       <PageHeader
         eyebrow="Bangladesh NBR · fiscal year Jul–Jun"
-        title="Tax Dashboard"
+        title="Tax"
         description={`Data: ${months}/${totalMonths} months · ${dataProgress}% complete`}
         actions={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -1017,7 +965,17 @@ export default function TaxPage() {
       </div>
 
       {loading ? (
-        <div style={{ padding: 60, textAlign: 'center', color: 'var(--fg-muted)' }}>Loading…</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Hero banner skeleton */}
+          <SkeletonCard height={110} />
+          {/* Taxable income breakdown + slab breakdown side by side */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <SkeletonCard height={150} />
+            <SkeletonCard height={150} />
+          </div>
+          {/* Tax situation card */}
+          <SkeletonCard height={200} />
+        </div>
       ) : tab === 'Settings' ? (
         <SettingsTab fy={fy} taxYear={taxYear} onSaved={load} />
       ) : !result ? (
@@ -1025,7 +983,7 @@ export default function TaxPage() {
       ) : (
         <>
           {tab === 'Overview' && (
-            <OverviewTab result={result} investments={investments} fy={fy} onInvestmentsChange={load} />
+            <OverviewTab result={result} />
           )}
           {tab === 'Investments' && <InvestmentsTab result={result} fy={fy} />}
           {tab === 'Forecast' && <ForecastTab fy={fy} />}

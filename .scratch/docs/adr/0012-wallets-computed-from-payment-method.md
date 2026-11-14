@@ -1,6 +1,6 @@
 # Wallets are computed views over the existing PaymentMethod enum
 
-Status: accepted (2026-11-14).
+Status: superseded by ADR-0014 (2026-11-14).
 
 The MVP records `payment_method` (CASH | BKASH | BANK | CARD) on every Transaction. p2-05 adds opening balances and running totals per method without migrating the enum to a table in this release.
 

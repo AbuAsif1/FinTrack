@@ -584,15 +584,15 @@ describe('TC-ROUTE-023: DPS, Sanchaypatra and plain Savings deposits in one FY',
     const user = await ctx.createUser({ provision: true });
     const depositCat = await getCategoryByType(ctx, user, 'SAVINGS_DEPOSIT');
 
+    const savings = await createSavingsAccount(ctx, user, {
+      name: 'Plain Savings', type: 'SAVINGS', opening_balance_paisa: 0,
+    });
     const dps = await createSavingsAccount(ctx, user, {
-      name: 'DPS', type: 'DPS', opening_balance_paisa: 0,
+      name: 'DPS', type: 'DPS', opening_balance_paisa: 0, parent_account_id: savings.id,
       monthly_installment_paisa: 1000000, maturity_date: '2030-01-01',
     });
     const sanchaypatra = await createSavingsAccount(ctx, user, {
       name: 'Sanchaypatra', type: 'SANCHAYPATRA', opening_balance_paisa: 0,
-    });
-    const savings = await createSavingsAccount(ctx, user, {
-      name: 'Plain Savings', type: 'SAVINGS', opening_balance_paisa: 0,
     });
 
     const thisMonth = new Date().toISOString().slice(0, 7);

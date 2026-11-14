@@ -9,6 +9,10 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { SUGGESTED_FIXED_EXPENSES } from '@fintrack/shared';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { DatePicker } from '@/components/ui/DatePicker';
+import { AlertBanner } from '@/components/ui/AlertBanner';
+import { EditIcon, TrashIcon } from '@/components/ui/icons';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { SkeletonCard } from '@/components/ui/Skeleton';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -38,10 +42,10 @@ interface FixedExpenseInstance {
 }
 
 interface Category { id: string; name: string; routing_type: string; }
-interface SavingsAccount { id: string; name: string; type: string; }
+interface SavingsAccount { id: string; name: string; type: string; closed_on?: string | null; }
 
 // A deposit fixed expense pays INTO a DPS-style account; regular SAVINGS accounts are the payer, not the destination
-const isDepositTarget = (a: SavingsAccount) => a.type !== 'SAVINGS';
+const isDepositTarget = (a: SavingsAccount) => !['SAVINGS', 'MFS', 'CASH'].includes(a.type);
 
 // ── Status config ──────────────────────────────────────────────────────────
 
@@ -88,48 +92,14 @@ function StatusBadge({ status }: { status: string }) {
 
 // ── Due-Soon Warning Banner ────────────────────────────────────────────────
 
-function DueSoonBanner({ items, onDismiss }: { items: FixedExpenseInstance[]; onDismiss: () => void }) {
-  const overdue = items.filter(i => i.status === 'OVERDUE');
-  const dueSoon = items.filter(i => i.status === 'DUE_SOON');
-  const isOverdue = overdue.length > 0;
-  const color = isOverdue ? 'var(--danger)' : 'var(--warn)';
-  const bg = isOverdue ? 'var(--danger-bg)' : 'var(--warn-bg)';
-  const border = isOverdue ? 'var(--danger)' : 'var(--warn)';
-
-  return (
-    <div style={{
-      marginBottom: 16, padding: '12px 16px',
-      background: bg, border: `1px solid ${border}`,
-      borderLeft: `4px solid ${color}`, borderRadius: 8,
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
-    }}>
-      <div style={{ flex: 1 }}>
-        <div style={{ font: 'var(--t-body)', fontWeight: 600, color, marginBottom: 4 }}>
-          {overdue.length > 0 && `${overdue.length} overdue`}
-          {overdue.length > 0 && dueSoon.length > 0 && ' · '}
-          {dueSoon.length > 0 && `${dueSoon.length} due within 7 days`}
-        </div>
-        <div style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>
-          {items.map(i => i.template_name).join(', ')}
-        </div>
-      </div>
-      <button
-        onClick={onDismiss}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color, fontSize: 16, padding: '0 4px', flexShrink: 0 }}
-        aria-label="Dismiss for today"
-      >
-        ✕
-      </button>
-    </div>
-  );
-}
-
 // ── PayDrawer ──────────────────────────────────────────────────────────────
 
-function PayDrawer({ instance, onClose, onDone }: { instance: FixedExpenseInstance | null; onClose: () => void; onDone: () => void }) {
+function PayDrawer({ instance, accounts, onClose, onDone }: { instance: FixedExpenseInstance | null; accounts: SavingsAccount[]; onClose: () => void; onDone: () => void }) {
   const [amountPaisa, setAmountPaisa] = useState<number | null>(instance?.standard_amount_paisa ?? null);
   const [paidDate, setPaidDate] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('BANK');
+  const [payFromId, setPayFromId] = useState('');
+  const payers = accounts.filter((a) => (a.type === 'SAVINGS' || a.type === 'MFS') && !a.closed_on);
   const [mode, setMode] = useState<'pay' | 'skip'>('pay');
   const [skipNote, setSkipNote] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -144,10 +114,12 @@ function PayDrawer({ instance, onClose, onDone }: { instance: FixedExpenseInstan
 
   async function handlePay() {
     if (!instance) return;
+    if (paymentMethod === 'BANK' && payers.length > 0 && !payFromId) { setError('Choose the account you are paying from.'); return; }
     setSaving(true); setError(null);
     try {
       await api.post(`/fixed-expense-instances/${instance.id}/pay`, {
         actual_amount_paisa: amountPaisa, paid_date: paidDate, payment_method: paymentMethod,
+        ...(paymentMethod === 'BANK' && payFromId ? { bank_account_id: payFromId } : {}),
       });
       onDone(); onClose();
     } catch (err: unknown) {
@@ -223,12 +195,19 @@ function PayDrawer({ instance, onClose, onDone }: { instance: FixedExpenseInstan
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 4, font: 'var(--t-body)' }}>
                   Payment Method
                   <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-sunken)', color: 'var(--fg-primary)' }}>
-                    <option value="BANK">Bank</option>
-                    <option value="BKASH">bKash</option>
-                    <option value="CASH">Cash</option>
-                    <option value="CARD">Card</option>
+                    <option value="BANK">Bank / MFS</option>
+                    <option value="CASH">Cash (from In-Hand Cash)</option>
                   </select>
                 </label>
+                {paymentMethod === 'BANK' && payers.length > 0 && (
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4, font: 'var(--t-body)' }}>
+                    Which account are you paying from?
+                    <select value={payFromId} onChange={e => setPayFromId(e.target.value)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-sunken)', color: 'var(--fg-primary)' }}>
+                      <option value="">Choose an account…</option>
+                      {payers.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                  </label>
+                )}
                 {error && <div style={{ color: 'var(--danger)', font: 'var(--t-caption)' }}>{error}</div>}
                 <button type="button" onClick={handlePay} disabled={saving} style={{ padding: 10, borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', font: 'var(--t-body)' }}>
                   {saving ? 'Confirming…' : 'Confirm & Create Transaction'}
@@ -450,6 +429,7 @@ export default function FixedExpensesPage() {
   const [editTemplate, setEditTemplate] = useState<FixedExpenseTemplate | null>(null);
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<FixedExpenseTemplate | null>(null);
 
   const currentMonth = currentYM();
   const today = todayStr();
@@ -512,7 +492,11 @@ export default function FixedExpensesPage() {
   }
 
   async function handleDelete(tmpl: FixedExpenseTemplate) {
-    if (!confirm(`Delete "${tmpl.name}"? All instances will be removed. Paid transactions are kept.`)) return;
+    setDeleteConfirm(tmpl);
+  }
+
+  async function confirmDelete(tmpl: FixedExpenseTemplate) {
+    setDeleteConfirm(null);
     await api.delete(`/fixed-expenses/${tmpl.id}`).catch(() => {});
     reloadAll();
   }
@@ -545,7 +529,12 @@ export default function FixedExpensesPage() {
       />
 
       {loading ? (
-        <div style={{ color: 'var(--fg-muted)', padding: 40, textAlign: 'center' }}>Loading…</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Hero banner skeleton */}
+          <SkeletonCard height={100} />
+          {/* Template card skeletons */}
+          {[0, 1, 2, 3, 4].map((i) => <SkeletonCard key={i} height={64} />)}
+        </div>
       ) : templates.length === 0 ? (
         <EmptyState
           icon="📋"
@@ -562,7 +551,19 @@ export default function FixedExpensesPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
           {/* ── Warning banner ── */}
-          {showBanner && <DueSoonBanner items={alertInstances} onDismiss={dismissBanner} />}
+          {showBanner && (
+            <AlertBanner
+              variant={alertInstances.some(i => i.status === 'OVERDUE') ? 'danger' : 'warn'}
+              title={[
+                alertInstances.filter(i => i.status === 'OVERDUE').length > 0
+                  ? `${alertInstances.filter(i => i.status === 'OVERDUE').length} overdue` : '',
+                alertInstances.filter(i => i.status === 'DUE_SOON').length > 0
+                  ? `${alertInstances.filter(i => i.status === 'DUE_SOON').length} due within 7 days` : '',
+              ].filter(Boolean).join(' · ')}
+              body={alertInstances.map(i => i.template_name).join(', ')}
+              onDismiss={dismissBanner}
+            />
+          )}
 
           {/* ── Top action bar ── */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -572,6 +573,41 @@ export default function FixedExpensesPage() {
             <button type="button" onClick={() => setSetupOpen(true)} className="btn-secondary" style={{ fontSize: 13 }}>
               Set up defaults
             </button>
+          </div>
+
+          {/* ── V2 hero — month summary ── */}
+          <div style={{
+            background: 'linear-gradient(135deg, #2D5BE3 0%, #1A2340 100%)',
+            borderRadius: 16, padding: '20px 24px',
+            display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap',
+          }}>
+            <div style={{ flex: '1 1 160px', minWidth: 160 }}>
+              <div style={{ color: 'rgba(148,196,255,0.85)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+                Monthly Total
+              </div>
+              <div style={{ color: '#FFFFFF', font: '700 28px var(--font-space-grotesk, system-ui)', lineHeight: 1.1 }}>
+                {fmt(currentTotal)}
+              </div>
+              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 6 }}>
+                {new Date(currentMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {([
+                { label: 'Paid', value: fmt(currentPaid), accent: '#86EFAC' },
+                { label: 'Pending', value: fmt(currentPending), accent: '#FCA5A5' },
+                { label: 'Expenses', value: `${templates.length}`, accent: '#93C5FD' },
+              ] as const).map((kpi) => (
+                <div key={kpi.label} style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, padding: '10px 14px', minWidth: 100 }}>
+                  <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>
+                    {kpi.label}
+                  </div>
+                  <div style={{ color: kpi.accent, font: '700 14px var(--font-space-grotesk, system-ui)', fontVariantNumeric: 'tabular-nums' }}>
+                    {kpi.value}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* ═══════════════════════════════════════════════════════════════
@@ -631,7 +667,7 @@ export default function FixedExpensesPage() {
                             style={{ padding: '4px 8px', borderRadius: 5, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--fg-secondary)', display: 'flex', alignItems: 'center' }}
                             title="Edit"
                           >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21.731 2.269a2.625 2.625 0 00-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 000-3.712zM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 00-1.32 2.214l-.8 2.685a.75.75 0 00.933.933l2.685-.8a5.25 5.25 0 002.214-1.32L19.513 8.2z"/></svg>
+                            <EditIcon size={14} />
                           </button>
                           <button
                             type="button"
@@ -639,7 +675,7 @@ export default function FixedExpensesPage() {
                             style={{ padding: '4px 8px', borderRadius: 5, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--danger)', display: 'flex', alignItems: 'center' }}
                             title="Delete"
                           >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path fillRule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.256 1.478l-.209-.035-1.005 13.07a3 3 0 01-2.991 2.77H8.084a3 3 0 01-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 01-.256-1.478A48.567 48.567 0 017.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 013.369 0c1.603.051 2.815 1.387 2.815 2.951zm-6.136-1.452a51.196 51.196 0 013.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 00-6 0v-.113c0-.794.609-1.428 1.364-1.452zm-.355 5.945a.75.75 0 10-1.5.058l.347 9a.75.75 0 101.499-.058l-.346-9zm5.48.058a.75.75 0 10-1.498-.058l-.347 9a.75.75 0 001.5.058l.345-9z" clipRule="evenodd"/></svg>
+                            <TrashIcon size={14} />
                           </button>
                         </div>
                       )}
@@ -798,9 +834,18 @@ export default function FixedExpensesPage() {
       )}
 
       {/* Modals & Drawers */}
-      {activeDrawer && <PayDrawer instance={activeDrawer} onClose={() => setActiveDrawer(null)} onDone={reloadAll} />}
+      {activeDrawer && <PayDrawer instance={activeDrawer} accounts={savingsAccounts} onClose={() => setActiveDrawer(null)} onDone={reloadAll} />}
       <SetupModal open={setupOpen} onClose={() => setSetupOpen(false)} onDone={reloadAll} categories={categories} savingsAccounts={savingsAccounts} existingNames={templates.map(t => t.name.toLowerCase())} />
       <TemplateModal open={templateModalOpen} onClose={() => setTemplateModalOpen(false)} onSaved={reloadAll} edit={editTemplate} categories={categories} savingsAccounts={savingsAccounts} />
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        title={`Delete "${deleteConfirm?.name}"?`}
+        message="All future instances will be removed. Paid transactions are kept."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => deleteConfirm && confirmDelete(deleteConfirm)}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 }
