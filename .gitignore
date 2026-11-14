@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+coverage/
+.next/
+out/
+
+# Next.js
+tsconfig.tsbuildinfo
+next-env.d.ts
+
+# PWA
+public/workbox-*.js
+public/sw.js
+public/sw.js.map
+
+# Test artifacts
+playwright-report/
+test-results/
+
+# Temp files
+_tmp_*.mjs
+_tmp_*.js
+
+# Local design references (not source code)
+.scratch/ui-inspiration/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local Claude Code settings (personal, not shared)
+.claude/settings.local.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
