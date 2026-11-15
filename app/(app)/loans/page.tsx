@@ -7,6 +7,7 @@ import { DatePicker } from '@/components/ui/DatePicker';
 import { EditIcon } from '@/components/ui/icons';
 import { SkeletonTableRows, SK, SkeletonCard } from '@/components/ui/Skeleton';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { SummaryTile } from '@/components/ui/SummaryTile';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -576,7 +577,7 @@ function DetailPanel({
       </div>
 
       {/* Entry table */}
-      <div className="table-scroll" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+      <div className="table-scroll" style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
         {loading ? (
           <SkeletonTableRows rows={5} cols={SK.loans} />
         ) : entries.length === 0 ? (
@@ -696,37 +697,27 @@ export default function LoansPage() {
         description="Per-person running balances for informal lending between friends."
       />
 
-      {/* V2 hero banner */}
+      {/* KPI summary tiles */}
       {summary && (
-        <div style={{
-          background: 'linear-gradient(135deg, #2D5BE3 0%, #1A2340 100%)',
-          borderRadius: 16, padding: '24px 28px', marginBottom: 24,
-          display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap',
-        }}>
-          <div style={{ flex: '1 1 180px', minWidth: 180 }}>
-            <div style={{ color: 'rgba(148,196,255,0.85)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
-              Net Position
-            </div>
-            <div style={{ color: summary.net_paisa < 0 ? '#FCA5A5' : '#FFFFFF', font: '700 30px var(--font-space-grotesk, system-ui)', lineHeight: 1.1 }}>
-              {summary.net_paisa < 0 && <span style={{ fontSize: 20, marginRight: 2, opacity: 0.8 }}>−</span>}
-              {fmt(Math.abs(summary.net_paisa))}
-            </div>
-            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 6 }}>
-              {summary.net_paisa >= 0 ? 'Others owe you more' : 'You owe more overall'}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {([
-              { label: 'They Owe Me', value: fmt(summary.owed_to_me_paisa), sub: `${persons.filter(p => p.running_balance_paisa > 0).length} people`, accent: '#86EFAC' },
-              { label: 'I Owe Them', value: fmt(summary.i_owe_paisa), sub: `${persons.filter(p => p.running_balance_paisa < 0).length} people`, accent: '#FCA5A5' },
-            ]).map((kpi) => (
-              <div key={kpi.label} style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, padding: '10px 14px', minWidth: 130 }}>
-                <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>{kpi.label}</div>
-                <div style={{ color: kpi.accent, font: '700 14px var(--font-space-grotesk, system-ui)', fontVariantNumeric: 'tabular-nums' }}>{kpi.value}</div>
-                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, marginTop: 3 }}>{kpi.sub}</div>
-              </div>
-            ))}
-          </div>
+        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 20 }}>
+          <SummaryTile
+            label="I Owe (Total)"
+            paisa={summary.i_owe_paisa}
+            variant="danger"
+            subtitle={`${persons.filter(p => p.running_balance_paisa < 0).length} people`}
+          />
+          <SummaryTile
+            label="Owed to Me"
+            paisa={summary.owed_to_me_paisa}
+            variant="income"
+            subtitle={`${persons.filter(p => p.running_balance_paisa > 0).length} people`}
+          />
+          <SummaryTile
+            label="Net Position"
+            paisa={summary.net_paisa}
+            variant={summary.net_paisa >= 0 ? 'savings' : 'danger'}
+            subtitle={summary.net_paisa >= 0 ? 'net owed to you' : 'net you owe'}
+          />
         </div>
       )}
 
@@ -746,7 +737,7 @@ export default function LoansPage() {
         <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
           {/* Person List */}
           <div style={{ width: 300, flexShrink: 0 }}>
-            <div className="table-scroll" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+            <div className="table-scroll" style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
               {persons.length === 0 ? (
                 <div style={{ padding: 24, textAlign: 'center', color: 'var(--fg-muted)', font: 'var(--t-body)' }}>
                   No loan records yet.
@@ -829,12 +820,3 @@ export default function LoansPage() {
   );
 }
 
-function SummaryTile({ label, value, sub, color }: { label: string; value: string; sub: string; color: string }) {
-  return (
-    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px' }}>
-      <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 8 }}>{label}</div>
-      <div style={{ font: 'var(--t-data)', color, fontVariantNumeric: 'tabular-nums', marginBottom: 4 }}>{value}</div>
-      <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>{sub}</div>
-    </div>
-  );
-}

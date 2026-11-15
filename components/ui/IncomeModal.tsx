@@ -29,6 +29,7 @@ export interface SavingsAccount {
   name: string;
   bank_name: string;
   type: string;
+  balance_paisa: number;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -51,16 +52,21 @@ const OTHER_INCOME_TYPES = INCOME_TYPES.filter((t) => t.value !== 'SALARY');
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const inputStyle: React.CSSProperties = {
-  padding: '8px 12px', borderRadius: 6,
+  width: '100%', boxSizing: 'border-box',
+  padding: '10px 12px', borderRadius: 8,
   border: '1px solid var(--border)',
-  background: 'var(--bg-sunken)',
-  color: 'var(--fg-primary)',
+  backgroundColor: 'var(--bg-sunken)',
+  font: 'var(--t-body)',
+  outline: 'none',
 };
 
-function FieldLabel({ label, children }: { label: string; children: React.ReactNode }) {
+function FieldLabel({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, font: 'var(--t-body)' }}>
-      {label}
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 6, font: 'var(--t-body)' }}>
+      <span>
+        {label}
+        {required && <span style={{ color: 'var(--danger)', marginLeft: 2 }}>*</span>}
+      </span>
       {children}
     </label>
   );
@@ -236,7 +242,7 @@ export function IncomeModal({
 
   return (
     <Modal open={open} onClose={onClose} title={editEntry ? 'Edit Income Entry' : 'Add Income'}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '80vh', overflowY: 'auto', paddingRight: 2 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxHeight: '80vh', overflowY: 'auto', paddingRight: 2 }}>
 
         {/* Category toggle */}
         {!editEntry && (
@@ -263,8 +269,8 @@ export function IncomeModal({
           </div>
         )}
 
-        {/* Month — year locked to current year */}
-        <FieldLabel label="Year & Month">
+        {/* Month */}
+        <FieldLabel label="Year & Month" required>
           <MonthPicker
             value={month}
             onChange={setMonth}
@@ -276,7 +282,7 @@ export function IncomeModal({
         {/* SALARY MODE */}
         {isSalary ? (
           <>
-            <FieldLabel label="In-Hand Salary (৳)">
+            <FieldLabel label="In-Hand Salary (৳)" required>
               <MoneyInput value={actualPaisa} onChange={setActualPaisa} id="actual-paisa" />
               <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>Net amount credited to your account (after TDS deduction)</span>
             </FieldLabel>
@@ -284,14 +290,14 @@ export function IncomeModal({
               <MoneyInput value={tdsPaisa} onChange={setTdsPaisa} id="tds-paisa-salary" />
               <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>Tax deducted at source</span>
             </FieldLabel>
-            <FieldLabel label="Bonus (৳) — optional">
+            <FieldLabel label="Bonus (৳)">
               <MoneyInput value={bonusPaisa} onChange={setBonusPaisa} id="bonus-paisa" />
             </FieldLabel>
-            <FieldLabel label="Other Allowances (৳) — optional">
+            <FieldLabel label="Other Allowances (৳)">
               <MoneyInput value={otherPaisa} onChange={setOtherPaisa} id="other-paisa" />
               <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>e.g. medical, travel, festival allowance</span>
             </FieldLabel>
-            <FieldLabel label="Employer (optional)">
+            <FieldLabel label="Employer">
               <input type="text" value={employerName} onChange={(e) => setEmployerName(e.target.value)} placeholder="Company name" style={inputStyle} />
             </FieldLabel>
           </>
@@ -299,48 +305,50 @@ export function IncomeModal({
           /* OTHER INCOME MODE */
           <>
             {!editEntry && (
-              <FieldLabel label="Income Type">
+              <FieldLabel label="Income Type" required>
                 <select value={incomeType} onChange={(e) => setIncomeType(e.target.value)} style={inputStyle}>
                   {OTHER_INCOME_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
               </FieldLabel>
             )}
-            <FieldLabel label="Amount Received (৳)">
+            <FieldLabel label="Amount Received (৳)" required>
               <MoneyInput value={amountPaisa} onChange={setAmountPaisa} id="other-amount-paisa" />
             </FieldLabel>
-            <FieldLabel label="TDS (৳) — optional">
+            <FieldLabel label="TDS (৳)">
               <MoneyInput value={tdsPaisa} onChange={setTdsPaisa} id="tds-paisa-other" />
             </FieldLabel>
             {incomeType === 'CHEER' && (
               <>
-                <FieldLabel label="Payer Name (optional)">
+                <FieldLabel label="Payer Name">
                   <input type="text" value={payerName} onChange={(e) => setPayerName(e.target.value)} placeholder="Who paid?" style={inputStyle} />
                 </FieldLabel>
-                <FieldLabel label="Earned Period (optional)">
+                <FieldLabel label="Earned Period">
                   <input type="text" value={earnedPeriod} onChange={(e) => setEarnedPeriod(e.target.value)} placeholder="e.g. 2026-Q3" style={inputStyle} />
                 </FieldLabel>
               </>
             )}
-            <FieldLabel label="Employer / Source (optional)">
+            <FieldLabel label="Employer / Source">
               <input type="text" value={employerName} onChange={(e) => setEmployerName(e.target.value)} placeholder="Source / organisation" style={inputStyle} />
             </FieldLabel>
           </>
         )}
 
-        {/* Receiving account: only bank, MFS and In-Hand Cash accounts can receive money */}
+        {/* Receiving account */}
         {receivingAccounts.length > 0 && (
-          <FieldLabel label="Received into (optional)">
-            <select value={savingsAccountId} onChange={(e) => setSavingsAccountId(e.target.value)} style={inputStyle}>
-              <option value="">Not into one of my accounts</option>
+          <FieldLabel label="Received into" required={isSalary}>
+            <select value={savingsAccountId} onChange={(e) => setSavingsAccountId(e.target.value)} style={inputStyle} required={isSalary}>
+              <option value="">{isSalary ? 'Select account' : 'Not into one of my accounts'}</option>
               {receivingAccounts.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}{a.type === 'CASH' ? '' : ` · ${a.bank_name}`}</option>
+                <option key={a.id} value={a.id}>
+                  {a.name}{a.type === 'CASH' ? '' : ` · ${a.bank_name}`} · ৳{(a.balance_paisa / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </option>
               ))}
             </select>
           </FieldLabel>
         )}
 
         {/* Notes */}
-        <FieldLabel label="Notes (optional)">
+        <FieldLabel label="Notes">
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
         </FieldLabel>
 

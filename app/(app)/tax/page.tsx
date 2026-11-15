@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SkeletonCard } from '@/components/ui/Skeleton';
+import { SummaryTile } from '@/components/ui/SummaryTile';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -94,7 +95,7 @@ function currentFYs(): string[] {
 
 function Tile({ label, value, color, sub }: { label: string; value: string; color?: string; sub?: string }) {
   return (
-    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px' }}>
+    <div style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: '16px 20px' }}>
       <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 8 }}>{label}</div>
       <div style={{ font: 'var(--t-data)', color: color ?? 'var(--fg-primary)', fontVariantNumeric: 'tabular-nums', marginBottom: 4 }}>{value}</div>
       {sub && <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>{sub}</div>}
@@ -131,38 +132,17 @@ function OverviewTab({ result }: { result: TaxResult }) {
 
   return (
     <div>
-      {/* V2 hero banner */}
-      <div style={{
-        background: 'linear-gradient(135deg, #2D5BE3 0%, #1A2340 100%)',
-        borderRadius: 16, padding: '20px 24px', marginBottom: 24,
-        display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap',
-      }}>
-        <div style={{ flex: '1 1 160px', minWidth: 160 }}>
-          <div style={{ color: 'rgba(148,196,255,0.85)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Net Tax Payable</div>
-          <div style={{ color: '#FFFFFF', font: '700 28px var(--font-space-grotesk, system-ui)', lineHeight: 1.1 }}>{fmt(result.net_tax_payable_paisa)}</div>
-          <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 6 }}>
-            FY {result.fiscal_year}{result.is_projection ? ' · Projection' : ''}
-            {result.minimum_tax_applied ? ' · Min tax applied' : ''}
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {([
-            { label: 'Gross Tax', value: fmt(result.gross_tax_paisa), accent: '#93C5FD' },
-            { label: 'Rebate', value: `−${fmt(result.tax_rebate_paisa)}`, accent: '#86EFAC' },
-            { label: 'TDS Paid', value: fmt(result.tds_paisa), accent: '#86EFAC' },
-            { label: remaining < 0 ? 'Overpaid' : 'Remaining', value: fmt(Math.abs(remaining)), accent: remaining < 0 ? '#86EFAC' : '#FCA5A5' },
-          ] as Array<{ label: string; value: string; accent: string }>).map((kpi) => (
-            <div key={kpi.label} style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, padding: '10px 14px', minWidth: 100 }}>
-              <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>{kpi.label}</div>
-              <div style={{ color: kpi.accent, font: '700 14px var(--font-space-grotesk, system-ui)', fontVariantNumeric: 'tabular-nums' }}>{kpi.value}</div>
-            </div>
-          ))}
-        </div>
+      {/* KPI tiles */}
+      <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', marginBottom: 24 }}>
+        <SummaryTile label="Net Tax Payable" paisa={result.net_tax_payable_paisa} variant="tax" subtitle={`FY ${result.fiscal_year}${result.is_projection ? ' · Projection' : ''}`} />
+        <SummaryTile label="Gross Tax" paisa={result.gross_tax_paisa} variant="spending" subtitle="Before rebate" />
+        <SummaryTile label="Rebate" paisa={result.tax_rebate_paisa} variant="savings" subtitle="Investment rebate" />
+        <SummaryTile label={remaining < 0 ? 'Overpaid' : 'Remaining'} paisa={Math.abs(remaining)} variant={remaining < 0 ? 'savings' : 'warn'} subtitle={remaining < 0 ? 'Refund due' : 'Still to pay'} />
       </div>
 
       {/* Taxable Income Breakdown + Slab Breakdown */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
+        <div style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: 16 }}>
           <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 12 }}>TAXABLE INCOME BREAKDOWN</div>
           <Row label="Gross Annual Income" value={fmt(result.gross_income_paisa)} />
           <Row label="− Salary Exemption" value={`−${fmt(result.exemption_paisa)}`} color="var(--ok)" />
@@ -170,7 +150,7 @@ function OverviewTab({ result }: { result: TaxResult }) {
           <Row label="Taxable Income" value={fmt(result.taxable_income_paisa)} bold />
         </div>
 
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
+        <div style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: 16 }}>
           <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 12 }}>SLAB BREAKDOWN</div>
           {result.slab_breakdown.map((s, i) => (
             <Row key={i} label={`${fmtBps(s.rate_bps)} slab`} value={s.tax > 0 ? fmt(s.tax) : '৳0.00'} />
@@ -181,7 +161,7 @@ function OverviewTab({ result }: { result: TaxResult }) {
       </div>
 
       {/* TDS Reconciliation */}
-      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, marginBottom: 24 }}>
+      <div style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: 16, marginBottom: 24 }}>
         <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 12 }}>TAX SITUATION</div>
 
         {/* Net tax */}
@@ -230,7 +210,7 @@ function OverviewTab({ result }: { result: TaxResult }) {
       </div>
 
       {/* Investments — from DPS and Investment accounts on Bank & Wallet */}
-      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
+      <div style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: 16 }}>
         <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 4 }}>INVESTMENTS</div>
         <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginBottom: 10 }}>
           Payments this Fiscal Year into your DPS and Investment accounts on Bank &amp; Wallet. Record them with Add Expenses → Investment.
@@ -299,7 +279,7 @@ function InvestmentsTab({ result, fy }: { result: TaxResult; fy: string }) {
 
   return (
     <div>
-      <div className="table-scroll" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+      <div className="table-scroll" style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: COL_INV, gap: 0, padding: '10px 16px', background: 'var(--bg-raised)', borderBottom: '2px solid var(--border)', minWidth: COL_INV_MIN }}>
           <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>INVESTMENT</div>
           <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>INVESTED / CAP</div>
@@ -340,7 +320,7 @@ function InvestmentsTab({ result, fy }: { result: TaxResult; fy: string }) {
       {grouped.length > 0 && (
         <div style={{ marginTop: 24 }}>
           <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 10 }}>INVESTMENT RECORDS THIS YEAR</div>
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
             {grouped.map((g, gi) => (
               <div key={g.label}>
                 {/* Group header */}
@@ -413,7 +393,7 @@ function ForecastTab({ fy }: { fy: string }) {
         <Tile label="PROJECTED REBATE" value={fmt(forecast.tax_rebate_paisa)} color="var(--ok)" />
         <Tile label="PROJECTED NET TAX" value={fmt(forecast.net_tax_payable_paisa)} color={forecast.net_tax_payable_paisa > 0 ? 'var(--warn)' : 'var(--ok)'} />
       </div>
-      <div style={{ marginTop: 16, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
+      <div style={{ marginTop: 16, background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: 16 }}>
         <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 8 }}>FULL-YEAR BREAKDOWN</div>
         <Row label="Projected Gross Income (12 mo)" value={fmt(forecast.gross_income_paisa)} />
         <Row label="− Salary Exemption" value={`−${fmt(forecast.exemption_paisa)}`} color="var(--ok)" />
@@ -470,7 +450,7 @@ function CompareTab({ fy }: { fy: string }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols.length}, 1fr)`, gap: 16 }}>
       {cols.map((col) => (
-        <div key={col.label} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
+        <div key={col.label} style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: 16 }}>
           <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 12 }}>{col.label}</div>
           <Row label="Gross Tax" value={fmt(col.r!.gross_tax_paisa)} />
           <Row label="Rebate" value={fmt(col.r!.tax_rebate_paisa)} />
@@ -677,7 +657,7 @@ function SettingsTab({
 
         {/* ── Tax Slabs ─────────────────────────────────────────────────── */}
         <SectionLabel>Tax Slabs</SectionLabel>
-        <div className="table-scroll" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+        <div className="table-scroll" style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 32px', gap: 0, padding: '8px 14px', background: 'var(--bg-raised)', borderBottom: '1px solid var(--border)' }}>
             {['Slab width (৳)', 'Rate (%)', ''].map(h => (
               <div key={h} style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>{h}</div>
@@ -781,7 +761,7 @@ function SettingsTab({
       </div>
 
       <SectionLabel>Tax Slabs</SectionLabel>
-      <div className="table-scroll" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+      <div className="table-scroll" style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', padding: '8px 16px', background: 'var(--bg-raised)', borderBottom: '1px solid var(--border)' }}>
           <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>Income range</div>
           <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', textAlign: 'right' }}>Rate</div>
@@ -938,6 +918,21 @@ export default function TaxPage() {
       {result?.is_locked && result.filed_on && (
         <div style={{ background: 'var(--neutral-bg)', borderLeft: '4px solid var(--neutral)', padding: '10px 14px', borderRadius: 6, marginBottom: 12, font: 'var(--t-body)', color: 'var(--neutral)' }}>
           ✓ Filed on {result.filed_on} · figures locked
+        </div>
+      )}
+
+      {/* KPI summary tiles */}
+      {result && (
+        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', marginBottom: 20 }}>
+          <SummaryTile label="Gross Income" paisa={result.gross_income_paisa} variant="income" subtitle={`FY${fy}`} />
+          <SummaryTile label="Net Tax Payable" paisa={result.net_tax_payable_paisa} variant="tax" subtitle="after rebate" />
+          <SummaryTile label="Tax Paid (TDS)" paisa={result.tax_paid_paisa} variant="savings" subtitle="deducted so far" />
+          <SummaryTile
+            label="Remaining"
+            paisa={result.remaining_tax_paisa}
+            variant={result.remaining_tax_paisa <= 0 ? 'savings' : 'danger'}
+            subtitle={result.remaining_tax_paisa <= 0 ? 'fully paid' : 'still to pay'}
+          />
         </div>
       )}
 

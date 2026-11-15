@@ -1,34 +1,39 @@
 /* Design tokens — light theme */
 :root {
-  --bg-base:     #EEF2F7;
+  --bg-base:     #F5F5F5;
   --bg-surface:  #FFFFFF;
-  --bg-raised:   #E3EAF4;
-  --bg-sunken:   #D6DFEE;
+  --bg-raised:   #EBEBEB;
+  --bg-sunken:   #E0E0E0;
 
-  --border:      #CBD5E1;
-  --border-focus:#2D5BE3;
+  --border:      #E0E0E0;
+  --border-focus:#299D91;
 
-  --fg-primary:  #111827;
-  --fg-secondary:#4B5563;
+  --fg-primary:  #191919;
+  --fg-secondary:#666666;
   --fg-muted:    #9CA3AF;
 
-  --accent:      #2D5BE3;
-  --accent-hover:#1E50D4;
+  --accent:      #299D91;
+  --accent-hover:#1E8A80;
   --accent-fg:   #FFFFFF;
 
   --ok:          #15803D;
   --ok-bg:       #DCFCE7;
   --warn:        #B45309;
   --warn-bg:     #FEF3C7;
-  --danger:      #B91C1C;
+  --danger:      #E83D1C;
   --danger-bg:   #FEE2E2;
   --neutral:     #374151;
   --neutral-bg:  #F3F4F6;
 
   --income:      #22C55E;
   --spending:    #F97316;
-  --savings:     #3B82F6;
+  --savings:     #299D91;
   --tax:         #B45309;
+
+  --sidebar-bg:         #191919;
+  --sidebar-fg:         #999999;
+  --sidebar-active-bg:  #299D91;
+  --sidebar-active-fg:  #FFFFFF;
 
   /* Typography */
   --t-page:   700 22px var(--font-space-grotesk, system-ui);
@@ -44,21 +49,53 @@
   --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-12: 48px;
 }
 
+/* Explicit light theme — overrides OS dark preference */
+:root[data-theme="light"] {
+  --bg-base:     #F5F5F5;
+  --bg-surface:  #FFFFFF;
+  --bg-raised:   #EBEBEB;
+  --bg-sunken:   #E0E0E0;
+  --border:      #E0E0E0;
+  --border-focus:#299D91;
+  --fg-primary:  #191919;
+  --fg-secondary:#666666;
+  --fg-muted:    #9CA3AF;
+  --accent:      #299D91;
+  --accent-hover:#1E8A80;
+  --accent-fg:   #FFFFFF;
+  --ok:          #15803D;
+  --ok-bg:       #DCFCE7;
+  --warn:        #B45309;
+  --warn-bg:     #FEF3C7;
+  --danger:      #E83D1C;
+  --danger-bg:   #FEE2E2;
+  --neutral:     #374151;
+  --neutral-bg:  #F3F4F6;
+  --income:      #22C55E;
+  --spending:    #F97316;
+  --savings:     #299D91;
+  --tax:         #B45309;
+  --sidebar-bg:         #191919;
+  --sidebar-fg:         #999999;
+  --sidebar-active-bg:  #299D91;
+  --sidebar-active-fg:  #FFFFFF;
+}
+
 /* Dark theme */
 @media (prefers-color-scheme: dark) {
-  :root[data-theme="system"], :root:not([data-theme]) {
-    --bg-base:     #0F1117;
-    --bg-surface:  #1A1D27;
-    --bg-raised:   #252835;
-    --bg-sunken:   #0D0F18;
-    --border:      #2E3148;
-    --border-focus:#6B8CF5;
-    --fg-primary:  #F1F3FC;
-    --fg-secondary:#9BA3BC;
-    --fg-muted:    #4B5363;
-    --accent:      #5B8EF4;
-    --accent-hover:#4477E8;
-    --accent-fg:   #0F1117;
+  :root[data-theme="system"], :root:not([data-theme]):not([data-theme="light"]) {
+    --bg-base:     #111111;
+    --bg-surface:  #1C1C1C;
+    --bg-raised:   #252525;
+    --bg-sunken:   #0A0A0A;
+    --border:      #2E2E2E;
+    --border-focus:#299D91;
+    --fg-primary:  #F5F5F5;
+    --fg-secondary:#AAAAAA;
+    --fg-muted:    #666666;
+    --accent:      #34B8A8;
+    --accent-hover:#299D91;
+    --accent-fg:   #FFFFFF;
     --ok:          #4ADE80;
     --ok-bg:       #052E16;
     --warn:        #FCD34D;
@@ -69,23 +106,27 @@
     --neutral-bg:  #1F2937;
     --income:      #4ADE80;
     --spending:    #FB923C;
-    --savings:     #60A5FA;
+    --savings:     #34B8A8;
     --tax:         #FCD34D;
+    --sidebar-bg:         #191919;
+    --sidebar-fg:         #999999;
+    --sidebar-active-bg:  #299D91;
+    --sidebar-active-fg:  #FFFFFF;
   }
 }
 :root[data-theme="dark"] {
-  --bg-base:     #0F1117;
-  --bg-surface:  #1A1D27;
-  --bg-raised:   #252835;
-  --bg-sunken:   #0D0F18;
-  --border:      #2E3148;
-  --border-focus:#818CF8;
-  --fg-primary:  #F1F3FC;
-  --fg-secondary:#9BA3BC;
-  --fg-muted:    #4B5363;
-  --accent:      #818CF8;
-  --accent-hover:#6366F1;
-  --accent-fg:   #0F1117;
+  --bg-base:     #111111;
+  --bg-surface:  #1C1C1C;
+  --bg-raised:   #252525;
+  --bg-sunken:   #0A0A0A;
+  --border:      #2E2E2E;
+  --border-focus:#299D91;
+  --fg-primary:  #F5F5F5;
+  --fg-secondary:#AAAAAA;
+  --fg-muted:    #666666;
+  --accent:      #34B8A8;
+  --accent-hover:#299D91;
+  --accent-fg:   #FFFFFF;
   --ok:          #4ADE80;
   --ok-bg:       #052E16;
   --warn:        #FCD34D;
@@ -96,8 +137,12 @@
   --neutral-bg:  #1F2937;
   --income:      #4ADE80;
   --spending:    #FB923C;
-  --savings:     #60A5FA;
+  --savings:     #34B8A8;
   --tax:         #FCD34D;
+  --sidebar-bg:         #191919;
+  --sidebar-fg:         #999999;
+  --sidebar-active-bg:  #299D91;
+  --sidebar-active-fg:  #FFFFFF;
 }
 
 * { box-sizing: border-box; }
@@ -158,8 +203,8 @@ body {
 }
 .btn-secondary:hover { background: var(--bg-raised); }
 
-/* Ensure buttons / links meet 44px tap target on mobile */
-button, [role="button"], a {
+/* Ensure buttons meet 44px tap target on mobile */
+button, [role="button"] {
   min-height: 44px;
   display: inline-flex;
   align-items: center;
@@ -168,7 +213,7 @@ button, [role="button"], a {
 
 /* Nav items are inline — reset to auto height on desktop */
 @media (min-width: 768px) {
-  button, [role="button"], a {
+  button, [role="button"] {
     min-height: unset;
   }
 }
@@ -199,7 +244,7 @@ button, [role="button"], a {
 
 /* ── Responsive layout ───────────────────────────────────── */
 
-/* Desktop-only sticky top action bar (Add Expenses + bell) */
+/* Desktop-only sticky top action bar */
 .app-topbar {
   display: none;
   flex-shrink: 0;
@@ -208,13 +253,15 @@ button, [role="button"], a {
   .app-topbar {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: 10px;
+    gap: 12px;
     padding: 0 28px;
-    height: 56px;
+    height: 60px;
     background: var(--bg-surface);
     border-bottom: 1px solid var(--border);
     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    position: sticky;
+    top: 0;
+    z-index: 20;
   }
 }
 
@@ -226,7 +273,7 @@ button, [role="button"], a {
 /* Main content area */
 .main-content {
   flex: 1;
-  padding: 28px 32px 80px;
+  padding: 24px 28px 80px;
   width: 100%;
   overflow-y: auto;
   min-height: 0;
@@ -250,6 +297,14 @@ button, [role="button"], a {
 /* Horizontal scroll container for data tables */
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
+/* ── Card system — matches Figma: white bg, no border, subtle shadow ── */
+.card {
+  background: var(--bg-surface);
+  border-radius: 12px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  padding: 20px;
+}
+
 /* ── Mobile (<768px) ─────────────────────────────────────── */
 @media (max-width: 767px) {
   .main-content { padding: 16px 16px 96px; }
@@ -264,4 +319,35 @@ button, [role="button"], a {
   .r-tiles   { grid-template-columns: repeat(2, 1fr); }
   .r-main    { grid-template-columns: 3fr 2fr; }
   .r-content { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── Form element base colour ────────────────────────────── */
+input, textarea, select {
+  color: var(--fg-primary);
+}
+input::placeholder, textarea::placeholder {
+  color: var(--fg-muted);
+}
+
+/* ── Select — custom chevron + placeholder grey ──────────── */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  /* !important wins over inline background shorthand (which resets background-image to none) */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  padding-right: 36px !important;
+  cursor: pointer;
+}
+/* Grey placeholder: when the empty-value option is selected */
+select:has(option[value=""]:checked) {
+  color: var(--fg-muted);
+}
+/* Restore normal colour for real option text inside the dropdown */
+select option {
+  color: var(--fg-primary);
+}
+select option[value=""] {
+  color: var(--fg-muted);
 }

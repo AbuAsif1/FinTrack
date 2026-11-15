@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api, { getAccessToken } from '@/lib/api';
+// useRouter kept for DangerZone redirect after account deletion
 import { PageHeader } from '@/components/ui/PageHeader';
 import { InstallPrompt } from '@/components/ui/InstallPrompt';
 
@@ -50,121 +51,6 @@ function RoutingChip({ type }: { type: string }) {
     }}>
       {ROUTING_LABELS[type] ?? type}
     </span>
-  );
-}
-
-// ── Profile Section ────────────────────────────────────────────────────────
-
-function ProfileSection({ me, onSignOut }: { me: Me | null; onSignOut: () => void }) {
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(me?.name ?? '');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  async function saveName() {
-    setSaving(true);
-    setError('');
-    try {
-      await api.patch('/me', { name });
-      setEditing(false);
-    } catch {
-      setError('Failed to save name.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <section style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <h2 style={{ font: 'var(--t-section)', margin: 0 }}>Profile</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
-        <div>
-          <label style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', display: 'block', marginBottom: 4 }}>Name</label>
-          {editing ? (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                style={{ flex: 1, padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', color: 'var(--fg-primary)' }}
-              />
-              <button onClick={saveName} disabled={saving} style={{ padding: '8px 14px', borderRadius: 6, background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', cursor: 'pointer', font: 'var(--t-label)' }}>
-                Save
-              </button>
-              <button onClick={() => setEditing(false)} style={{ padding: '8px 14px', borderRadius: 6, background: 'var(--bg-raised)', color: 'var(--fg-primary)', border: 'none', cursor: 'pointer', font: 'var(--t-label)' }}>
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ font: 'var(--t-body)' }}>{me?.name ?? '—'}</span>
-              <button onClick={() => setEditing(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', font: 'var(--t-caption)' }}>Edit</button>
-            </div>
-          )}
-          {error && <p style={{ color: 'var(--danger)', font: 'var(--t-caption)', marginTop: 4 }}>{error}</p>}
-        </div>
-        <div>
-          <label style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', display: 'block', marginBottom: 4 }}>Email</label>
-          <span style={{ font: 'var(--t-body)', color: 'var(--fg-muted)' }}>{me?.email ?? '—'}</span>
-        </div>
-      </div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <Link href="/settings/change-password" style={{ padding: '8px 16px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--fg-primary)', font: 'var(--t-label)', textDecoration: 'none' }}>
-          Change Password
-        </Link>
-        <button
-          onClick={onSignOut}
-          style={{ padding: '8px 16px', borderRadius: 6, border: '1px solid var(--danger)', background: 'transparent', color: 'var(--danger)', font: 'var(--t-label)', cursor: 'pointer' }}
-        >
-          Sign Out
-        </button>
-      </div>
-    </section>
-  );
-}
-
-// ── Appearance Section ────────────────────────────────────────────────────
-
-function AppearanceSection() {
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
-    if (typeof window !== 'undefined') {
-      return (localStorage.getItem('theme') as 'light' | 'dark' | 'system') ?? 'system';
-    }
-    return 'system';
-  });
-
-  function applyTheme(t: 'light' | 'dark' | 'system') {
-    setTheme(t);
-    localStorage.setItem('theme', t);
-    const html = document.documentElement;
-    if (t === 'dark') html.setAttribute('data-theme', 'dark');
-    else if (t === 'light') html.removeAttribute('data-theme');
-    else html.removeAttribute('data-theme'); // system: rely on CSS prefers-color-scheme
-  }
-
-  return (
-    <section style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 24 }}>
-      <h2 style={{ font: 'var(--t-section)', margin: '0 0 16px' }}>Appearance</h2>
-      <div style={{ display: 'flex', gap: 8 }}>
-        {(['light', 'dark', 'system'] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => applyTheme(t)}
-            style={{
-              padding: '8px 20px',
-              borderRadius: 6,
-              border: '1px solid var(--border)',
-              background: theme === t ? 'var(--accent)' : 'var(--bg-raised)',
-              color: theme === t ? 'var(--accent-fg)' : 'var(--fg-primary)',
-              font: 'var(--t-label)',
-              cursor: 'pointer',
-              textTransform: 'capitalize',
-            }}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-    </section>
   );
 }
 
@@ -215,7 +101,7 @@ function CategoriesSection() {
   if (loading) return <div style={{ color: 'var(--fg-muted)' }}>Loading…</div>;
 
   return (
-    <section style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 24 }}>
+    <section style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <h2 style={{ font: 'var(--t-section)', margin: 0 }}>Categories</h2>
         <button
@@ -439,35 +325,27 @@ function DangerZone({ userEmail }: { userEmail: string }) {
 // ── Main Page ─────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
-  const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
 
   useEffect(() => {
     api.get<Me>('/me').then(({ data }) => setMe(data)).catch(() => { });
   }, []);
 
-  async function signOut() {
-    try { await api.post('/auth/logout'); } catch { /* ignore */ }
-    router.replace('/login');
-  }
-
   return (
     <div>
       <PageHeader
         eyebrow="Preferences and data"
         title="Settings"
-        description="Profile, appearance, categories, tax years, import and export."
+        description="Categories, tax years, import and export."
       />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-      <ProfileSection me={me} onSignOut={signOut} />
-      <AppearanceSection />
       <CategoriesSection />
       <InstallPrompt inline />
       {me && <DangerZone userEmail={me.email} />}
 
       {/* Links to other settings pages */}
-      <section style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 24 }}>
+      <section style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: 24 }}>
         <h2 style={{ font: 'var(--t-section)', margin: '0 0 16px' }}>More</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {[

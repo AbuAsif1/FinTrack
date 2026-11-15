@@ -21,12 +21,9 @@ export const metadata: Metadata = {
   title: 'FinTrack',
   description: 'Personal finance for salaried professionals in Bangladesh',
   manifest: '/manifest.json',
-  themeColor: '#6366F1',
+  themeColor: '#299D91',
   icons: {
-    icon: [
-      { url: '/icon-32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-    ],
+    icon: '/icon',
     apple: '/icon-192.png',
   },
 };

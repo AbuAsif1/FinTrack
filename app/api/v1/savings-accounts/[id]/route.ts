@@ -69,10 +69,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const body = await req.json();
   const { name, bank_name, last_four, monthly_installment_paisa, maturity_date, interest_rate_bps, closed_on, parent_account_id } = body;
 
-  // Validate last_four if provided
+  // Validate last_four if provided (4-digit bank suffix or 11-digit MFS mobile number)
   if (last_four != null) {
-    if (!/^\d{4}$/.test(String(last_four))) {
-      return Response.json({ error: 'last_four must be exactly 4 digits', code: 'VALIDATION_ERROR' }, { status: 422 });
+    const lf = String(last_four);
+    if (!/^\d{4}$/.test(lf) && !/^\d{11}$/.test(lf)) {
+      return Response.json({ error: 'Enter 4 digits for a bank account or an 11-digit mobile number for MFS', code: 'VALIDATION_ERROR' }, { status: 422 });
     }
   }
 

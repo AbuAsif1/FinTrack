@@ -39,7 +39,7 @@ export function MoneyInput({ value, onChange, id, placeholder = '0.00', classNam
   }
 
   return (
-    <div className={`money-input-wrapper ${className}`}>
+    <div className={`money-input-wrapper ${className}`} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <input
         id={id}
         type="text"
@@ -50,9 +50,19 @@ export function MoneyInput({ value, onChange, id, placeholder = '0.00', classNam
         disabled={disabled}
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
+        style={{
+          width: '100%',
+          boxSizing: 'border-box',
+          padding: '10px 12px',
+          border: `1px solid ${error ? 'var(--danger)' : 'var(--border)'}`,
+          borderRadius: 8,
+          font: 'var(--t-body)',
+          backgroundColor: disabled ? 'var(--bg-raised)' : 'var(--bg-sunken)',
+          outline: 'none',
+        }}
       />
       {error && (
-        <span id={`${id}-error`} role="alert" style={{ color: 'var(--danger)', fontSize: '12px' }}>
+        <span id={`${id}-error`} role="alert" style={{ color: 'var(--danger)', font: 'var(--t-caption)' }}>
           {error}
         </span>
       )}

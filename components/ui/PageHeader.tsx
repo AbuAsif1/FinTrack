@@ -2,52 +2,22 @@
 
 interface PageHeaderProps {
   eyebrow?: string;
-  title: string;
+  title?: string;
   description?: string;
   actions?: React.ReactNode;
 }
 
-export function PageHeader({ eyebrow, title, description, actions }: PageHeaderProps) {
+export function PageHeader({ description, actions }: PageHeaderProps) {
+  if (!description && !actions) return null;
   return (
-    <div className="page-hdr">
-      <div>
-        {eyebrow && (
-          <p style={{
-            margin: '0 0 4px',
-            font: 'var(--t-label)',
-            color: 'var(--fg-muted)',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-          }}>
-            {eyebrow}
-          </p>
-        )}
-        <h1 style={{
-          margin: 0,
-          font: '700 26px var(--font-space-grotesk, system-ui)',
-          color: 'var(--fg-primary)',
-          lineHeight: 1.15,
-        }}>
-          {title}
-        </h1>
-        {description && (
-          <p style={{
-            margin: '6px 0 0',
-            font: 'var(--t-body)',
-            color: 'var(--fg-secondary)',
-          }}>
-            {description}
-          </p>
-        )}
-      </div>
+    <div className="page-hdr" style={{ marginBottom: 20 }}>
+      {description && (
+        <p style={{ margin: 0, font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>
+          {description}
+        </p>
+      )}
       {actions && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          flexShrink: 0,
-          paddingTop: eyebrow ? 20 : 4,
-        }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 'auto' }}>
           {actions}
         </div>
       )}

@@ -8,6 +8,7 @@ import { AlertBanner } from '@/components/ui/AlertBanner';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SkeletonCard } from '@/components/ui/Skeleton';
+import { SummaryTile } from '@/components/ui/SummaryTile';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -110,7 +111,7 @@ function formatMonth(ym: string): string {
 
 function FirstRunChecklist() {
   return (
-    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 24 }}>
+    <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 24, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
       <h2 style={{ margin: '0 0 8px', font: '600 18px var(--font-space-grotesk, system-ui)', color: 'var(--fg-primary)' }}>
         Welcome to FinTrack
       </h2>
@@ -438,6 +439,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(new Set());
 
   const fetchDashboard = useCallback(async (p: Period) => {
     setLoading(true);
@@ -475,18 +477,13 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Page header — .page-hdr provides 24px bottom margin */}
-      <PageHeader
-        eyebrow="Your finances, clearly"
-        title="Dashboard"
-        description="A calm overview built only from your saved records."
-      />
+      <PageHeader description="A calm overview built only from your saved records." />
 
       {/* Content: flex column with consistent 16px gaps between all sections */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* Alert banners */}
-      {alertInstances.map((inst) => (
+      {alertInstances.filter((inst) => !dismissedBanners.has(inst.id)).map((inst) => (
         <AlertBanner
           key={inst.id}
           variant={inst.is_overdue ? 'danger' : 'warn'}
@@ -497,6 +494,7 @@ export default function DashboardPage() {
               Mark Paid →
             </Link>
           }
+          onDismiss={() => setDismissedBanners((prev) => new Set([...prev, inst.id]))}
         />
       ))}
 
@@ -550,64 +548,56 @@ export default function DashboardPage() {
         <FirstRunChecklist />
       ) : null}
 
-      {/* V2 Hero Balance Banner — shows result for the selected period */}
-      {data && !loading && hasData && data.net_worth_paisa != null && (
-        <div style={{
-          background: 'linear-gradient(135deg, #2D5BE3 0%, #1A2340 100%)',
-          borderRadius: 16,
-          padding: '24px 28px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 24,
-          flexWrap: 'wrap',
-        }}>
-          <div style={{ flex: '1 1 180px', minWidth: 180 }}>
-            <div style={{ color: 'rgba(148,196,255,0.85)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
-              Net Worth
-            </div>
-            <div style={{ color: data.net_worth_paisa < 0 ? '#FCA5A5' : '#FFFFFF', font: '700 30px var(--font-space-grotesk, system-ui)', lineHeight: 1.1 }}>
-              {data.net_worth_paisa < 0 && <span style={{ fontSize: 20, marginRight: 2, opacity: 0.8 }}>−</span>}
-              <Amount paisa={Math.abs(data.net_worth_paisa)} />
-            </div>
-            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 6 }}>
-              {periodLabels[period]}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {([
-              { label: 'Income', value: <Amount paisa={data.tiles.in_hand_income_paisa} />, accent: '#86EFAC' },
-              { label: 'Spending', value: <Amount paisa={data.tiles.total_spending_paisa} />, accent: '#FCA5A5' },
-              { label: 'Net Savings', value: <Amount paisa={data.tiles.net_savings_paisa} />, accent: '#93C5FD' },
-              { label: 'Savings Rate', value: data.tiles.savings_rate_bps != null ? `${(data.tiles.savings_rate_bps / 100).toFixed(1)}%` : '—', accent: '#FCD34D' },
-            ] as Array<{ label: string; value: JSX.Element | string; accent: string }>).map((kpi) => (
-              <div key={kpi.label} style={{
-                background: 'rgba(255,255,255,0.09)',
-                border: '1px solid rgba(255,255,255,0.14)',
-                borderRadius: 10,
-                padding: '10px 14px',
-                minWidth: 110,
-              }}>
-                <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>
-                  {kpi.label}
-                </div>
-                <div style={{ color: kpi.accent, font: '700 14px var(--font-space-grotesk, system-ui)', fontVariantNumeric: 'tabular-nums' }}>
-                  {kpi.value}
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* KPI tiles row — Net Worth first, then period metrics */}
+      {data && hasData && (
+        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
+          {data.net_worth_paisa != null && (
+            <SummaryTile
+              label="Net Worth"
+              paisa={Math.abs(data.net_worth_paisa)}
+              variant="featured"
+              subtitle="all accounts combined"
+            />
+          )}
+          <SummaryTile
+            label="Income"
+            paisa={data.tiles.in_hand_income_paisa}
+            variant="income"
+            subtitle={periodLabels[period]}
+            delta={data.tiles.in_hand_income_change_paisa != null ? { paisa: data.tiles.in_hand_income_change_paisa, label: 'vs prev' } : undefined}
+          />
+          <SummaryTile
+            label="Spending"
+            paisa={data.tiles.total_spending_paisa}
+            variant="spending"
+            subtitle={periodLabels[period]}
+            delta={data.tiles.total_spending_change_paisa != null ? { paisa: -data.tiles.total_spending_change_paisa, label: 'vs prev' } : undefined}
+          />
+          <SummaryTile
+            label="Net Savings"
+            paisa={data.tiles.net_savings_paisa}
+            variant="savings"
+            subtitle="income − spending"
+            delta={data.tiles.net_savings_change_paisa != null ? { paisa: data.tiles.net_savings_change_paisa, label: 'vs prev' } : undefined}
+          />
+          <SummaryTile
+            label="Savings Rate"
+            paisa={0}
+            variant="neutral"
+            valueOverride={data.tiles.savings_rate_bps != null ? `${(data.tiles.savings_rate_bps / 100).toFixed(1)}%` : '—'}
+            subtitle="of take-home income"
+          />
         </div>
       )}
-
 
       {/* Main grid: cash flow + tax */}
       {data && hasData && (
         <div className="r-main">
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
+          <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
             <SixMonthChart trend={data.six_month_trend} />
           </div>
 
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 20, borderTopWidth: 3, borderTopColor: 'var(--tax)', borderTopStyle: 'solid' }}>
+          <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
             <span style={{
               font: 'var(--t-label)',
               color: 'var(--fg-secondary)',
@@ -670,7 +660,7 @@ export default function DashboardPage() {
       {/* Fixed expenses + loan summary */}
       {data && hasData && (
         <div className="r-halves">
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
+          <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <span style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                 Upcoming this month
@@ -709,7 +699,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
+          <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <span style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                 Loans
@@ -755,7 +745,7 @@ export default function DashboardPage() {
       {/* Spending by category + recent transactions */}
       {data && hasData && (
         <div className="r-content">
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
+          <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 14 }}>
               <div style={{ flex: 1 }}>
                 <SpendingByCategory categories={data.spending_by_category} totalPaisa={data.tiles.total_spending_paisa} />
@@ -768,7 +758,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
+          <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <span style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                 Recent activity
@@ -830,7 +820,7 @@ export default function DashboardPage() {
 
       {/* Cash this month */}
       {data && hasData && (
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
+        <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
             <span style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               Cash this month

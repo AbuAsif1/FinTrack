@@ -7,13 +7,86 @@ import { TransactionModal, type Category, type SavingsAccount, type LoanPerson, 
 import { IncomeModal } from '@/components/ui/IncomeModal';
 import type { SavingsAccount as IncomeSavingsAccount } from '@/components/ui/IncomeModal';
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { tryRestoreSession } from '@/lib/api';
 import api from '@/lib/api';
 import Link from 'next/link';
+import { useTheme } from '@/components/theme-provider';
+
+const PAGE_TITLE: Record<string, string> = {
+  '/':               'Dashboard',
+  '/income':         'Income',
+  '/transactions':   'Transactions',
+  '/budgets':        'Budgets',
+  '/fixed-expenses': 'Fixed Expenses',
+  '/savings':        'Bank & Wallet',
+  '/loans':          'Loans',
+  '/tax':            'Tax',
+  '/history':        'History',
+  '/settings':       'Settings',
+  '/profile':        'My Profile',
+};
+
+function getPageTitle(pathname: string): string {
+  if (PAGE_TITLE[pathname]) return PAGE_TITLE[pathname];
+  for (const [prefix, title] of Object.entries(PAGE_TITLE)) {
+    if (prefix !== '/' && pathname.startsWith(prefix)) return title;
+  }
+  return 'FinTrack';
+}
+
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  const isDark = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  function toggle() {
+    setTheme(isDark ? 'light' : 'dark');
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={isDark ? 'Light mode' : 'Dark mode'}
+      style={{
+        background: 'var(--bg-raised)',
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+        padding: '5px 10px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        font: '500 12px var(--font-inter, system-ui)',
+        color: 'var(--fg-secondary)',
+      }}
+    >
+      {isDark ? (
+        <>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+          Light
+        </>
+      ) : (
+        <>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+          Dark
+        </>
+      )}
+    </button>
+  );
+}
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [ready, setReady] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -103,8 +176,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icon-32.png" alt="" width={28} height={28} style={{ borderRadius: 7 }} />
+            <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+              <rect width="32" height="32" rx="8" fill="#299D91"/>
+              <polyline points="3,24 8,17 13,20 20,11 29,7" stroke="rgba(255,255,255,0.28)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+              <polyline points="24,7 29,7 29,12" stroke="rgba(255,255,255,0.28)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+              <text x="16" y="21.5" textAnchor="middle" fontFamily="system-ui, sans-serif" fontWeight="800" fontSize="12" fill="#FFFFFF" letterSpacing="0.5">FT</text>
+            </svg>
             <span style={{ font: '600 15px var(--font-space-grotesk, system-ui)', color: 'var(--fg-primary)' }}>
               FinTrack
             </span>
@@ -114,14 +191,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* Desktop sticky top action bar */}
         <div className="app-topbar">
-          <button onClick={openAddIncome} className="btn-secondary">+ Add Income</button>
-          <Link href="/fixed-expenses?action=mark-paid" className="btn-secondary">✓ Mark Fixed Paid</Link>
-          <button
-            onClick={openAdd}
-            className="btn-primary"
-          >
-            + Add Expenses
-          </button>
+          {/* Page title — left side */}
+          <span style={{ font: '600 18px var(--font-space-grotesk, system-ui)', color: 'var(--fg-primary)', marginRight: 'auto' }}>
+            {getPageTitle(pathname)}
+          </span>
+          {/* Search bar */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: 'var(--bg-raised)', border: '1px solid var(--border)',
+            borderRadius: 8, padding: '6px 14px', minWidth: 180,
+          }}>
+            <span style={{ color: 'var(--fg-muted)', fontSize: 13 }}>🔍</span>
+            <span style={{ font: 'var(--t-body)', color: 'var(--fg-muted)', fontSize: 13 }}>Search…</span>
+          </div>
+          {/* Action buttons */}
+          <button onClick={openAddIncome} className="btn-secondary" style={{ fontSize: 12, padding: '6px 12px' }}>+ Add Income</button>
+          <button onClick={openAdd} className="btn-primary" style={{ fontSize: 12, padding: '6px 12px' }}>+ Add Expenses</button>
+          <ThemeToggle />
           <NotificationBell unreadCount={unreadCount} onCountChange={setUnreadCount} />
         </div>
 

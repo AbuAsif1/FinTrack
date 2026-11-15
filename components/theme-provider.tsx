@@ -21,6 +21,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const stored = (localStorage.getItem('theme') as Theme) ?? 'system';
     setThemeState(stored);
     applyTheme(stored);
+
+    // Re-apply when OS preference changes (relevant only in system mode)
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleOsChange = () => {
+      const current = (localStorage.getItem('theme') as Theme) ?? 'system';
+      if (current === 'system') applyTheme('system');
+    };
+    mq.addEventListener('change', handleOsChange);
+    return () => mq.removeEventListener('change', handleOsChange);
   }, []);
 
   function setTheme(t: Theme) {
@@ -45,14 +54,9 @@ function applyTheme(theme: Theme) {
   if (theme === 'dark') {
     root.setAttribute('data-theme', 'dark');
   } else if (theme === 'light') {
-    root.removeAttribute('data-theme');
+    root.setAttribute('data-theme', 'light');
   } else {
-    // system
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (prefersDark) {
-      root.setAttribute('data-theme', 'dark');
-    } else {
-      root.removeAttribute('data-theme');
-    }
+    // system — explicit attribute lets the CSS media query decide
+    root.setAttribute('data-theme', 'system');
   }
 }

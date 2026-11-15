@@ -8,6 +8,7 @@ import { MoneyInput } from '@/components/ui/MoneyInput';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { SummaryTile } from '@/components/ui/SummaryTile';
 import { SkeletonTableRows, SK } from '@/components/ui/Skeleton';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { IncomeModal, type IncomeEntry, type SavingsAccount } from '@/components/ui/IncomeModal';
@@ -305,36 +306,17 @@ export default function IncomePage() {
         </button>
       </div>
 
-      {/* V2 hero banner */}
       {summary && (
-        <div style={{
-          background: 'linear-gradient(135deg, #2D5BE3 0%, #1A2340 100%)',
-          borderRadius: 16, padding: '24px 28px', marginBottom: 24,
-          display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap',
-        }}>
-          <div style={{ flex: '1 1 180px', minWidth: 180 }}>
-            <div style={{ color: 'rgba(148,196,255,0.85)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>In-Hand Income YTD</div>
-            <div style={{ color: '#FFFFFF', font: '700 30px var(--font-space-grotesk, system-ui)', lineHeight: 1.1 }}>
-              <Amount paisa={summary.totals.in_hand_paisa} />
-            </div>
-            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 6 }}>FY{selectedFY} · {enteredCount} / 12 months entered</div>
-          </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {([
-              { label: 'Gross', value: <Amount paisa={summary.totals.gross_paisa} />, accent: '#93C5FD' },
-              { label: 'TDS', value: <Amount paisa={summary.totals.tds_paisa} />, accent: '#FCA5A5' },
-            ] as Array<{ label: string; value: JSX.Element; accent: string }>).map((kpi) => (
-              <div key={kpi.label} style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, padding: '10px 14px', minWidth: 120 }}>
-                <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>{kpi.label}</div>
-                <div style={{ color: kpi.accent, font: '700 14px var(--font-space-grotesk, system-ui)', fontVariantNumeric: 'tabular-nums' }}>{kpi.value}</div>
-              </div>
-            ))}
-          </div>
+        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', marginBottom: 24 }}>
+          <SummaryTile label="Gross Income" paisa={summary.totals.gross_paisa} variant="income" subtitle={`FY${selectedFY} YTD`} />
+          <SummaryTile label="TDS Deducted" paisa={summary.totals.tds_paisa} variant="tax" subtitle="Tax at source" />
+          <SummaryTile label="In-Hand" paisa={summary.totals.in_hand_paisa} variant="savings" subtitle="Gross − TDS" />
+          <SummaryTile label="Months Entered" paisa={0} valueOverride={`${enteredCount} / 12`} variant="neutral" subtitle={`FY${selectedFY}`} />
         </div>
       )}
 
       {/* Monthly Table */}
-      <div className="table-scroll" style={{ background: 'var(--bg-surface)', borderRadius: 10, border: '1px solid var(--border)', marginBottom: 32, minWidth: 540 }}>
+      <div className="table-scroll" style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 32, minWidth: 540 }}>
         {/* Header — always shown */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 100px', borderBottom: '2px solid var(--border)', padding: '10px 16px', background: 'var(--bg-raised)' }}>
           {(['MONTH', 'IN-HAND', 'TDS', 'BONUS & OTHER', 'GROSS', 'STATUS'] as const).map((h, i) => (
@@ -436,7 +418,7 @@ export default function IncomePage() {
         {holidayEntries.length === 0 ? (
           <EmptyState heading="No holiday support entries" body="Track your holiday support payments here." />
         ) : (
-          <div className="table-scroll" style={{ background: 'var(--bg-surface)', borderRadius: 10, border: '1px solid var(--border)' }}>
+          <div className="table-scroll" style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-sunken)' }}>

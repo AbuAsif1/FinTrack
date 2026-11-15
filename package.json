@@ -2,6 +2,9 @@
   "name": "fintrack",
   "version": "0.1.0",
   "private": true,
+  "pnpm": {
+    "onlyBuiltDependencies": ["@prisma/client", "@prisma/engines", "esbuild", "prisma"]
+  },
   "engines": {
     "node": ">=20",
     "pnpm": ">=9"

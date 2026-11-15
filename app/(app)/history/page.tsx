@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import api, { getAccessToken } from '@/lib/api';
 import { Amount } from '@/components/ui/Amount';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { SummaryTile } from '@/components/ui/SummaryTile';
 import { SkeletonTableRows, SK } from '@/components/ui/Skeleton';
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -52,7 +53,7 @@ function fyMonths(fy: string): { from: string; to: string } {
 // ── Monthly Summary Tab ────────────────────────────────────────────────
 
 function MonthlySummaryTab({ months, loading }: { months: MonthRow[]; loading: boolean }) {
-  if (loading) return <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, marginTop: 16 }}><SkeletonTableRows rows={8} cols={[{ flex: 1 }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }]} /></div>;
+  if (loading) return <div style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginTop: 16 }}><SkeletonTableRows rows={8} cols={[{ flex: 1 }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }]} /></div>;
   if (!months.length) return <div style={{ color: 'var(--fg-muted)', font: 'var(--t-body)', padding: '20px 0' }}>No data for this period.</div>;
 
   const totals = months.reduce(
@@ -123,7 +124,7 @@ function MonthlySummaryTab({ months, loading }: { months: MonthRow[]; loading: b
 // ── Income Trends Tab ──────────────────────────────────────────────────
 
 function IncomeTrendsTab({ months, loading }: { months: IncomeTrendMonth[]; loading: boolean }) {
-  if (loading) return <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, marginTop: 16 }}><SkeletonTableRows rows={8} cols={SK.history} /></div>;
+  if (loading) return <div style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginTop: 16 }}><SkeletonTableRows rows={8} cols={SK.history} /></div>;
   if (!months.length) return <div style={{ color: 'var(--fg-muted)', font: 'var(--t-body)', padding: '20px 0' }}>No income data for this period.</div>;
 
   // Collect all income types
@@ -181,7 +182,7 @@ function IncomeTrendsTab({ months, loading }: { months: IncomeTrendMonth[]; load
 // ── Spending Trends Tab ────────────────────────────────────────────────
 
 function SpendingTrendsTab({ months, loading }: { months: CategoryTrendMonth[]; loading: boolean }) {
-  if (loading) return <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, marginTop: 16 }}><SkeletonTableRows rows={8} cols={SK.history} /></div>;
+  if (loading) return <div style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginTop: 16 }}><SkeletonTableRows rows={8} cols={SK.history} /></div>;
   if (!months.length) return <div style={{ color: 'var(--fg-muted)', font: 'var(--t-body)', padding: '20px 0' }}>No spending data for this period.</div>;
 
   // Top 5 categories by total
@@ -237,7 +238,7 @@ function SpendingTrendsTab({ months, loading }: { months: CategoryTrendMonth[]; 
 // ── Savings Rate Tab ────────────────────────────────────────────────────
 
 function SavingsRateTab({ months, loading }: { months: MonthRow[]; loading: boolean }) {
-  if (loading) return <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, marginTop: 16 }}><SkeletonTableRows rows={8} cols={[{ flex: 1 }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }]} /></div>;
+  if (loading) return <div style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginTop: 16 }}><SkeletonTableRows rows={8} cols={[{ flex: 1 }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }, { flex: 1, align: 'right' as const }]} /></div>;
   const withRate = months.filter((m) => m.savings_rate_bps != null);
   if (!withRate.length) return <div style={{ color: 'var(--fg-muted)', font: 'var(--t-body)', padding: '20px 0' }}>No income data for this period.</div>;
 
@@ -401,6 +402,30 @@ export default function HistoryPage() {
         }
       />
 
+      {/* KPI tiles */}
+      {monthlyData.length > 0 && (
+        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 20 }}>
+          <SummaryTile
+            label="Total Income"
+            paisa={monthlyData.reduce((s, m) => s + m.in_hand_income_paisa, 0)}
+            variant="income"
+            subtitle={`FY${fy} in-hand`}
+          />
+          <SummaryTile
+            label="Total Spending"
+            paisa={monthlyData.reduce((s, m) => s + m.total_spending_paisa, 0)}
+            variant="spending"
+            subtitle={`FY${fy} expenses`}
+          />
+          <SummaryTile
+            label="Net Savings"
+            paisa={monthlyData.reduce((s, m) => s + m.net_savings_paisa, 0)}
+            variant={monthlyData.reduce((s, m) => s + m.net_savings_paisa, 0) >= 0 ? 'savings' : 'danger'}
+            subtitle="Income − Spending"
+          />
+        </div>
+      )}
+
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--border)' }}>
         {tabs.map(({ id, label }) => (
@@ -425,7 +450,7 @@ export default function HistoryPage() {
       </div>
 
       {/* Tab content */}
-      <div>
+      <div style={{ background: 'var(--bg-surface)', borderRadius: '0 0 12px 12px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: '16px 20px' }}>
         {tab === 'monthly' && <MonthlySummaryTab months={monthlyData} loading={loading} />}
         {tab === 'income' && <IncomeTrendsTab months={incomeData} loading={loading} />}
         {tab === 'spending' && <SpendingTrendsTab months={spendingData} loading={loading} />}

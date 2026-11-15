@@ -7,6 +7,7 @@ import { MoneyInput } from '@/components/ui/MoneyInput';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { SummaryTile } from '@/components/ui/SummaryTile';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DatePicker } from '@/components/ui/DatePicker';
@@ -73,6 +74,19 @@ const TYPE_LABEL: Record<string, string> = {
   SANCHAYPATRA: 'Sanchaypatra', UNIVERSAL_PENSION: 'UPension', STOCKS: 'Stocks', INSURANCE: 'Insurance', INVESTMENT: 'Other investment',
 };
 
+const TYPE_COLOR: Record<string, string> = {
+  SAVINGS: '#1E88E5',
+  MFS: '#D81B60',
+  DPS: '#299D91',
+  FDR: '#5141DB',
+  CASH: '#F2AC26',
+  SANCHAYPATRA: '#2DB85F',
+  UNIVERSAL_PENSION: '#1E88E5',
+  STOCKS: '#E06130',
+  INSURANCE: '#8B3FD8',
+  INVESTMENT: '#6366F1',
+};
+
 const PARENT_TYPES = ['SAVINGS', 'MFS'];
 const CHILD_TYPES = ['DPS', 'FDR'];
 const PAYMENT_TYPES = ['SAVINGS', 'MFS', 'CASH'];
@@ -115,6 +129,7 @@ function AccountModal({ open, onClose, onSaved, editAccount, accounts }: {
   const [parentId, setParentId] = useState('');
   const [bankName, setBankName] = useState('');
   const [lastFour, setLastFour] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
   const [openingDate, setOpeningDate] = useState('');
   const [openingBalancePaisa, setOpeningBalancePaisa] = useState<number | null>(0);
   const [installmentPaisa, setInstallmentPaisa] = useState<number | null>(null);
@@ -134,6 +149,7 @@ function AccountModal({ open, onClose, onSaved, editAccount, accounts }: {
     setParentId(editAccount?.parent_account_id ?? '');
     setBankName(editAccount?.bank_name ?? '');
     setLastFour(editAccount?.last_four ?? '');
+    setMobileNumber(editAccount?.last_four ?? '');
     setOpeningDate(editAccount?.opening_date.slice(0, 10) ?? new Date().toISOString().slice(0, 10));
     setOpeningBalancePaisa(editAccount?.opening_balance_paisa ?? 0);
     setInstallmentPaisa(editAccount?.monthly_installment_paisa ?? null);
@@ -160,7 +176,12 @@ function AccountModal({ open, onClose, onSaved, editAccount, accounts }: {
     if (isChild && !parentId) { setError('Choose the bank or MFS account this sits under.'); return; }
     if (!isCash && !bankName.trim()) { setError(type === 'MFS' ? 'Enter the provider, for example bKash.' : 'Enter the bank or issuer name.'); return; }
     if (!openingDate) { setError('Choose the opening date.'); return; }
-    if (lastFour && !/^\d{4}$/.test(lastFour)) { setError('Last 4 digits must be exactly 4 digits.'); return; }
+    const resolvedType = editAccount?.type ?? type;
+    if (resolvedType === 'MFS') {
+      if (mobileNumber && !/^01[0-9]{9}$/.test(mobileNumber)) { setError('Mobile number must be 11 digits starting with 01.'); return; }
+    } else {
+      if (lastFour && !/^\d{4}$/.test(lastFour)) { setError('Last 4 digits must be exactly 4 digits.'); return; }
+    }
 
     setSaving(true);
     setError(null);
@@ -168,14 +189,14 @@ function AccountModal({ open, onClose, onSaved, editAccount, accounts }: {
       const payload: Record<string, unknown> = {
         name: name.trim(),
         bank_name: isCash ? 'In-Hand' : bankName.trim(),
-        last_four: lastFour || null,
+        last_four: type === 'MFS' ? (mobileNumber || null) : (lastFour || null),
         monthly_installment_paisa: hasInstallment ? installmentPaisa : null,
         maturity_date: hasTerm && maturityDate ? maturityDate : null,
         interest_rate_bps: interestRatePct ? Math.round(Number(interestRatePct) * 100) : null,
         ...(isChild ? { parent_account_id: parentId } : {}),
       };
       if (editAccount) {
-        await api.patch(`/savings-accounts/${editAccount.id}`, payload);
+        await api.patch(`/savings-accounts/${editAccount.id}`, { ...payload, opening_balance_paisa: openingBalancePaisa ?? 0 });
       } else {
         await api.post('/savings-accounts', {
           ...payload, type, opening_date: openingDate, opening_balance_paisa: openingBalancePaisa ?? 0,
@@ -197,6 +218,14 @@ function AccountModal({ open, onClose, onSaved, editAccount, accounts }: {
   return (
     <Modal open={open} onClose={onClose} title={title}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {editAccount && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 8, background: 'var(--bg-sunken)', font: 'var(--t-caption)' }}>
+            <span style={{ color: 'var(--fg-muted)' }}>Current balance</span>
+            <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--fg-primary)' }}>
+              <Amount paisa={editAccount.balance_paisa} />
+            </span>
+          </div>
+        )}
         {!editAccount && (
           <label style={labelStyle}>
             Account type
@@ -264,14 +293,21 @@ function AccountModal({ open, onClose, onSaved, editAccount, accounts }: {
                 placeholder={type === 'MFS' ? 'bKash' : 'BRAC Bank'}
               />
             </label>
-            <label style={labelStyle}>
-              Last 4 digits
-              <input type="text" inputMode="numeric" value={lastFour} onChange={(e) => setLastFour(e.target.value)} maxLength={4} placeholder="1234" style={inputStyle} />
-            </label>
+            {type === 'MFS' ? (
+              <label style={labelStyle}>
+                Mobile number
+                <input type="text" inputMode="numeric" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} maxLength={11} placeholder="01XXXXXXXXX" style={inputStyle} />
+              </label>
+            ) : (
+              <label style={labelStyle}>
+                Last 4 digits
+                <input type="text" inputMode="numeric" value={lastFour} onChange={(e) => setLastFour(e.target.value)} maxLength={4} placeholder="1234" style={inputStyle} />
+              </label>
+            )}
           </div>
         )}
 
-        {!editAccount && (
+        {!editAccount ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
             <label style={labelStyle}>
               {isCash ? 'Counted on' : 'Opening date'}
@@ -282,6 +318,14 @@ function AccountModal({ open, onClose, onSaved, editAccount, accounts }: {
               <MoneyInput value={openingBalancePaisa} onChange={setOpeningBalancePaisa} id="opening-bal" />
             </label>
           </div>
+        ) : (
+          <label style={labelStyle}>
+            {isCash ? 'Cash in hand (৳)' : 'Opening balance (৳)'}
+            <MoneyInput value={openingBalancePaisa} onChange={setOpeningBalancePaisa} id="opening-bal-edit" />
+            <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>
+              Correct this if you entered the wrong amount when creating the account.
+            </span>
+          </label>
         )}
 
         {hasInstallment && (
@@ -589,7 +633,7 @@ function AccountLine({ account, nested }: { account: Account; nested?: boolean }
   const details = [
     nested || INVESTMENT_TYPES.includes(account.type) ? TYPE_LABEL[account.type] : null,
     !nested && account.type !== 'CASH' ? account.bank_name : null,
-    account.last_four ? `ending ${account.last_four}` : null,
+    account.last_four ? (account.type === 'MFS' ? `mobile ${account.last_four}` : `ending ${account.last_four}`) : null,
   ].filter(Boolean).join(', ');
 
   return (
@@ -614,18 +658,53 @@ function AccountLine({ account, nested }: { account: Account; nested?: boolean }
   );
 }
 
+function CardHeader({ account }: { account: Account }) {
+  const color = TYPE_COLOR[account.type] ?? 'var(--accent)';
+  const label = TYPE_LABEL[account.type] ?? account.type;
+  const sub = account.type === 'CASH' ? 'On Hand' : account.bank_name;
+  return (
+    <div style={{
+      background: color, borderRadius: '8px 8px 0 0',
+      padding: '8px 16px', margin: '-20px -20px 16px',
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    }}>
+      <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: 500 }}>{sub || label}</span>
+      <span style={{
+        background: 'rgba(255,255,255,0.22)', color: '#fff', fontSize: 10, fontWeight: 600,
+        padding: '2px 8px', borderRadius: 4, letterSpacing: '0.03em',
+      }}>{label}</span>
+    </div>
+  );
+}
+
 function ParentCard({ account, childAccounts, actions }: { account: Account; childAccounts: Account[]; actions: Actions }) {
   const openChildren = childAccounts.filter((c) => !c.closed_on);
   return (
-    <section style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
+    <section style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: 20, overflow: 'hidden' }}>
+      <CardHeader account={account} />
       <AccountLine account={account} />
       <div style={{ marginTop: 12 }}>
         <AccountActions account={account} actions={actions} hasChildren={openChildren.length > 0} />
       </div>
       {childAccounts.length > 0 && (
-        <div style={{ marginTop: 16, borderLeft: '2px solid var(--savings)', paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
           {childAccounts.map((c) => (
-            <div key={c.id}>
+            <div key={c.id} style={{
+              borderLeft: `3px solid ${TYPE_COLOR[c.type] ?? 'var(--savings)'}`,
+              paddingLeft: 14,
+              background: 'var(--bg-raised)',
+              borderRadius: '0 8px 8px 0',
+              padding: '12px 14px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{
+                  background: TYPE_COLOR[c.type] ?? 'var(--accent)', color: '#fff',
+                  fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 4,
+                }}>{TYPE_LABEL[c.type] ?? c.type}</span>
+                {c.bank_name && (
+                  <span style={{ fontSize: 11, color: 'var(--fg-secondary)' }}>{c.bank_name}</span>
+                )}
+              </div>
               <AccountLine account={c} nested />
               <div style={{ marginTop: 8 }}><AccountActions account={c} actions={actions} /></div>
             </div>
@@ -638,7 +717,8 @@ function ParentCard({ account, childAccounts, actions }: { account: Account; chi
 
 function SimpleCard({ account, actions, prompt }: { account: Account; actions: Actions; prompt?: React.ReactNode }) {
   return (
-    <section style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
+    <section style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: 20, overflow: 'hidden' }}>
+      <CardHeader account={account} />
       <AccountLine account={account} />
       {prompt}
       <div style={{ marginTop: 12 }}><AccountActions account={account} actions={actions} /></div>
@@ -648,6 +728,40 @@ function SimpleCard({ account, actions, prompt }: { account: Account; actions: A
 
 function GroupHeading({ children }: { children: React.ReactNode }) {
   return <h2 style={{ font: 'var(--t-section)', margin: '28px 0 12px' }}>{children}</h2>;
+}
+
+function TypeGroupCard({ typeLabel, color, totalPaisa, subtitle, children }: {
+  typeLabel: string;
+  color: string;
+  totalPaisa?: number;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section style={{
+      background: 'var(--bg-surface)', borderRadius: 16,
+      boxShadow: '0 2px 12px rgba(0,0,0,0.07)', overflow: 'hidden',
+      border: '1px solid var(--border)',
+    }}>
+      <div style={{
+        background: color, padding: '14px 20px',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+      }}>
+        <div>
+          <div style={{ color: '#fff', fontSize: 14, fontWeight: 700, letterSpacing: '0.01em' }}>{typeLabel}</div>
+          {subtitle && <div style={{ color: 'rgba(255,255,255,0.72)', fontSize: 11, marginTop: 2 }}>{subtitle}</div>}
+        </div>
+        {totalPaisa !== undefined && (
+          <div style={{ color: '#fff', fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+            <Amount paisa={totalPaisa} />
+          </div>
+        )}
+      </div>
+      <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {children}
+      </div>
+    </section>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -741,38 +855,12 @@ export default function BankAndWalletPage() {
       ) : (
         <>
           {totals && (
-            <div style={{
-              background: 'linear-gradient(135deg, #2D5BE3 0%, #1A2340 100%)',
-              borderRadius: 16, padding: '24px 28px', marginBottom: 8,
-              display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap',
-            }}>
-              <div style={{ flex: '1 1 180px', minWidth: 180 }}>
-                <div style={{ color: 'rgba(148,196,255,0.85)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
-                  Net Worth
-                </div>
-                <div style={{ color: totals.net_worth_paisa < 0 ? '#FCA5A5' : '#FFFFFF', font: '700 30px var(--font-space-grotesk, system-ui)', lineHeight: 1.1 }}>
-                  {totals.net_worth_paisa < 0 && <span style={{ fontSize: 20, marginRight: 2, opacity: 0.8 }}>−</span>}
-                  <Amount paisa={Math.abs(totals.net_worth_paisa)} />
-                </div>
-                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 6 }}>All accounts combined</div>
-              </div>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                {([
-                  { label: 'Bank', value: <Amount paisa={totals.bank_paisa} />, accent: '#93C5FD' },
-                  { label: 'MFS', value: <Amount paisa={totals.mfs_paisa} />, accent: '#86EFAC' },
-                  { label: 'Cash', value: <Amount paisa={totals.cash_paisa} />, accent: '#FCD34D' },
-                  { label: 'Investments', value: <Amount paisa={totals.investment_paisa} />, accent: '#C4B5FD' },
-                ] as Array<{ label: string; value: JSX.Element; accent: string }>).map((kpi) => (
-                  <div key={kpi.label} style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, padding: '10px 14px', minWidth: 110 }}>
-                    <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>
-                      {kpi.label}
-                    </div>
-                    <div style={{ color: kpi.accent, font: '700 14px var(--font-space-grotesk, system-ui)', fontVariantNumeric: 'tabular-nums' }}>
-                      {kpi.value}
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', marginBottom: 8 }}>
+              <SummaryTile label="Net Worth" paisa={totals.net_worth_paisa} variant="featured" subtitle="All accounts combined" />
+              <SummaryTile label="Bank Balance" paisa={totals.bank_paisa} variant="income" subtitle="Savings, DPS & FDR" />
+              <SummaryTile label="MFS Balance" paisa={totals.mfs_paisa} variant="savings" subtitle="Mobile banking" />
+              <SummaryTile label="Cash on Hand" paisa={totals.cash_paisa} variant="neutral" subtitle="Physical cash" />
+              <SummaryTile label="Investments" paisa={totals.investment_paisa} variant="featured" subtitle="Sanchaypatra, Stocks…" />
             </div>
           )}
 
@@ -795,41 +883,43 @@ export default function BankAndWalletPage() {
             </>
           )}
 
-          {banks.length > 0 && (
-            <>
-              <GroupHeading>Bank accounts</GroupHeading>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-                {banks.map((a) => <ParentCard key={a.id} account={a} childAccounts={childrenOf(a.id)} actions={actions} />)}
-              </div>
-            </>
-          )}
-
-          {mfs.length > 0 && (
-            <>
-              <GroupHeading>MFS accounts</GroupHeading>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-                {mfs.map((a) => <ParentCard key={a.id} account={a} childAccounts={childrenOf(a.id)} actions={actions} />)}
-              </div>
-            </>
-          )}
-
-          {investments.length > 0 && (
-            <>
-              <GroupHeading>Investments</GroupHeading>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-                {investments.map((a) => <SimpleCard key={a.id} account={a} actions={actions} />)}
-              </div>
-            </>
-          )}
-
-          {cash.length > 0 && (
-            <>
-              <GroupHeading>In-Hand Cash</GroupHeading>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-                {cash.map((a) => <SimpleCard key={a.id} account={a} actions={actions} />)}
-              </div>
-            </>
-          )}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20, alignItems: 'start' }}>
+            {/* Left column: Bank Accounts */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {banks.length > 0 && (
+                <TypeGroupCard typeLabel="Bank Accounts" color="#1E88E5" totalPaisa={totals?.bank_paisa} subtitle="Savings, DPS & FDR">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {banks.map((a) => <ParentCard key={a.id} account={a} childAccounts={childrenOf(a.id)} actions={actions} />)}
+                  </div>
+                </TypeGroupCard>
+              )}
+            </div>
+            {/* Right column: MFS + Investments stacked to fill empty space */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {mfs.length > 0 && (
+                <TypeGroupCard typeLabel="Mobile Banking (MFS)" color="#D81B60" totalPaisa={totals?.mfs_paisa} subtitle="bKash, Nagad…">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {mfs.map((a) => <ParentCard key={a.id} account={a} childAccounts={childrenOf(a.id)} actions={actions} />)}
+                  </div>
+                </TypeGroupCard>
+              )}
+              {investments.length > 0 && (
+                <TypeGroupCard typeLabel="Investments" color="#299D91" totalPaisa={totals?.investment_paisa} subtitle="Tax-linked">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {investments.map((a) => <SimpleCard key={a.id} account={a} actions={actions} />)}
+                  </div>
+                </TypeGroupCard>
+              )}
+            </div>
+            {/* Row 2: Cash In Hand in col 1 */}
+            {cash.length > 0 && (
+              <TypeGroupCard typeLabel="Cash In Hand" color="#F2AC26" totalPaisa={totals?.cash_paisa} subtitle="Physical cash">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {cash.map((a) => <SimpleCard key={a.id} account={a} actions={actions} />)}
+                </div>
+              </TypeGroupCard>
+            )}
+          </div>
         </>
       )}
 

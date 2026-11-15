@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SUGGESTED_FIXED_EXPENSES } from '@fintrack/shared';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { SummaryTile } from '@/components/ui/SummaryTile';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { AlertBanner } from '@/components/ui/AlertBanner';
 import { EditIcon, TrashIcon } from '@/components/ui/icons';
@@ -432,23 +433,13 @@ export default function FixedExpensesPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<FixedExpenseTemplate | null>(null);
 
   const currentMonth = currentYM();
-  const today = todayStr();
-  const BANNER_KEY = `fe_banner_dismissed_${today}`;
 
   // Deduplicate templates by name — keeps only the first occurrence per name
   const uniqueTemplates = templates.filter(
     (t, i) => templates.findIndex(t2 => t2.name.toLowerCase() === t.name.toLowerCase()) === i
   );
 
-  // Check banner dismissal from localStorage
-  useEffect(() => {
-    try { setBannerDismissed(localStorage.getItem(BANNER_KEY) === '1'); } catch { /* ignore */ }
-  }, [BANNER_KEY]);
-
-  function dismissBanner() {
-    try { localStorage.setItem(BANNER_KEY, '1'); } catch { /* ignore */ }
-    setBannerDismissed(true);
-  }
+  function dismissBanner() { setBannerDismissed(true); }
 
   // ── Load current month data ──
   const load = useCallback(async () => {
@@ -575,39 +566,12 @@ export default function FixedExpensesPage() {
             </button>
           </div>
 
-          {/* ── V2 hero — month summary ── */}
-          <div style={{
-            background: 'linear-gradient(135deg, #2D5BE3 0%, #1A2340 100%)',
-            borderRadius: 16, padding: '20px 24px',
-            display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap',
-          }}>
-            <div style={{ flex: '1 1 160px', minWidth: 160 }}>
-              <div style={{ color: 'rgba(148,196,255,0.85)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
-                Monthly Total
-              </div>
-              <div style={{ color: '#FFFFFF', font: '700 28px var(--font-space-grotesk, system-ui)', lineHeight: 1.1 }}>
-                {fmt(currentTotal)}
-              </div>
-              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 6 }}>
-                {new Date(currentMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {([
-                { label: 'Paid', value: fmt(currentPaid), accent: '#86EFAC' },
-                { label: 'Pending', value: fmt(currentPending), accent: '#FCA5A5' },
-                { label: 'Expenses', value: `${templates.length}`, accent: '#93C5FD' },
-              ] as const).map((kpi) => (
-                <div key={kpi.label} style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, padding: '10px 14px', minWidth: 100 }}>
-                  <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>
-                    {kpi.label}
-                  </div>
-                  <div style={{ color: kpi.accent, font: '700 14px var(--font-space-grotesk, system-ui)', fontVariantNumeric: 'tabular-nums' }}>
-                    {kpi.value}
-                  </div>
-                </div>
-              ))}
-            </div>
+          {/* ── KPI tiles ── */}
+          <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
+            <SummaryTile label="Monthly Total" paisa={currentTotal} variant="spending" subtitle={new Date(currentMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} />
+            <SummaryTile label="Paid" paisa={currentPaid} variant="savings" subtitle={`${currentInstances.filter(i => i.status === 'PAID').length} items`} />
+            <SummaryTile label="Pending" paisa={currentPending} variant={currentPending > 0 ? 'warn' : 'neutral'} subtitle={`${currentInstances.filter(i => ['PENDING','DUE_SOON','OVERDUE'].includes(i.status)).length} items`} />
+            <SummaryTile label="Commitments" paisa={0} valueOverride={`${templates.length}`} variant="neutral" subtitle="active templates" />
           </div>
 
           {/* ═══════════════════════════════════════════════════════════════
@@ -623,7 +587,7 @@ export default function FixedExpensesPage() {
               </h2>
             </div>
 
-            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+            <div style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
               {currentInstances.length === 0 ? (
                 <div style={{ padding: 24, font: 'var(--t-body)', color: 'var(--fg-muted)', textAlign: 'center' }}>No items for this month.</div>
               ) : (
@@ -724,7 +688,7 @@ export default function FixedExpensesPage() {
             {yearLoading ? (
               <div style={{ padding: 24, textAlign: 'center', color: 'var(--fg-muted)' }}>Loading year data…</div>
             ) : (
-              <div className="table-scroll" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+              <div className="table-scroll" style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
                 <table style={{ borderCollapse: 'collapse', minWidth: 900, width: '100%' }}>
                   <thead>
                     <tr style={{ background: 'var(--bg-sunken)', borderBottom: '2px solid var(--border)' }}>

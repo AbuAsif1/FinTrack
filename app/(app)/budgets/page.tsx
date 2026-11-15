@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SkeletonCard } from '@/components/ui/Skeleton';
+import { SummaryTile } from '@/components/ui/SummaryTile';
 
 interface Category {
   id: string;
@@ -144,30 +145,12 @@ export default function BudgetsPage() {
         </button>
       </div>
 
-      {/* ── V2 hero banner ── */}
       {setBudgetsCount > 0 && (
-        <div style={{
-          background: 'linear-gradient(135deg, #2D5BE3 0%, #1A2340 100%)',
-          borderRadius: 16, padding: '20px 24px', marginBottom: 20,
-          display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap',
-        }}>
-          <div style={{ flex: '1 1 160px', minWidth: 160 }}>
-            <div style={{ color: 'rgba(148,196,255,0.85)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Total Limit</div>
-            <div style={{ color: '#FFFFFF', font: '700 28px var(--font-space-grotesk, system-ui)', lineHeight: 1.1 }}>{fmt(totalLimit)}</div>
-            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 6 }}>{setBudgetsCount} categories set</div>
-          </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {([
-              { label: 'Spent', value: fmt(totalSpent), accent: '#FCA5A5' },
-              { label: 'Remaining', value: fmt(Math.abs(totalRemaining)), accent: totalRemaining >= 0 ? '#86EFAC' : '#FCA5A5' },
-              { label: 'On Track', value: `${setBudgetsCount - overCount} / ${setBudgetsCount}`, accent: '#93C5FD' },
-            ]).map((kpi) => (
-              <div key={kpi.label} style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, padding: '10px 14px', minWidth: 100 }}>
-                <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>{kpi.label}</div>
-                <div style={{ color: kpi.accent, font: '700 14px var(--font-space-grotesk, system-ui)', fontVariantNumeric: 'tabular-nums' }}>{kpi.value}</div>
-              </div>
-            ))}
-          </div>
+        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', marginBottom: 20 }}>
+          <SummaryTile label="Total Budget" paisa={totalLimit} variant="neutral" subtitle={`${setBudgetsCount} categories`} />
+          <SummaryTile label="Spent" paisa={totalSpent} variant="spending" subtitle={formatMonthLabel(selectedMonth)} />
+          <SummaryTile label="Remaining" paisa={Math.abs(totalRemaining)} variant={totalRemaining >= 0 ? 'savings' : 'danger'} subtitle={totalRemaining >= 0 ? 'left to spend' : 'over budget'} />
+          <SummaryTile label="Over Budget" paisa={overAmount} variant={overCount > 0 ? 'danger' : 'savings'} subtitle={overCount > 0 ? `${overCount} categories` : 'All on track'} />
         </div>
       )}
 
@@ -190,7 +173,7 @@ export default function BudgetsPage() {
             const dot = cat.color_hex ?? cat.colorHex;
 
             return (
-              <div key={cat.id} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
+              <div key={cat.id} style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: b ? 10 : 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: dot }} />

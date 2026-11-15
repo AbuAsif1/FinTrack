@@ -184,10 +184,10 @@ function SearchableSelect({
   }
 
   const baseStyle: React.CSSProperties = {
-    width: '100%', padding: '8px 10px', border: '1px solid var(--border)',
-    borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)',
+    width: '100%', padding: '8px 10px', paddingRight: 36, border: '1px solid var(--border)',
+    borderRadius: 6, font: 'var(--t-body)', backgroundColor: 'var(--bg-sunken)',
     boxSizing: 'border-box', cursor: 'pointer', display: 'flex',
-    alignItems: 'center', justifyContent: 'space-between', userSelect: 'none',
+    alignItems: 'center', position: 'relative', userSelect: 'none',
     ...style,
   };
 
@@ -334,7 +334,13 @@ function SearchableSelect({
         <span style={{ color: selected ? 'var(--fg-primary)' : 'var(--fg-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {selected ? selected.label : placeholder}
         </span>
-        <span style={{ color: 'var(--fg-muted)', fontSize: 11, marginLeft: 6, flexShrink: 0 }}>▾</span>
+        <svg
+          width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="var(--fg-muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', flexShrink: 0, pointerEvents: 'none' }}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
       </div>
       {dropdownPortal}
     </div>
@@ -435,7 +441,7 @@ export function TransactionModal({
 
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '8px 10px', border: '1px solid var(--border)',
-    borderRadius: 6, font: 'var(--t-body)', background: 'var(--bg-sunken)', boxSizing: 'border-box',
+    borderRadius: 6, font: 'var(--t-body)', backgroundColor: 'var(--bg-sunken)', boxSizing: 'border-box',
   };
 
   const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -904,11 +910,11 @@ export function TransactionModal({
                 </label>
               </div>
               <label style={{ display: 'block', marginBottom: 8 }}>
-                <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Reason (optional)</div>
+                <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Reason</div>
                 <input type="text" value={form.loan_reason} onChange={set('loan_reason')} style={inputStyle} />
               </label>
               <label style={{ display: 'block' }}>
-                <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Return due date (optional)</div>
+                <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Return due date</div>
                 <DatePicker value={form.loan_return_due_date} onChange={(v) => set('loan_return_due_date')({ target: { value: v } } as React.ChangeEvent<HTMLInputElement>)} />
               </label>
             </div>
