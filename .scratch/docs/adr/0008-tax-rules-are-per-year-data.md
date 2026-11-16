@@ -8,4 +8,4 @@ Every tax parameter (slabs, salary exemption, rebate rates and caps, minimum tax
 
 - A Fiscal Year whose configuration has not been confirmed shows a "provisional" notice on the Tax Dashboard.
 - Acceptance tests for the engine pass the configuration explicitly, so a later correction of seeded values does not break them.
-- The open questions are tracked in `.scratch/fintrack-bd-mvp/issues/24-confirm-tax-parameters.md`.
+- The open questions are tracked in `requirements/fintrack-bd-mvp/issues/24-confirm-tax-parameters.md`.

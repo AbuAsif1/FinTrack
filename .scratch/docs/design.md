@@ -1152,4 +1152,4 @@ Always use the exact terms from the BRD:
 
 ---
 
-*End of design specification. See `.scratch/docs/brd.md` for feature requirements, `GLOSSARY.md` for domain terms, and `.scratch/docs/adr/` for decisions.*
+*End of design specification. See `requirements/brd.md` for feature requirements, `GLOSSARY.md` for domain terms, and `.scratch/docs/adr/` for decisions.*

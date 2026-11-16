@@ -8,12 +8,12 @@ import { join } from 'path';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { glob } = require('node:fs/promises') as typeof import('fs/promises') & { glob: (pattern: string, opts: { cwd: string }) => Promise<string[]> };
 
-const MATRIX_DIR = join(process.cwd(), '.scratch', 'fintrack-bd-mvp', 'test-cases');
+const MATRIX_DIR = join(process.cwd(), 'qa', 'test-cases', 'fintrack-bd-mvp');
 const TEST_DIRS = [
   join(process.cwd(), 'packages'),
-  join(process.cwd(), 'tests'),
+  join(process.cwd(), 'qa', 'automation'),
   join(process.cwd(), 'components'),
-  join(process.cwd(), 'e2e'),
+  join(process.cwd(), 'app'),
 ];
 
 async function getMatrixIds(): Promise<{ id: string; file: string; priority: string }[]> {

@@ -17,7 +17,9 @@ public/workbox-*.js
 public/sw.js
 public/sw.js.map
 
-# Test artifacts
+# Test artifacts (all test output lives in qa/results/)
+qa/results/*
+!qa/results/README.md
 playwright-report/
 test-results/
 
@@ -45,3 +47,7 @@ npm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Python bytecode and Office lock files
+__pycache__/
+~$*

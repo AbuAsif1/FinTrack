@@ -6,14 +6,15 @@ import { defineConfig, devices } from '@playwright/test';
  * Usage:  pnpm test:regression
  */
 export default defineConfig({
-  globalSetup:   './e2e/global-setup.ts',
-  testDir:       './e2e',
+  globalSetup:   './qa/automation/e2e/global-setup.ts',
+  testDir:       './qa/automation/e2e',
   testMatch:     '**/regression.spec.ts',
   fullyParallel: false,
   retries:       process.env.CI ? 2 : 0,
   workers:       1,
   timeout:       90_000,
-  reporter:      [['html', { open: 'never' }], ['line']],
+  reporter: [['html', { open: 'never', outputFolder: 'qa/results/regression/report' }], ['line']],
+  outputDir: 'qa/results/regression/artifacts',
   use: {
     baseURL:    process.env.APP_URL ?? 'http://localhost:3000',
     headless:   true,

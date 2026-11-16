@@ -1,7 +1,7 @@
 # Glossary — FinTrack BD
 
 Domain terms for the personal finance tracking system. Definitions only: formulas a user would recognise are included, implementation details are not.
-Requirements are in `.scratch/docs/brd.md`; decisions are in `.scratch/docs/adr/`.
+Requirements are in `requirements/brd.md`; decisions are in `.scratch/docs/adr/`.
 
 ---
 

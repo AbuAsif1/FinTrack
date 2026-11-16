@@ -26,7 +26,7 @@ Source Excel files:
 
 **Phase: Requirements & Design** — not yet in development.
 
-- [x] Business Requirements Document drafted (`docs/brd.md`)
+- [x] Business Requirements Document drafted (`requirements/brd.md`)
 - [x] Domain glossary created (`GLOSSARY.md`)
 - [x] Interactive artifact published at https://claude.ai/artifact/7dj3aJthhaLyERWfPS6LU3
 - [x] Excel files analyzed for real data patterns and acceptance criteria
@@ -40,17 +40,25 @@ Source Excel files:
 ## Repository File Structure
 
 ```
-Self_Finance/
-├── CLAUDE.md                      — agent skill pointers (issue tracker, triage, domain docs)
-├── GLOSSARY.md                    — canonical domain terms (17 definitions)
-├── docs/
-│   ├── project-overview.md        — THIS FILE — start here in every new context
+FinTrack/
+├── CLAUDE.md                      — agent entry point and doc index
+├── GLOSSARY.md                    — canonical domain terms
+├── requirements/                  — ALL business documents
 │   ├── brd.md                     — full Business Requirements Document (11 sections)
-│   ├── adr/                       — Architectural Decision Records (empty — pending grilling)
-│   └── agents/
-│       ├── domain.md              — domain doc conventions
-│       ├── issue-tracker.md       — issue tracking conventions
-│       └── triage-labels.md       — triage label vocabulary
+│   └── fintrack-bd-mvp/, fintrack-bd-phase-2/ … -4/
+│       ├── spec.md                — phase specification
+│       └── issues/                — one ticket per file
+├── qa/                            — ALL test-related material
+│   ├── README.md                  — suites (smoke, sanity, happy path, regression) and how to run them
+│   ├── test-cases/                — master workbook FinTrack-BD_Test-Cases.xlsx + TC-xxx matrices per phase
+│   ├── automation/                — e2e/ (Playwright), api/ (Vitest), helpers/, setup.ts
+│   ├── results/                   — reports, traces, coverage (git-ignored)
+│   └── tools/                     — generator for the master workbook
+└── .scratch/docs/                 — technical docs
+    ├── project-overview.md        — THIS FILE — start here in every new context
+    ├── rules.md, architecture.md, design.md
+    ├── adr/                       — Architecture Decision Records
+    └── agents/                    — issue-tracker conventions, triage labels, domain doc layout
 ```
 
 ---
@@ -75,7 +83,7 @@ Always read `GLOSSARY.md` before naming a variable, table, or UI label. Critical
 
 ## What the BRD Contains
 
-`docs/brd.md` — 11 sections:
+`requirements/brd.md` — 11 sections:
 
 1. Product Overview
 2. Problem Statement — pain points vs. desired outcomes

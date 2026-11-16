@@ -1,6 +1,6 @@
 /**
  * E2E seed script — creates a dedicated test user with all data needed for
- * the happy-path scenarios in e2e/happy-path.spec.ts.
+ * the happy-path scenarios in qa/automation/e2e/happy-path.spec.ts.
  *
  * Run:  pnpm seed:e2e
  *

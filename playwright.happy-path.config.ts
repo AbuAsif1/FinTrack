@@ -5,14 +5,15 @@ import { defineConfig, devices } from '@playwright/test';
  * Usage: pnpm test:e2e:happy
  */
 export default defineConfig({
-  globalSetup:    './e2e/global-setup.ts',
-  testDir:        './e2e',
+  globalSetup:    './qa/automation/e2e/global-setup.ts',
+  testDir:       './qa/automation/e2e',
   testMatch:      '**/happy-path.spec.ts',
   fullyParallel:  false,
   retries:        0,
   workers:        1,
   timeout:        90_000,
-  reporter:       [['html', { open: 'never' }], ['line']],
+  reporter: [['html', { open: 'never', outputFolder: 'qa/results/happy-path/report' }], ['line']],
+  outputDir: 'qa/results/happy-path/artifacts',
   use: {
     baseURL:       process.env.APP_URL ?? 'http://localhost:3000',
     headless:      false,

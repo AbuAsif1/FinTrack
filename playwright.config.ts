@@ -1,12 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './e2e',
+  testDir:       './qa/automation/e2e',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: 1,
-  reporter: 'html',
+  reporter: [['html', { open: 'never', outputFolder: 'qa/results/e2e/report' }], ['line']],
+  outputDir: 'qa/results/e2e/artifacts',
   use: {
     baseURL: process.env.APP_URL ?? 'http://localhost:3000',
     trace: 'on-first-retry',

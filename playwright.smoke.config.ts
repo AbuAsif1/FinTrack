@@ -6,14 +6,15 @@ import { defineConfig, devices } from '@playwright/test';
  * Usage:  pnpm test:smoke
  */
 export default defineConfig({
-  globalSetup:   './e2e/global-setup.ts',
-  testDir:       './e2e',
+  globalSetup:   './qa/automation/e2e/global-setup.ts',
+  testDir:       './qa/automation/e2e',
   testMatch:     '**/smoke.spec.ts',
   fullyParallel: false,
   retries:       process.env.CI ? 1 : 0,
   workers:       1,
   timeout:       30_000,
-  reporter:      [['html', { open: 'never' }], ['line']],
+  reporter: [['html', { open: 'never', outputFolder: 'qa/results/smoke/report' }], ['line']],
+  outputDir: 'qa/results/smoke/artifacts',
   use: {
     baseURL:    process.env.APP_URL ?? 'http://localhost:3000',
     headless:   true,

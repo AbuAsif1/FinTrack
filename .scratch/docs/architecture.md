@@ -51,7 +51,7 @@ fintrack-bd/
 ├── tests/
 │   ├── api/               # route-handler tests, one file per test-matrix area
 │   └── helpers/           # createTestContext, factories
-├── e2e/                   # Playwright smoke flows
+├── qa/automation/e2e/                   # Playwright smoke flows
 ├── middleware.ts
 └── pnpm-workspace.yaml
 ```
@@ -446,15 +446,15 @@ Notes:
 | 2. Route handlers | Every other backend behaviour, by calling the exported `GET`/`POST`/… functions with a `Request` | Vitest against PostgreSQL 16 (`TEST_DATABASE_URL`) |
 | 3. Smoke flows | Five end-to-end journeys through the built app | Playwright against `next build && next start` |
 
-**Development is test-first.** The behaviours to protect are listed in the regression test matrix at `.scratch/fintrack-bd-mvp/test-cases/`. Each case becomes one automated test whose title starts with the case id, written and seen to fail before the code that passes it, one case at a time.
+**Development is test-first.** The behaviours to protect are listed in the regression test matrix at `qa/test-cases/fintrack-bd-mvp/`. Each case becomes one automated test whose title starts with the case id, written and seen to fail before the code that passes it, one case at a time.
 
 | Test code | Location |
 |---|---|
 | Shared helpers and tax engine | next to the source: `packages/*/src/**/*.test.ts` |
-| Route handlers | `tests/api/<area>.test.ts`, one file per matrix file |
+| Route handlers | `qa/automation/api/<area>.test.ts`, one file per matrix file |
 | Components | next to the component: `components/**/*.test.tsx` |
-| Smoke flows | `e2e/*.spec.ts` |
-| Helpers and factories | `tests/helpers/` |
+| Smoke flows | `qa/automation/e2e/*.spec.ts` |
+| Helpers and factories | `qa/automation/helpers/` |
 
 `pnpm test:matrix` lists matrix case ids that have no test with that id in its title.
 

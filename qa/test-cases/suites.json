@@ -1,0 +1,973 @@
+{
+ "MF-EXP-001": {
+  "title": "Spending paid in cash leaves In-Hand Cash and counts as spending",
+  "priority": "P1",
+  "area": "Spending",
+  "suites": [
+   "Smoke",
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-002": {
+  "title": "Spending paid by bank leaves the chosen bank account only",
+  "priority": "P1",
+  "area": "Spending",
+  "suites": [
+   "Smoke",
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-003": {
+  "title": "Spending paid from an MFS (bKash) account",
+  "priority": "P1",
+  "area": "Spending",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-004": {
+  "title": "Every spending category is cash-out, counted once, and adds up to total Spending",
+  "priority": "P1",
+  "area": "Spending",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-005": {
+  "title": "Bank chosen but no account picked: form blocks save",
+  "priority": "P2",
+  "area": "Spending",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-006": {
+  "title": "Cash spending above the In-Hand Cash balance is refused",
+  "priority": "P1",
+  "area": "Spending",
+  "suites": [
+   "Sanity",
+   "Regression"
+  ]
+ },
+ "MF-EXP-007": {
+  "title": "Bank or MFS spending above the account balance is refused",
+  "priority": "P1",
+  "area": "Spending",
+  "suites": [
+   "Sanity",
+   "Regression"
+  ]
+ },
+ "MF-EXP-008": {
+  "title": "Spending exactly equal to the balance is allowed (boundary)",
+  "priority": "P2",
+  "area": "Spending",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-009": {
+  "title": "Cash payment when the user has no In-Hand Cash account",
+  "priority": "P2",
+  "area": "Spending",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-010": {
+  "title": "Amount validation and paisa precision",
+  "priority": "P2",
+  "area": "Spending",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-011": {
+  "title": "Lakh-size amount uses Bangladeshi number grouping everywhere",
+  "priority": "P2",
+  "area": "Spending",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-012": {
+  "title": "Back-dated expense falls in the month of its date",
+  "priority": "P2",
+  "area": "Spending",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-013": {
+  "title": "Category budget fills up and notifies at the business thresholds",
+  "priority": "P1",
+  "area": "Spending",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-014": {
+  "title": "Overall monthly spending limit ring",
+  "priority": "P2",
+  "area": "Spending",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-015": {
+  "title": "Double-tap Save does not charge twice",
+  "priority": "P1",
+  "area": "Spending",
+  "suites": [
+   "Sanity",
+   "Regression"
+  ]
+ },
+ "MF-EXP-016": {
+  "title": "Archived category is hidden for new entries but its history still counts",
+  "priority": "P3",
+  "area": "Spending",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-017": {
+  "title": "An ad-hoc bill in a category also used by a Fixed Expense template",
+  "priority": "P2",
+  "area": "Spending",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-020": {
+  "title": "DPS installment from the bank: transfer, not spending; DPS rebate goes up",
+  "priority": "P1",
+  "area": "DPS & Investment",
+  "suites": [
+   "Smoke",
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-021": {
+  "title": "DPS installment paid from bKash",
+  "priority": "P1",
+  "area": "DPS & Investment",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-022": {
+  "title": "DPS installment paid in cash",
+  "priority": "P2",
+  "area": "DPS & Investment",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-023": {
+  "title": "No savings account chosen: blocked",
+  "priority": "P1",
+  "area": "DPS & Investment",
+  "suites": [
+   "Sanity",
+   "Regression"
+  ]
+ },
+ "MF-EXP-024": {
+  "title": "Depositing into the same account it is paid from is refused",
+  "priority": "P2",
+  "area": "DPS & Investment",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-025": {
+  "title": "Deposit into a plain bank savings account does not earn a DPS rebate",
+  "priority": "P2",
+  "area": "DPS & Investment",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-026": {
+  "title": "DPS installment larger than the paying account's balance",
+  "priority": "P1",
+  "area": "DPS & Investment",
+  "suites": [
+   "Sanity",
+   "Regression"
+  ]
+ },
+ "MF-EXP-027": {
+  "title": "Closed savings account is not offered",
+  "priority": "P3",
+  "area": "DPS & Investment",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-028": {
+  "title": "DPS installment lowers tax through the investment rebate",
+  "priority": "P1",
+  "area": "DPS & Investment",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-029": {
+  "title": "DPS above the ৳1,20,000 cap: only ৳1,20,000 counts for the rebate",
+  "priority": "P1",
+  "area": "DPS & Investment",
+  "suites": [
+   "Sanity",
+   "Regression"
+  ]
+ },
+ "MF-EXP-035": {
+  "title": "Sanchaypatra purchase: transfer into an Investment account, adds to the Sanchaypatra rebate",
+  "priority": "P1",
+  "area": "DPS & Investment",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-036": {
+  "title": "UPension installment feeds the Universal Pension bucket",
+  "priority": "P1",
+  "area": "DPS & Investment",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-037": {
+  "title": "Insurance premium paid from bKash",
+  "priority": "P1",
+  "area": "DPS & Investment",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-038": {
+  "title": "Stocks above the ৳5,00,000 cap, and the rebate limited by 3% of taxable income",
+  "priority": "P1",
+  "area": "DPS & Investment",
+  "suites": [
+   "Sanity",
+   "Regression"
+  ]
+ },
+ "MF-EXP-039": {
+  "title": "Several investment kinds add up to one Total Eligible",
+  "priority": "P1",
+  "area": "DPS & Investment",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-040": {
+  "title": "Category says DPS but the account is UPension: counted once, in the UPension bucket",
+  "priority": "P2",
+  "area": "DPS & Investment",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-041": {
+  "title": "Investment without choosing which investment",
+  "priority": "P2",
+  "area": "DPS & Investment",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-042": {
+  "title": "Changing the rebate rate in Tax Year Settings re-prices the rebate (data-driven tax rules)",
+  "priority": "P2",
+  "area": "DPS & Investment",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-043": {
+  "title": "A savings goal linked to the DPS moves with the deposit",
+  "priority": "P3",
+  "area": "DPS & Investment",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-050": {
+  "title": "Encashing a DPS returns the money to its parent bank account",
+  "priority": "P1",
+  "area": "Withdrawal & Interest",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-051": {
+  "title": "Partial withdrawal",
+  "priority": "P2",
+  "area": "Withdrawal & Interest",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-052": {
+  "title": "Withdrawal above the account balance",
+  "priority": "P1",
+  "area": "Withdrawal & Interest",
+  "suites": [
+   "Sanity",
+   "Regression"
+  ]
+ },
+ "MF-EXP-053": {
+  "title": "Withdrawal from a normal bank account must land somewhere",
+  "priority": "P1",
+  "area": "Withdrawal & Interest",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-054": {
+  "title": "Sanchaypatra encashment is received into a bank account",
+  "priority": "P2",
+  "area": "Withdrawal & Interest",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-060": {
+  "title": "Interest credited to a named account: balance up, not spending",
+  "priority": "P1",
+  "area": "Withdrawal & Interest",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-061": {
+  "title": "Interest credited to a DPS",
+  "priority": "P2",
+  "area": "Withdrawal & Interest",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-062": {
+  "title": "The same interest entered in both places is not double-counted",
+  "priority": "P2",
+  "area": "Withdrawal & Interest",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-070": {
+  "title": "Lending cash to a new person creates their ledger",
+  "priority": "P1",
+  "area": "Loans",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-071": {
+  "title": "Lending again to an existing person (name typed in different case)",
+  "priority": "P1",
+  "area": "Loans",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-072": {
+  "title": "A return due date triggers due-soon and overdue alerts",
+  "priority": "P2",
+  "area": "Loans",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-073": {
+  "title": "Borrowing into the bank: account up, 'You owe' in red, not income",
+  "priority": "P1",
+  "area": "Loans",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-074": {
+  "title": "Being repaid in full brings the person to zero",
+  "priority": "P1",
+  "area": "Loans",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-075": {
+  "title": "Real-data loan balances (AC-LOAN-1) entered via Add Expenses",
+  "priority": "P1",
+  "area": "Loans",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-076": {
+  "title": "The Direction field cannot contradict the category",
+  "priority": "P1",
+  "area": "Loans",
+  "suites": [
+   "Sanity",
+   "Regression"
+  ]
+ },
+ "MF-EXP-077": {
+  "title": "Lending more than the account balance",
+  "priority": "P2",
+  "area": "Loans",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-078": {
+  "title": "Person name is required",
+  "priority": "P3",
+  "area": "Loans",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-079": {
+  "title": "Settle Up moves the money into an account",
+  "priority": "P2",
+  "area": "Loans",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-085": {
+  "title": "Paying advance tax from the bank reduces Remaining tax, not Net Tax",
+  "priority": "P1",
+  "area": "Tax Payment",
+  "suites": [
+   "Smoke",
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-086": {
+  "title": "Tax payment lowers Net Savings but is not Spending",
+  "priority": "P1",
+  "area": "Tax Payment",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-087": {
+  "title": "Paying last year's tax (FY2025-26) in November 2026",
+  "priority": "P2",
+  "area": "Tax Payment",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-088": {
+  "title": "Tax payment larger than the paying account",
+  "priority": "P3",
+  "area": "Tax Payment",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-095": {
+  "title": "Paying a monthly fixed bill from Add Expenses",
+  "priority": "P1",
+  "area": "Fixed Expenses",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-096": {
+  "title": "Actual amount differs from the standard amount",
+  "priority": "P1",
+  "area": "Fixed Expenses",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-097": {
+  "title": "DPS Fixed Expense: transfer to DPS, not spending, adds to the rebate",
+  "priority": "P1",
+  "area": "Fixed Expenses",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-098": {
+  "title": "Paying October's rent late, in November",
+  "priority": "P2",
+  "area": "Fixed Expenses",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-099": {
+  "title": "Paying the same month twice is refused",
+  "priority": "P1",
+  "area": "Fixed Expenses",
+  "suites": [
+   "Sanity",
+   "Regression"
+  ]
+ },
+ "MF-EXP-100": {
+  "title": "Mark Paid from the Fixed Expenses page asks which account pays",
+  "priority": "P1",
+  "area": "Fixed Expenses",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-101": {
+  "title": "Skipping a month frees the commitment without moving money",
+  "priority": "P2",
+  "area": "Fixed Expenses",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-102": {
+  "title": "Deleting the payment returns the instance to Pending",
+  "priority": "P1",
+  "area": "Fixed Expenses",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-103": {
+  "title": "Due-soon (amber) and overdue (red) banners",
+  "priority": "P2",
+  "area": "Fixed Expenses",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-104": {
+  "title": "Annual Fixed Expense shown as a monthly equivalent",
+  "priority": "P3",
+  "area": "Fixed Expenses",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-110": {
+  "title": "Bank to cash withdrawal (ATM)",
+  "priority": "P1",
+  "area": "Transfer",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-111": {
+  "title": "Bank to bKash top-up",
+  "priority": "P2",
+  "area": "Transfer",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-112": {
+  "title": "Invalid transfers",
+  "priority": "P2",
+  "area": "Transfer",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-120": {
+  "title": "Editing the amount re-flows every screen",
+  "priority": "P1",
+  "area": "Spending",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-121": {
+  "title": "Category may change only within the same type",
+  "priority": "P2",
+  "area": "Spending",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-122": {
+  "title": "Deleting reverses every figure (soft delete)",
+  "priority": "P1",
+  "area": "Spending",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-123": {
+  "title": "Deleting a DPS deposit reverses the account and the tax rebate",
+  "priority": "P1",
+  "area": "Spending",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-124": {
+  "title": "Deleting loan and tax entries reverses ledgers and Tax Paid",
+  "priority": "P1",
+  "area": "Spending",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-EXP-125": {
+  "title": "Bulk delete of mixed entries",
+  "priority": "P2",
+  "area": "Spending",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-126": {
+  "title": "Correcting the wrong paying account on an existing expense",
+  "priority": "P2",
+  "area": "Spending",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-EXP-127": {
+  "title": "Another user never sees this user's money",
+  "priority": "P1",
+  "area": "Spending",
+  "suites": [
+   "Sanity",
+   "Regression"
+  ]
+ },
+ "MF-INC-001": {
+  "title": "Monthly salary into the bank: account, dashboard and tax all update",
+  "priority": "P1",
+  "area": "Income",
+  "suites": [
+   "Smoke",
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-INC-002": {
+  "title": "Adding November's salary recalculates the whole-year tax",
+  "priority": "P1",
+  "area": "Income",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-INC-003": {
+  "title": "Last month's salary is pre-filled",
+  "priority": "P2",
+  "area": "Income",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-INC-004": {
+  "title": "Salary needs a receiving account",
+  "priority": "P2",
+  "area": "Income",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-INC-005": {
+  "title": "Allowed receiving accounts",
+  "priority": "P2",
+  "area": "Income",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-INC-006": {
+  "title": "Bonus typed inside the salary form",
+  "priority": "P2",
+  "area": "Income",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-INC-007": {
+  "title": "A pay rise uses actual months, not an annualised figure",
+  "priority": "P1",
+  "area": "Income",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-INC-008": {
+  "title": "TDS validation",
+  "priority": "P2",
+  "area": "Income",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-INC-009": {
+  "title": "June income belongs to the previous fiscal year",
+  "priority": "P1",
+  "area": "Income",
+  "suites": [
+   "Sanity",
+   "Regression"
+  ]
+ },
+ "MF-INC-010": {
+  "title": "Arrears or a second salary in the same month",
+  "priority": "P3",
+  "area": "Income",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-INC-011": {
+  "title": "Cheer from a colleague, with payer and earned period",
+  "priority": "P1",
+  "area": "Income",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-INC-012": {
+  "title": "Profit share with TDS",
+  "priority": "P1",
+  "area": "Income",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-INC-013": {
+  "title": "Festival bonus moves tax into the 15% slab",
+  "priority": "P1",
+  "area": "Income",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-INC-014": {
+  "title": "Leave encashment with TDS",
+  "priority": "P2",
+  "area": "Income",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-INC-015": {
+  "title": "Defaults to NOT taxable: money in, no tax change",
+  "priority": "P1",
+  "area": "Income",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-INC-016": {
+  "title": "The user can mark it taxable",
+  "priority": "P3",
+  "area": "Income",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-INC-017": {
+  "title": "Holiday support income reaches tax exactly once",
+  "priority": "P2",
+  "area": "Income",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-INC-018": {
+  "title": "Bank interest: gross is taxable, TDS is a tax credit, account gets the net",
+  "priority": "P1",
+  "area": "Income",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-INC-019": {
+  "title": "Sanchaypatra profit: taxed gross, TDS credited, principal untouched",
+  "priority": "P1",
+  "area": "Income",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-INC-020": {
+  "title": "Income not received into any account",
+  "priority": "P2",
+  "area": "Income",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-INC-021": {
+  "title": "Editing a salary re-flows the account, dashboard and tax",
+  "priority": "P1",
+  "area": "Income",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-INC-022": {
+  "title": "Deleting a salary removes it everywhere",
+  "priority": "P1",
+  "area": "Income",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-INC-023": {
+  "title": "Filed (locked) fiscal year refuses new income",
+  "priority": "P3",
+  "area": "Income",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-INC-024": {
+  "title": "One-tap salary confirmation flows like a manual entry",
+  "priority": "P2",
+  "area": "Income",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-INC-025": {
+  "title": "Filing by 30 September earns the 5% early-filing rebate",
+  "priority": "P2",
+  "area": "Income",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-INC-026": {
+  "title": "Without this month's salary, cash figures use last month's and say so",
+  "priority": "P2",
+  "area": "Income",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-INC-027": {
+  "title": "Tax data-completeness bar",
+  "priority": "P3",
+  "area": "Income",
+  "suites": [
+   "Regression"
+  ]
+ },
+ "MF-E2E-001": {
+  "title": "One realistic November: every screen must reconcile",
+  "priority": "P1",
+  "area": "End-to-End",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ },
+ "MF-E2E-002": {
+  "title": "Salary + DPS + Sanchaypatra + advance tax over the year",
+  "priority": "P1",
+  "area": "End-to-End",
+  "suites": [
+   "Sanity",
+   "Happy Path",
+   "Regression"
+  ]
+ }
+}

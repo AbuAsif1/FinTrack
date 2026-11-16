@@ -24,15 +24,16 @@ export default defineConfig({
       ['components/**/*.test.tsx', 'jsdom'],
       ['app/**/*.test.tsx', 'jsdom'],
     ],
-    setupFiles: ['./tests/setup.ts'],
+    setupFiles: ['./qa/automation/setup.ts'],
     include: [
       'packages/*/src/**/*.test.ts',
-      'tests/api/**/*.test.ts',
+      'qa/automation/api/**/*.test.ts',
       'components/**/*.test.tsx',
       'app/**/*.test.tsx',
     ],
     coverage: {
       provider: 'v8',
+      reportsDirectory: './qa/results/coverage',
       include: ['packages/*/src/**'],
       exclude: ['packages/*/src/**/*.test.ts'],
       thresholds: {
