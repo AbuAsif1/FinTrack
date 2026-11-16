@@ -67,13 +67,28 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!acct) return Response.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 });
 
   const body = await req.json();
-  const { name, bank_name, last_four, monthly_installment_paisa, maturity_date, interest_rate_bps, closed_on, parent_account_id } = body;
+  const { name, bank_name, last_four, monthly_installment_paisa, maturity_date, interest_rate_bps, closed_on, parent_account_id, opening_balance_paisa } = body;
 
   // Validate last_four if provided (4-digit bank suffix or 11-digit MFS mobile number)
   if (last_four != null) {
     const lf = String(last_four);
     if (!/^\d{4}$/.test(lf) && !/^\d{11}$/.test(lf)) {
       return Response.json({ error: 'Enter 4 digits for a bank account or an 11-digit mobile number for MFS', code: 'VALIDATION_ERROR' }, { status: 422 });
+    }
+  }
+
+  // Validate opening_balance_paisa if provided — must be a non-negative integer
+  if (opening_balance_paisa !== undefined) {
+    if (
+      opening_balance_paisa === null ||
+      typeof opening_balance_paisa !== 'number' ||
+      !Number.isInteger(opening_balance_paisa) ||
+      opening_balance_paisa < 0
+    ) {
+      return Response.json(
+        { error: 'opening_balance_paisa must be a non-negative integer', code: 'VALIDATION_ERROR' },
+        { status: 422 },
+      );
     }
   }
 
@@ -118,6 +133,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       ...(interest_rate_bps !== undefined && { interestRateBps: interest_rate_bps ?? null }),
       ...(closed_on !== undefined && { closedOn: closed_on ? toDbDate(closed_on) : null }),
       ...(parent_account_id !== undefined && { parentAccountId: parent_account_id ?? null }),
+      ...(opening_balance_paisa !== undefined && { openingBalancePaisa: BigInt(opening_balance_paisa) }),
     },
   });
 
