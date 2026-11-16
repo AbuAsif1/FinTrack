@@ -199,7 +199,7 @@ test.describe('Add Expenses — Tax Payment', () => {
     await test.step('Add Expenses: Tax Payment ৳5,000 from BRAC Bank', async () => {
       await addExpenses.open();
       await addExpenses.category('Tax Payment');
-      await expect(addExpenses.form.getByText('This transaction will be recorded against the current Fiscal Year.')).toBeVisible();
+      await expect(addExpenses.form.getByLabel('Fiscal Year'), 'defaults to the current Fiscal Year').toHaveValue((await api.tax()).fiscal_year);
       await addExpenses.paymentMethod('Bank / MFS');
       await addExpenses.payFrom(ACC.BRAC);
       await addExpenses.description('Advance tax');

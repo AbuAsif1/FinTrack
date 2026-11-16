@@ -38,12 +38,15 @@ export class AddExpensesForm {
 
   /** The modal's <form> (the heading sits just outside it). */
   get form(): Locator {
-    return this.page.locator('form').filter({ has: this.page.getByRole('button', { name: /^(Save Transaction|Save Investment|Transfer|Saving…)$/ }) });
+    return this.page.locator('form').filter({ has: this.page.getByRole('button', { name: /^(Save Transaction|Save Investment|Transfer|Save Changes|Saving…)$/ }) });
   }
 
   async open() {
     await this.page.getByRole('button', { name: '+ Add Expenses' }).click();
     await expect(this.page.getByRole('heading', { name: 'Add Expenses' })).toBeVisible();
+    // The form loads categories, accounts and fixed-expense templates after it opens; which
+    // categories are listed depends on all three, so wait for them before interacting.
+    await this.page.waitForLoadState('networkidle');
   }
 
   /** The searchable category picker (a div[role=combobox]; native <select>s are comboboxes too). */
@@ -85,6 +88,102 @@ export class AddExpensesForm {
     await this.form.getByLabel('Amount (৳)').fill(bdt);
   }
 
+  /** Date field (YYYY-MM-DD): opens the calendar, moves to the month, clicks the in-month day. */
+  async date(iso: string) {
+    const [y, m, d] = iso.split('-').map(Number);
+    const FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    await this.form.getByRole('button', { name: /^Date/ }).click();
+    const header = this.page.locator('span').filter({ hasText: new RegExp(`^(${FULL.join('|')})\\s*\\d{4}$`) }).first();
+    for (let i = 0; i < 36; i++) {
+      const [name, year] = ((await header.textContent()) ?? '').match(/^(\D+?)\s*(\d{4})$/)!.slice(1);
+      const shown = Number(year) * 12 + FULL.indexOf(name.trim());
+      const want = y * 12 + (m - 1);
+      if (shown === want) break;
+      await this.page.getByRole('button', { name: shown > want ? '‹' : '›', exact: true }).last().click();
+    }
+    // Neighbouring-month days are drawn faded (opacity 0.4) in the same grid; click the in-month one.
+    const index = await this.page.getByRole('button', { name: String(d), exact: true })
+      .evaluateAll((els) => els.findIndex((e) => getComputedStyle(e).opacity === '1'));
+    await this.page.getByRole('button', { name: String(d), exact: true }).nth(index).click();
+  }
+
+  /** Category names offered in the picker (search box empty). */
+  async categoryOptions(): Promise<string[]> {
+    await this.categoryPicker.click();
+    const list = this.page.getByRole('listbox');
+    await expect(list).toBeVisible();
+    // Options are the children of the scrolling list; group headings ("Special") are not options.
+    // The user's categories load after the form opens, so wait until more than the Special group is listed.
+    const read = () => list.evaluate((lb) => {
+      const scroller = Array.from(lb.children).find((c) => (c as HTMLElement).style.overflowY === 'auto') ?? lb;
+      return Array.from(scroller.children)
+        .filter((c) => (c as HTMLElement).style.cursor === 'pointer')
+        .map((c) => c.textContent?.trim() ?? '');
+    });
+    await expect.poll(async () => (await read()).length, { message: 'categories loaded', timeout: 20_000 }).toBeGreaterThan(3);
+    // The list is filtered again once fixed-expense templates arrive; read it until it stops changing.
+    let names = await read();
+    for (let i = 0; i < 10; i++) {
+      await this.page.waitForTimeout(1_000);
+      const again = await read();
+      if (again.join('|') === names.join('|')) break;
+      names = again;
+    }
+    await this.page.keyboard.press('Escape');
+    return names;
+  }
+
+  /** Investment mode: "Step 2 — Which investment?" */
+  async investment(accountName: string) {
+    await selectOptionStartingWith(this.form.locator('select').filter({ has: this.page.locator('option', { hasText: 'Select investment…' }) }), accountName);
+  }
+
+  /** Fixed Expenses mode: "Step 2 — Which fixed expense?" (pre-fills amount and description). */
+  async fixedExpense(templateName: string) {
+    await selectOptionStartingWith(this.form.locator('select').filter({ has: this.page.locator('option', { hasText: 'Select fixed expense…' }) }), templateName);
+  }
+
+  /** Fixed Expenses mode: "Paying for Month" (YYYY-MM); defaults to the current month. */
+  async payingForMonth(month: string) {
+    const [y, m] = month.split('-').map(Number);
+    await this.form.getByRole('button', { name: /^Paying for Month/ }).click();
+    const year = this.page.locator('span', { hasText: /^\d{4}$/ }).first();
+    for (let i = 0; i < 5; i++) {
+      const shown = Number(await year.textContent());
+      if (shown === y) break;
+      await this.page.getByRole('button', { name: shown > y ? '‹' : '›', exact: true }).last().click();
+    }
+    await this.page.getByRole('button', { name: MONTH_SHORT[m - 1], exact: true }).click();
+  }
+
+  async transfer(from: string, to: string) {
+    await selectOptionStartingWith(this.form.getByLabel('From account'), from);
+    await selectOptionStartingWith(this.form.getByLabel('To account'), to);
+  }
+
+  async loanPerson(name: string) {
+    await this.form.getByLabel('Person').fill(name);
+  }
+
+  async loanDirection(label: 'I gave' | 'I received') {
+    await this.form.getByLabel('Direction').selectOption({ label });
+  }
+
+  async loanReason(text: string) {
+    await this.form.getByLabel('Reason').fill(text);
+  }
+
+  /** Text of the form's error line, or null when there is none. */
+  async errorText(): Promise<string | null> {
+    const err = this.form.locator('div[style*="var(--danger)"]');
+    return (await err.count()) ? (await err.first().textContent())?.trim() ?? null : null;
+  }
+
+  async cancel() {
+    await this.form.getByRole('button', { name: 'Cancel' }).click();
+    await expect(this.page.getByRole('heading', { name: /Add Expenses|Edit Transaction/ })).toBeHidden();
+  }
+
   /** The caption under Payment Method when Cash is chosen. */
   cashNote(): Locator {
     return this.form.getByText(/Paid from In-Hand Cash|Add an In-Hand Cash account/);
@@ -98,7 +197,8 @@ export class AddExpensesForm {
   /** Clicks save and expects the form to stay open with an error matching `message`. */
   async saveExpectingError(message: RegExp) {
     await this.form.getByRole('button', { name: /^(Save Transaction|Save Investment|Transfer)$/ }).click();
-    await expect(this.form.getByText(message)).toBeVisible();
+    // The form's error line (red caption above the buttons) — not option texts that may also match.
+    await expect(this.form.locator('div[style*="var(--danger)"]').first()).toHaveText(message);
   }
 }
 
@@ -139,6 +239,29 @@ export class AddIncomeForm {
 
   async receivedInto(accountName: string) {
     await selectOptionStartingWith(this.dialog.getByLabel('Received into'), accountName);
+  }
+
+  /** Other Income: the Income Type select ('Cheer', 'Profit Share', 'Bank Savings Interest', …). */
+  async incomeType(label: string) {
+    await this.dialog.getByLabel('Income Type').selectOption({ label });
+  }
+
+  async text(label: 'Payer Name' | 'Earned Period' | 'Employer' | 'Employer / Source' | 'Notes', value: string) {
+    await this.dialog.getByLabel(label, { exact: false }).first().fill(value);
+  }
+
+  taxableCheckbox(): Locator {
+    return this.dialog.getByLabel('Taxable income');
+  }
+
+  /** Error line inside the dialog. */
+  error(): Locator {
+    return this.dialog.locator('div[style*="var(--danger)"]');
+  }
+
+  /** Values pre-filled in a money field (MoneyInput shows the BDT amount). */
+  async moneyValue(label: string): Promise<string> {
+    return this.dialog.getByLabel(label).inputValue();
   }
 
   async save() {
@@ -238,6 +361,13 @@ export class TaxPage {
     return parsePaisa(await read());
   }
 
+  /** Fiscal Year dropdown at the top of the Tax page ("FY2025-26"). */
+  async selectFY(fy: string) {
+    await this.page.locator('main select').filter({ has: this.page.locator('option', { hasText: `FY${fy}` }) }).first().selectOption({ label: `FY${fy}` });
+    await expect(this.page.getByText('TAX SITUATION')).toBeVisible({ timeout: 20_000 });
+    await this.page.waitForLoadState('networkidle');
+  }
+
   async hasRow(label: string): Promise<boolean> {
     return (await this.page.locator(`xpath=//span[normalize-space()=${JSON.stringify(label)}]`).count()) > 0;
   }
@@ -250,6 +380,51 @@ export class TransactionsPage {
   async open() {
     await this.page.goto('/transactions');
     await waitForApp(this.page);
+    await expect(this.page.getByText(/Showing \d+ of \d+ transactions|No transactions/)).toBeVisible({ timeout: 60_000 });
+  }
+
+  /** Row = checkbox · category · method · date · description · amount · ⚡ button. */
+  private rowByDescription(description: string): Locator {
+    // Start from each row's own ⚡ button and take its nearest ancestor holding a checkbox: exactly one
+    // row. (Matching any div with checkbox + ⚡ + text also hits the list container once the category
+    // filter's <option>s — which include every category name — have loaded.)
+    return this.page.getByRole('button', { name: '⚡' })
+      .locator('xpath=ancestor::div[.//input[@type="checkbox"]][1]')
+      .filter({ hasText: description });
+  }
+
+  async action(description: string, action: 'Edit' | 'Remove') {
+    await this.rowByDescription(description).getByRole('button', { name: '⚡' }).click();
+    await this.page.getByRole('button', { name: action, exact: true }).click();
+  }
+
+  /** ⚡ → Remove → confirm. */
+  async remove(description: string) {
+    await this.action(description, 'Remove');
+    await this.page.getByRole('button', { name: 'Remove', exact: true }).last().click();
+    await expect(this.rowByDescription(description)).toHaveCount(0, { timeout: 15_000 });
+  }
+
+  /** Ticks the rows, clicks "Delete selected" and confirms. */
+  async bulkDelete(descriptions: string[]) {
+    for (const d of descriptions) await this.rowByDescription(d).locator('input[type="checkbox"]').check();
+    await this.page.getByRole('button', { name: 'Delete selected' }).click();
+    await this.page.getByRole('button', { name: `Delete ${descriptions.length}` }).click();
+    for (const d of descriptions) await expect(this.rowByDescription(d)).toHaveCount(0, { timeout: 15_000 });
+  }
+
+  /** ⚡ → Edit opens the Edit Transaction form; returns once it is visible. */
+  async openEdit(description: string) {
+    await this.action(description, 'Edit');
+    await expect(this.page.getByRole('heading', { name: 'Edit Transaction' })).toBeVisible();
+  }
+
+  /** In the edit form: Save Changes → Confirm & Save. */
+  async saveEdit() {
+    await this.page.locator('form').getByRole('button', { name: 'Save Changes' }).click();
+    const confirm = this.page.getByRole('button', { name: 'Confirm & Save' });
+    if (await confirm.isVisible({ timeout: 5_000 }).catch(() => false)) await confirm.click();
+    await expect(this.page.getByRole('heading', { name: 'Edit Transaction' })).toBeHidden({ timeout: 15_000 });
   }
 
   /**
@@ -259,4 +434,145 @@ export class TransactionsPage {
   row(description: string, amountText: string): Locator {
     return this.page.locator('main *').filter({ hasText: description }).filter({ hasText: amountText }).filter({ visible: true }).last();
   }
+}
+
+// ── Loans ──────────────────────────────────────────────────────────────────
+export class LoansPage {
+  constructor(private page: Page) {}
+
+  async open() {
+    await this.page.goto('/loans');
+    await waitForApp(this.page);
+    await expect(this.page.getByText('Net Position')).toBeVisible({ timeout: 60_000 });
+  }
+
+  /** Summary figure: 'I Owe (Total)' | 'Owed to Me' | 'Net Position'. Text reads "Owed to Me ৳5,000.00 1 people". */
+  async summary(label: 'I Owe (Total)' | 'Owed to Me' | 'Net Position'): Promise<number> {
+    const text = (await this.page.locator('main').textContent()) ?? '';
+    const m = text.match(new RegExp(`${label.replace(/[()]/g, '\\$&')}\\s*([+−-]?৳[\\d,]+\\.\\d{2})`));
+    if (!m) throw new Error(`No "${label}" figure on Loans`);
+    return parsePaisa(m[1]);
+  }
+
+  /** The person's card text, e.g. "Mithun +৳5,000.00 · Mithun owes you ৳5,000.00". */
+  personCard(name: string): Locator {
+    // The card = header row (name + balance — separate elements, so "Mithun+৳5,000.00" with no space)
+    // + the "Mithun owes you ৳…" / "You owe Sohel ৳…" / "Settled" line + actions. Matching all of it and
+    // taking the last (deepest) match gives the card, not the list that holds every card. A settled
+    // person (৳0) has no Settle Up button, so the button is not required.
+    return this.page.locator('main div')
+      .filter({ hasText: new RegExp(`${name}\\s*[+−-]?৳`) })
+      .filter({ hasText: new RegExp(`${name} owes you|You owe ${name}|Settled`) })
+      .filter({ has: this.page.getByRole('button', { name: 'Edit person' }) }).last();
+  }
+
+  /**
+   * Opens a person's card. With several people the page is master-detail: a list of names and the
+   * selected person's card, so click the name in the list first (a single person is shown directly).
+   */
+  async select(name: string) {
+    if (await this.personCard(name).count()) return;
+    await this.page.locator('main').getByText(name, { exact: true }).first().click();
+    await expect(this.personCard(name)).toBeVisible();
+  }
+
+  /** Signed running balance shown on the card (+ they owe you, − you owe them). */
+  async balance(name: string): Promise<number> {
+    await this.select(name);
+    const text = (await this.personCard(name).textContent()) ?? '';
+    const m = text.match(new RegExp(`${name}\\s*([+−-]?৳[\\d,]+\\.\\d{2})`));
+    if (!m) throw new Error(`No balance for ${name}`);
+    return parsePaisa(m[1]);
+  }
+
+  async settleUp(name: string) {
+    await this.select(name);
+    await this.personCard(name).getByRole('button', { name: 'Settle Up' }).click();
+    await expect(this.page.getByRole('heading', { name: `Settle Up with ${name}` })).toBeVisible();
+  }
+}
+
+// ── Fixed Expenses ─────────────────────────────────────────────────────────
+export class FixedExpensesPage {
+  constructor(private page: Page) {}
+
+  async open() {
+    await this.page.goto('/fixed-expenses');
+    await waitForApp(this.page);
+    await expect(this.page.getByRole('heading', { name: /This Month/ })).toBeVisible({ timeout: 60_000 });
+  }
+
+  /** Banners at the top of the page ("Overdue: Mess Rent ৳8,722.00", "Due soon: …"). */
+  alerts(): Locator {
+    return this.page.getByRole('alert');
+  }
+}
+
+// ── Budgets ────────────────────────────────────────────────────────────────
+export class BudgetsPage {
+  constructor(private page: Page) {}
+
+  async open() {
+    await this.page.goto('/budgets');
+    await waitForApp(this.page);
+    await expect(this.page.getByText('Total Budget')).toBeVisible({ timeout: 60_000 });
+  }
+
+  /** "৳1,200.00 spent / ৳5,000.00 limit 24%" for a category. */
+  async line(category: string): Promise<{ spent: number; limit: number; pct: number }> {
+    const text = (await this.page.locator('main').textContent()) ?? '';
+    const m = text.match(new RegExp(`${category}[^৳]*?(৳[\\d,]+\\.\\d{2}) spent / (৳[\\d,]+\\.\\d{2}) limit\\s*(\\d+)%`));
+    if (!m) throw new Error(`No budget line for ${category}`);
+    return { spent: parsePaisa(m[1]), limit: parsePaisa(m[2]), pct: Number(m[3]) };
+  }
+}
+
+// ── Income page ────────────────────────────────────────────────────────────
+export class IncomePage {
+  constructor(private page: Page) {}
+
+  async open() {
+    await this.page.goto('/income');
+    await waitForApp(this.page);
+    await expect(this.page.getByRole('button', { name: '+ Add Income' }).last()).toBeVisible();
+  }
+
+  /** Month row by its label, e.g. "Nov 2026". */
+  row(monthLabel: string): Locator {
+    return this.page.locator('main div').filter({ hasText: monthLabel }).filter({ has: this.page.getByTitle(/Show details|Hide details|Enter income for this month/) }).last();
+  }
+
+  async showDetails(monthLabel: string) {
+    await this.row(monthLabel).getByTitle('Show details').click();
+    await expect(this.breakdown(monthLabel)).toBeVisible();
+  }
+
+  /**
+   * The "↳ BREAKDOWN · NOV 2026" panel of one month. (Business Findings F-34: expanding a month also
+   * renders its breakdown under the Pending months, so always target the panel by its own label.)
+   */
+  breakdown(monthLabel: string): Locator {
+    return this.page.locator('main div').filter({ has: this.page.getByText(`↳ BREAKDOWN · ${monthLabel.toUpperCase()}`, { exact: true }) })
+      .filter({ has: this.page.getByRole('button', { name: 'Edit', exact: true }) }).last();
+  }
+
+  async entryAction(monthLabel: string, action: 'Edit' | 'Delete') {
+    await this.breakdown(monthLabel).getByRole('button', { name: action, exact: true }).first().click();
+  }
+}
+
+/** "Nov 2026" for YYYY-MM, as the Income page writes it. */
+export function monthLabel(month: string): string {
+  const [y, m] = month.split('-').map(Number);
+  return `${MONTH_SHORT[m - 1]} ${y}`;
+}
+
+/** Notification bell → list of messages. */
+export async function notifications(page: Page): Promise<string[]> {
+  await page.getByRole('button', { name: /^Notifications/ }).click();
+  const panel = page.getByRole('dialog').filter({ hasText: /Notification/i }).last();
+  await expect(panel).toBeVisible();
+  const texts = await panel.locator('li, [role="listitem"], div').allTextContents();
+  await page.keyboard.press('Escape');
+  return texts.map((t) => t.trim()).filter(Boolean);
 }

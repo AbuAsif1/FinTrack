@@ -70,11 +70,32 @@ MF_WORKERS=4 pnpm test:mf:regression
 
 Each test: baseline via API (B0 / B1 / T1, same as the workbook) → the action through the real UI → every affected screen checked (Bank & Wallet balances and tiles, Dashboard tiles, Tax rows, Transactions) → exact figures cross-checked via API. Expected values are the workbook's literals.
 
-Layout: `support/` holds the fixtures (fresh user + API client), baselines, page objects and the workbook link (`cases.ts`); specs sit beside it (`smoke.spec.ts`, more per area to come). The config is `playwright.money-flow.config.ts`; it reuses a running app on `:3000` or starts `pnpm dev`.
+Layout: `support/` holds the fixtures (fresh user + API client), baselines, page objects and the workbook link (`cases.ts`). One spec per Sanity Area:
+
+| Spec | Workbook cases |
+|---|---|
+| `smoke.spec.ts` | MF-EXP-001, 002, 020, 085 · MF-INC-001 |
+| `spending.spec.ts` | MF-EXP-003…017, 120…127 |
+| `dps-investment.spec.ts` | MF-EXP-021…029, 035…043 |
+| `withdrawal-interest.spec.ts` | MF-EXP-050…054, 060…062 |
+| `loans.spec.ts` | MF-EXP-070…079 |
+| `tax-transfer.spec.ts` | MF-EXP-086…088, 110…112 |
+| `fixed-expenses.spec.ts` | MF-EXP-095…104 |
+| `income.spec.ts` | MF-INC-002…027 |
+| `end-to-end.spec.ts` | MF-E2E-001, 002 |
+
+All 108 workbook cases are automated. The config is `playwright.money-flow.config.ts`; it reuses a running app on `:3000` or starts `pnpm dev`.
+
+**Known defects.** A test that fails because the app breaks a business rule still asserts the business rule and stays red until the app is fixed. It is tagged `@known-defect` and its finding ID (Business Findings sheet) is in the test's annotations. To see only *new* regressions:
+
+```
+pnpm test:mf:regression --grep-invert @known-defect     # everything except known defects
+pnpm test:mf --grep @known-defect                       # re-check the known defects (e.g. after a fix)
+```
+
+When a defect is fixed its test turns green; then remove the finding ID from `mf('MF-…', 'F-xx')` in the spec.
 
 **Do not run `pnpm test` / `pnpm test:api` at the same time against the same database** — the API suite's cleanup deletes every non-seed user, including the money-flow test users.
-
-Automated so far: the 5 Smoke cases. A test that fails because the app breaks a business rule stays red on purpose and is listed on the workbook's Business Findings sheet (e.g. F-21).
 
 ---
 

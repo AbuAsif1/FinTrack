@@ -8,7 +8,7 @@
 import { test as base, expect } from '@playwright/test';
 import { Api } from './api';
 import { createFreshUser, deleteUser, type FreshUser } from './db';
-import { AddExpensesForm, AddIncomeForm, BankWalletPage, DashboardPage, TaxPage, TransactionsPage } from './pages';
+import { AddExpensesForm, AddIncomeForm, BankWalletPage, BudgetsPage, DashboardPage, FixedExpensesPage, IncomePage, LoansPage, TaxPage, TransactionsPage } from './pages';
 
 type Fixtures = {
   user: FreshUser & { token: string };
@@ -19,6 +19,10 @@ type Fixtures = {
   dashboard: DashboardPage;
   taxPage: TaxPage;
   transactions: TransactionsPage;
+  loans: LoansPage;
+  fixedExpenses: FixedExpensesPage;
+  budgetsPage: BudgetsPage;
+  incomePage: IncomePage;
 };
 
 export const test = base.extend<Fixtures>({
@@ -40,6 +44,10 @@ export const test = base.extend<Fixtures>({
   dashboard: async ({ page }, use) => use(new DashboardPage(page)),
   taxPage: async ({ page }, use) => use(new TaxPage(page)),
   transactions: async ({ page }, use) => use(new TransactionsPage(page)),
+  loans: async ({ page }, use) => use(new LoansPage(page)),
+  fixedExpenses: async ({ page }, use) => use(new FixedExpensesPage(page)),
+  budgetsPage: async ({ page }, use) => use(new BudgetsPage(page)),
+  incomePage: async ({ page }, use) => use(new IncomePage(page)),
 });
 
 export { expect };

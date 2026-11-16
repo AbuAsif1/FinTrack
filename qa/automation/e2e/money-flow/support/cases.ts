@@ -20,14 +20,22 @@ const SUITE_TAG: Record<string, string> = {
 
 const slug = (s: string) => s.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-export function mf(id: string): { title: string; details: { tag: string[]; annotation: { type: string; description: string }[] } } {
+/**
+ * @param defect  Business Findings ID (e.g. 'F-05') when this case is known to fail because the app
+ *                breaks the business rule. The test still asserts the business rule and stays red until
+ *                the app is fixed; it is tagged @known-defect so a run can separate known defects from
+ *                new regressions:  --grep-invert @known-defect
+ */
+export function mf(id: string, defect?: string): { title: string; details: { tag: string[]; annotation: { type: string; description: string }[] } } {
   const c = CASES[id];
   if (!c) throw new Error(`${id} is not in qa/test-cases/suites.json — add it to qa/tools/tc_data.py and run pnpm qa:cases`);
+  const annotation = [{ type: 'workbook', description: `qa/test-cases/FinTrack-BD_Test-Cases.xlsx → ${id}` }];
+  if (defect) annotation.push({ type: 'known-defect', description: `${defect} — see the workbook's Business Findings sheet` });
   return {
     title: `${id} ${c.title}`,
     details: {
-      tag: [...c.suites.map((s) => SUITE_TAG[s]), `@${c.priority.toLowerCase()}`, `@area-${slug(c.area)}`],
-      annotation: [{ type: 'workbook', description: `qa/test-cases/FinTrack-BD_Test-Cases.xlsx → ${id}` }],
+      tag: [...c.suites.map((s) => SUITE_TAG[s]), `@${c.priority.toLowerCase()}`, `@area-${slug(c.area)}`, ...(defect ? ['@known-defect'] : [])],
+      annotation,
     },
   };
 }

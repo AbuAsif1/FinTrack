@@ -148,12 +148,12 @@ tc("MF-EXP-012", M, "Any spending category", "Back-dated expense falls in the mo
 
 tc("MF-EXP-013", M, "Groceries with a category budget", "Category budget fills up and notifies at the business thresholds", "Cash/Bank", "Positive", "P1",
    "Baseline B1. Budgets: Groceries monthly limit ৳5,000.",
-   S(OPEN_EXP, "Groceries ৳3,000 (BRAC). Check the Groceries budget bar.", "Groceries ৳600 (Cash). Check the bar and notifications.",
-     "Groceries ৳1,500 (BRAC). Check the bar and notifications.", "Add a DPS / Savings deposit ৳10,000 and confirm the Groceries budget does not move."),
-   "Limit ৳5,000; spent ৳3,000 → ৳3,600 → ৳5,100",
-   "BRAC ৳1,75,500. Cash ৳4,400. BRAC DPS +৳10,000 after step 5.",
+   S(OPEN_EXP, "Groceries ৳3,000 (BRAC). Check the Groceries budget bar and notifications.", "Groceries ৳1,000 (Cash). Open the Dashboard, then check the bar and notifications.",
+     "Groceries ৳1,100 (BRAC). Open the Dashboard, then check the bar and notifications.", "Add a DPS / Savings deposit ৳10,000 and confirm the Groceries budget does not move."),
+   "Limit ৳5,000; spent ৳3,000 → ৳4,000 → ৳5,100",
+   "BRAC ৳1,75,900 (then ৳1,65,900 after the DPS deposit). Cash ৳4,000. BRAC DPS +৳10,000 after step 5.",
    "Spending ৳5,100 (the DPS deposit is not added).", "No change (only DPS invested +৳10,000 after step 5).",
-   "Budget bar: 60% green → 72% amber → 102% red. Notifications: 'Budget at 80%' after step 3 and 'Budget exceeded' after step 4, each shown once and listed in the notification bell.",
+   "Budget bar: 60% green (no alert) → 80% amber with a 'Budget at 80%' alert → 102% red with a 'Budget exceeded' alert. Each alert shown once in the notification bell.",
    "Thresholds per BRD FR-10 (green <70%, amber 70–100%, red >100%) and FR-09 (alert at 80% and when exceeded). Docs disagree on thresholds (F-12).",
    "FR-10,FR-09,US-71,T-10,DV-SPEND")
 

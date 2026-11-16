@@ -24,11 +24,12 @@ export const ACC = {
 
 export type Accounts = Record<keyof typeof ACC, Account>;
 
-export async function baselineB0(api: Api): Promise<Accounts> {
+export async function baselineB0(api: Api, opts: { withCash?: boolean } = {}): Promise<Accounts> {
   const opening_date = fyStartDate();
   const brac = await api.createAccount({ name: ACC.BRAC, type: 'SAVINGS', bank_name: 'BRAC Bank', last_four: '4521', opening_balance_paisa: tk(1_00_000), opening_date });
   const bkash = await api.createAccount({ name: ACC.BKASH, type: 'MFS', bank_name: 'bKash', last_four: '01712345678', opening_balance_paisa: tk(20_000), opening_date });
-  const cash = await api.createAccount({ name: ACC.CASH, type: 'CASH', opening_balance_paisa: tk(5_000), opening_date });
+  const cash = opts.withCash === false ? (undefined as unknown as Account)
+    : await api.createAccount({ name: ACC.CASH, type: 'CASH', opening_balance_paisa: tk(5_000), opening_date });
   const dps = await api.createAccount({
     name: ACC.DPS, type: 'DPS', bank_name: 'BRAC Bank', parent_account_id: brac.id, opening_balance_paisa: 0, opening_date,
     monthly_installment_paisa: tk(10_000), maturity_date: `${fyStartYear() + 5}-06-30`,
@@ -40,8 +41,8 @@ export async function baselineB0(api: Api): Promise<Accounts> {
   return { BRAC: brac, BKASH: bkash, CASH: cash, DPS: dps, SANCH: sanch, UPENSION: upension, INSURANCE: insurance, STOCKS: stocks };
 }
 
-export async function baselineB1(api: Api): Promise<Accounts> {
-  const acc = await baselineB0(api);
+export async function baselineB1(api: Api, opts: { withCash?: boolean } = {}): Promise<Accounts> {
+  const acc = await baselineB0(api, opts);
   await api.addIncome({ month: currentMonth(), income_type: 'SALARY', gross_paisa: tk(80_000), tds_paisa: 0, savings_account_id: acc.BRAC.id });
   return acc;
 }
@@ -52,4 +53,14 @@ export async function baselineT1(api: Api): Promise<Accounts> {
     await api.addIncome({ month, income_type: 'SALARY', gross_paisa: tk(2_40_000), tds_paisa: tk(5_000), savings_account_id: acc.BRAC.id });
   }
   return acc;
+}
+
+/** F1 = B1 + three monthly Fixed Expense templates starting this month (Pending total ৳19,222). */
+export async function baselineF1(api: Api): Promise<Accounts & { fe: { rent: any; dps: any; internet: any } }> {
+  const acc = await baselineB1(api);
+  const m = currentMonth();
+  const rent = await api.addFixedExpense({ name: 'Mess Rent', standard_amount_paisa: tk(8_722), due_day: 15, category_id: await api.categoryId('Rent'), start_month: m });
+  const dps = await api.addFixedExpense({ name: 'BRAC DPS Installment', standard_amount_paisa: tk(10_000), due_day: 14, category_id: await api.categoryId('DPS / Savings'), start_month: m, savings_account_id: acc.DPS.id });
+  const internet = await api.addFixedExpense({ name: 'Home Internet', standard_amount_paisa: tk(500), due_day: 16, category_id: await api.categoryId('Utility'), start_month: m });
+  return { ...acc, fe: { rent, dps, internet } };
 }

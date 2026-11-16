@@ -436,20 +436,54 @@ FINDINGS = [
  ("F-18", "Income not into an account", "Income credits its receiving account (ADR-0014).", "'Not into one of my accounts' counts In-Hand income with no balance tracked.", "Question", "MF-INC-020", "Confirm intended use."),
  ("F-19", "Settle Up", "Settle Up creates one settlement transaction (FR-07).", "Not verified whether Settle Up names the account that pays or receives.", "Question", "MF-EXP-079", "Settle Up should ask for the account."),
  ("F-21", "Dashboard tax card", "FR-02: tax snapshot 'Tax paid so far ৳X' = tax actually paid; it must equal Tax → Total Paid (TDS + Tax Payments).", "CONFIRMED by automation (MF-EXP-085): the card uses forecastTax (12-month projection). With 4 months of TDS ৳5,000 + ৳5,000 advance, Tax page Total Paid = ৳25,000 but the card's 'Paid so far' = ৳65,000 (12 × ৳5,000 projected + ৳5,000). Remaining shows ৳3,26,250 vs ৳1,500 on the Tax page.", "High", "MF-EXP-085", "Use actual Tax Paid for 'Paid so far'; label any projected figure as projected."),
+ ("F-22", "Fixed Expenses page", "FR-05 / US-40: mark a Fixed Expense instance Paid with the actual amount; skip a month (TC-FIX-012).", "Seen in the UI: each instance on the Fixed Expenses page offers only Edit and Delete; there is no Mark Paid or Skip. Paying works only via Add Expenses → Fixed Expenses.", "Medium", "MF-EXP-100, MF-EXP-101", "Add Mark Paid (asking the paying account) and Skip / Reopen on each instance."),
+ ("F-23", "Tax → Investments wording", "FR-TAX-04: Rebate = MIN(Taxable × 3%, Eligible × rate, max).", "The Investments tab caption reads 'MIN(Gross Income × 3%, …)'. The engine correctly uses Taxable income; only the wording is wrong.", "Low", "MF-EXP-028", "Change the caption to 'Taxable Income × 3%'."),
+ ("F-24", "Monthly spending limit ring", "p2-04: 100%+ shows red with the real percentage (Scenario B: 'ends the month at 115%').", "CONFIRMED by automation (MF-EXP-014): at ৳10,500 spent of a ৳10,000 limit the ring reads '100% used' — the overrun is hidden.", "Medium", "MF-EXP-014", "Show the uncapped percentage (105%) and the amount over."),
+ ("F-25", "Dashboard Recent activity", "Spending is money out; the Transactions list shows it as −৳.", "Seen by automation: Dashboard → Recent activity shows spending as '+৳7,500.00', which reads as income.", "Low", "MF-EXP-014", "Show spending with a minus sign (or no sign) consistently."),
+ ("F-26", "Budget alert text", "FR-09: a budget alert tells the user which budget needs attention.", "Seen by automation (MF-EXP-013): the alert reads 'Budget exceeded for a category this month (102%)' — no category name.", "Low", "MF-EXP-013", "Name the category in the message, e.g. 'Groceries budget exceeded (102%)'."),
+ ("F-27", "Archived categories", "An archived category is not offered for new entries (TC-TXN-003: archived category rejected).", "CONFIRMED by automation (MF-EXP-016): an archived category is still listed in Add Expenses; saving with it is then rejected by the server.", "Medium", "MF-EXP-016", "Leave archived categories out of the Add Expenses picker."),
+ ("F-28", "Annual / quarterly Fixed Expenses", "p2-07: a non-monthly Fixed Expense shows a monthly equivalent, and the dashboard's committed figure uses it.", "CONFIRMED by automation (MF-EXP-104): an annual ৳36,000 Car Insurance shows no '৳3,000 / month', this month's commitments total ৳0.00, and the yearly grid shows no due month.", "Medium", "MF-EXP-104", "Show the monthly equivalent and include it in Fixed Commitments."),
+ ("F-29", "Paying a Fixed Expense twice", "A refused payment tells the user why ('Mess Rent is already paid for this month').", "CONFIRMED by automation (MF-EXP-099): the server correctly refuses with 409 ALREADY_PAID, but the Add Expenses form treats every 409 as an idempotent success and simply closes — the user believes they paid again. No money moves.", "Medium", "MF-EXP-099", "Only treat 409 DUPLICATE (same idempotency key) as success; show ALREADY_PAID as an error."),
+ ("F-30", "Salary pre-fill", "US-19: last month's salary is pre-filled as the starting value for a new entry; US-15: Add Income is a dashboard quick action.", "CONFIRMED by automation (MF-INC-003): '+ Add Income' in the top bar opens the form with In-Hand ৳0 — only the Income page's own button passes last month's salary.", "Low", "MF-INC-003", "Pass the latest salary from every Add Income entry point."),
+ ("F-31", "Recurring salary proposal", "p2-11: at the start of a month a card proposes last month's salary for one-tap Confirm / Edit first / Skip.", "CONFIRMED by automation (MF-INC-024): no UI renders the proposal; the salary-proposal API routes exist but nothing on screen calls them.", "Medium", "MF-INC-024", "Build the proposal card (Dashboard and Income page)."),
+ ("F-32", "Discretionary cash when income is estimated", "architecture §Derived values: for Discretionary Cash AND Remaining to Spend, a month with no salary uses the latest earlier salary and is flagged estimated.", "CONFIRMED by automation (MF-INC-026) and in code: Discretionary = this month's actual income − commitments, so it shows ৳0 next to an 'estimated' label; only Remaining to Spend uses the estimate.", "Medium", "MF-INC-026", "Use the same estimated income for Discretionary Cash."),
+ ("F-33", "Early filing rebate never applied", "GAP-06 / US-69: a return filed 1 Jul–30 Sep gets the 5% early-filing rebate (max ৳25,000).", "CONFIRMED by automation (MF-INC-025) and in code: the file endpoint builds the tax snapshot before saving the filing date, so the snapshot always sees 'not filed'. Filed 15 Sep: Net Tax ৳48,750 instead of ৳46,312.50.", "High", "MF-INC-025", "Compute the filed snapshot with the new filed_on date."),
+ ("F-34", "Income page breakdown under the wrong months", "Each month's breakdown belongs to that month only.", "Seen by automation (MF-INC-021/022): expanding November also renders November's entries under every Pending month (Jul–Oct), each with Edit and Delete — 'Delete' under JUL 2026 deletes the November salary.", "Medium", "MF-INC-021, MF-INC-022", "Render a breakdown only under its own expanded month."),
+ ("F-35", "Invalid TDS still saves", "BR-TDS / US-18: an impossible TDS (negative) is rejected before saving.", "CONFIRMED by automation (MF-INC-008): typing −1000 shows 'Enter a valid amount' under the field, but the field's value becomes empty, so Save stores the salary with TDS ৳0.", "Low", "MF-INC-008", "Block Save while any money field shows an error."),
+ ("F-36", "What-if tax planner", "p2-09 (status: done): on the Tax page, 'If I invest ৳X more, I save ৳Y', recalculated live.", "Seen by automation (MF-E2E-002) and in code: the /tax/planner API answers correctly, but no screen uses it — the Tax page has Overview, Investments, Forecast, Compare Years and Settings tabs only.", "Medium", "MF-E2E-002", "Add the planner panel to the Tax page, or re-open p2-09."),
+ ("F-37", "Dashboard first-run checklist", "FR-02: the dashboard shows the user's figures; the first-run checklist is for a new account.", "Found while fixing F-32 (MF-INC-026): the dashboard shows 'Welcome to FinTrack' and hides every tile whenever THIS month has no income, spending or transactions — even for a user with months of salary history.", "Medium", "MF-INC-026", "FIXED: a user with earlier salary history sees the dashboard with estimated cash figures."),
  ("F-20", "Tax acceptance figure", "MVP spec: Net Tax ৳1,35,369; project-overview: ৳1,35,225.", "Ticket 24 item 9 explains a ৳144.20 gap.", "Low", "—", "Close with ticket 24."),
 ]
+# Status of each finding. FIXED = app changed and its automated test(s) pass; the rest are owner
+# decisions or questions (no code change made).
+FIXED = {
+    "F-01", "F-02", "F-03", "F-04", "F-05", "F-06", "F-08", "F-09", "F-11", "F-19", "F-21", "F-22", "F-24",
+    "F-27", "F-28", "F-29", "F-30", "F-31", "F-32", "F-33", "F-35", "F-36", "F-37",
+}
+NOTE = {
+    "F-08": "Bonus is saved as Eid Festival Bonus, allowances as Other (owner may prefer another type).",
+    "F-09": "Interest form now says taxable interest belongs under Add Income; both paths remain.",
+    "F-11": "Only an explicit Fixed Expense payment marks a bill paid; categories are never hidden.",
+    "F-28": "Non-monthly bills count ÷3 / ÷12 in Fixed Commitments every month they are active.",
+    "F-26": "Not changed: alert text still omits the category name.",
+    "F-25": "Not changed: Recent activity sign.",
+}
 fs = wb.create_sheet("Business Findings")
-fh = [("ID", 7), ("Area", 26), ("Business rule (source)", 45), ("What the app appears to do (from code reading — verify in UI)", 55), ("Severity", 10), ("Related TCs", 22), ("Recommendation / Question", 40)]
+fh = [("ID", 7), ("Area", 26), ("Business rule (source)", 45), ("What the app appears to do (from code reading — verify in UI)", 55), ("Severity", 10), ("Related TCs", 22), ("Recommendation / Question", 40), ("Status", 34)]
 for c, (h, w) in enumerate(fh, 1):
     cell = fs.cell(row=1, column=c, value=h)
     cell.font, cell.fill, cell.alignment, cell.border = f_head, fill_head, center, border
     fs.column_dimensions[get_column_letter(c)].width = w
 for i, row in enumerate(FINDINGS, 2):
-    for c, v in enumerate(row, 1):
+    fid = row[0]
+    status = ("FIXED — automated test passes" if fid in FIXED else "OPEN — owner decision / question") + (f". {NOTE[fid]}" if fid in NOTE else "")
+    for c, v in enumerate(list(row) + [status], 1):
         cell = fs.cell(row=i, column=c, value=v)
         cell.font = f_bold if c == 1 else f_base
         cell.alignment = center if c in (1, 5) else wrap
         cell.border = border
+        if c == len(row) + 1:
+            cell.fill = PatternFill("solid", fgColor="C6EFCE" if fid in FIXED else "FFEB9C")
 fs.freeze_panes = "B2"
 fs.conditional_formatting.add(f"E2:E{len(FINDINGS)+1}", CellIsRule(operator="equal", formula=['"High"'], fill=PatternFill("solid", fgColor="FFC7CE")))
 
