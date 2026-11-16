@@ -410,6 +410,10 @@ export class CategoryRoutingService {
     forMonth?: string,
     fixedExpenseId?: string,
   ): Promise<void> {
+    // Only a payment the user made FOR a Fixed Expense (Add Expenses → Fixed Expenses, or Mark Paid)
+    // marks it paid. Guessing from the category marked the wrong bill paid — e.g. a one-off gas bill
+    // in Utility paid "Home Internet" (F-11).
+    if (!fixedExpenseId) return;
     const month = forMonth ?? txDate.slice(0, 7);
     await ensureInstances(this.userId, month);
 

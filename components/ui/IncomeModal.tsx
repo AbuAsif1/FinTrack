@@ -105,7 +105,7 @@ function GrossSummaryBox({ grossPaisa, tdsPaisa }: { grossPaisa: number; tdsPais
 
 // ── Modal component ───────────────────────────────────────────────────────────
 
-interface LatestSalary {
+export interface LatestSalary {
   month: string;
   gross_paisa: number;
   tds_paisa: number;
@@ -147,6 +147,10 @@ export function IncomeModal({
 
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Money fields whose text is not a valid amount; saving is blocked while any is set (F-35).
+  const [invalidFields, setInvalidFields] = useState<Record<string, boolean>>({});
+  const validity = (key: string) => (valid: boolean) =>
+    setInvalidFields((p) => (p[key] === !valid ? p : { ...p, [key]: !valid }));
 
   // User enters in-hand (net received); gross = in-hand + TDS
   const inHandPortion = category === 'SALARY'
@@ -204,6 +208,7 @@ export function IncomeModal({
   }, [incomeType, editEntry]);
 
   async function handleSave() {
+    if (Object.values(invalidFields).some(Boolean)) { setError('Fix the amount marked in red before saving.'); return; }
     if (!month) { setError('Month is required'); return; }
     if (gross === 0) { setError('Amount is required'); return; }
     if (tds < 0) { setError('TDS cannot be negative'); return; }
@@ -220,6 +225,20 @@ export function IncomeModal({
           notes: notes || null,
           savings_account_id: savingsAccountId || null,
         });
+      } else if (finalIncomeType === 'SALARY' && ((bonusPaisa ?? 0) > 0 || (otherPaisa ?? 0) > 0)) {
+        // Bonus and allowances are separate income components (FR-03, US-21, F-08): the salary entry
+        // carries the salary and its TDS; the festival bonus and other allowances get their own
+        // entries, received into the same account. Totals, In-Hand and tax are unchanged.
+        const stamp = Date.now();
+        const shared = { month, is_taxable: isTaxable, employer_name: employerName || null, notes: notes || null, savings_account_id: savingsAccountId || null };
+        const parts = [
+          { income_type: 'SALARY', gross_paisa: (actualPaisa ?? 0) + tds, tds_paisa: tds },
+          ...((bonusPaisa ?? 0) > 0 ? [{ income_type: 'EID_BONUS', gross_paisa: bonusPaisa!, tds_paisa: 0 }] : []),
+          ...((otherPaisa ?? 0) > 0 ? [{ income_type: 'OTHER', gross_paisa: otherPaisa!, tds_paisa: 0 }] : []),
+        ].filter((p) => p.gross_paisa > 0);
+        for (const p of parts) {
+          await api.post('/income-entries', { ...shared, ...p, payer_name: null, earned_period: null, idempotency_key: `${month}-${p.income_type}-${stamp}` });
+        }
       } else {
         await api.post('/income-entries', {
           month, income_type: finalIncomeType, gross_paisa: gross, tds_paisa: tds,
@@ -253,7 +272,13 @@ export function IncomeModal({
                 <button
                   key={cat}
                   type="button"
-                  onClick={() => setCategory(cat)}
+                  onClick={() => {
+                    // The salary pre-fill (In-Hand, TDS) belongs to Salary only: switching to Other
+                    // Income starts the shared TDS field empty, so a Cheer or bonus does not inherit
+                    // the salary's TDS.
+                    if (cat !== category && !editEntry) setTdsPaisa(null);
+                    setCategory(cat);
+                  }}
                   style={{
                     flex: 1, padding: '9px 0', border: 'none', cursor: 'pointer',
                     font: 'var(--t-body)', fontWeight: category === cat ? 700 : 400,
@@ -283,18 +308,19 @@ export function IncomeModal({
         {isSalary ? (
           <>
             <FieldLabel label="In-Hand Salary (৳)" required>
-              <MoneyInput value={actualPaisa} onChange={setActualPaisa} id="actual-paisa" />
+              <MoneyInput value={actualPaisa} onChange={setActualPaisa} id="actual-paisa" onValidityChange={validity('actual')} />
               <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>Net amount credited to your account (after TDS deduction)</span>
             </FieldLabel>
             <FieldLabel label="TDS Amount (৳)">
-              <MoneyInput value={tdsPaisa} onChange={setTdsPaisa} id="tds-paisa-salary" />
+              <MoneyInput value={tdsPaisa} onChange={setTdsPaisa} id="tds-paisa-salary" onValidityChange={validity('tds-salary')} />
               <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>Tax deducted at source</span>
             </FieldLabel>
-            <FieldLabel label="Bonus (৳)">
-              <MoneyInput value={bonusPaisa} onChange={setBonusPaisa} id="bonus-paisa" />
+            <FieldLabel label="Festival Bonus (৳)">
+              <MoneyInput value={bonusPaisa} onChange={setBonusPaisa} id="bonus-paisa" onValidityChange={validity('bonus')} />
+              <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>Saved as its own Eid Festival Bonus entry (allowances as Other)</span>
             </FieldLabel>
             <FieldLabel label="Other Allowances (৳)">
-              <MoneyInput value={otherPaisa} onChange={setOtherPaisa} id="other-paisa" />
+              <MoneyInput value={otherPaisa} onChange={setOtherPaisa} id="other-paisa" onValidityChange={validity('other')} />
               <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>e.g. medical, travel, festival allowance</span>
             </FieldLabel>
             <FieldLabel label="Employer">
@@ -312,10 +338,10 @@ export function IncomeModal({
               </FieldLabel>
             )}
             <FieldLabel label="Amount Received (৳)" required>
-              <MoneyInput value={amountPaisa} onChange={setAmountPaisa} id="other-amount-paisa" />
+              <MoneyInput value={amountPaisa} onChange={setAmountPaisa} id="other-amount-paisa" onValidityChange={validity('amount')} />
             </FieldLabel>
             <FieldLabel label="TDS (৳)">
-              <MoneyInput value={tdsPaisa} onChange={setTdsPaisa} id="tds-paisa-other" />
+              <MoneyInput value={tdsPaisa} onChange={setTdsPaisa} id="tds-paisa-other" onValidityChange={validity('tds-other')} />
             </FieldLabel>
             {incomeType === 'CHEER' && (
               <>

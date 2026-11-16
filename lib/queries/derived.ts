@@ -45,16 +45,39 @@ export async function taxPayments(userId: string, from: Date, to: Date): Promise
 
 // ── Fixed Commitments ─────────────────────────────────────────────────────
 
+/**
+ * Fixed Commitments for a month (architecture §Derived values, p2-07):
+ *   monthly templates — Σ instances: actual if PAID, standard if PENDING, 0 if SKIPPED;
+ *   quarterly / annual — the monthly equivalent (amount ÷ 3 or ÷ 12) in EVERY month the template is
+ *   active, so the committed figure is a comparable monthly cost. The real payment still counts in
+ *   full as Spending and in Remaining to Spend in its due month. (Before, a non-monthly bill counted
+ *   in full in its due month and was invisible in the other months — F-28.)
+ */
 export async function fixedCommitments(userId: string, month: string): Promise<number> {
+  const monthStart = new Date(`${month}-01`);
   const instances = await prisma.fixedExpenseInstance.findMany({
-    where: { userId, month: new Date(`${month}-01`) },
+    where: { userId, month: monthStart, fixedExpense: { cadence: 'MONTHLY' } },
     select: { status: true, actualAmountPaisa: true, standardAmountPaisa: true },
   });
-  return instances.reduce((sum, inst) => {
+  const monthly = instances.reduce((sum, inst) => {
     if (inst.status === 'PAID') return sum + Number(inst.actualAmountPaisa ?? inst.standardAmountPaisa);
     if (inst.status === 'PENDING') return sum + Number(inst.standardAmountPaisa);
     return sum; // SKIPPED = 0
   }, 0);
+
+  const nonMonthly = await prisma.fixedExpense.findMany({
+    where: {
+      userId,
+      cadence: { not: 'MONTHLY' },
+      startMonth: { lte: monthStart },
+      OR: [{ endMonth: null }, { endMonth: { gte: monthStart } }],
+    },
+    select: { standardAmountPaisa: true, cadence: true },
+  });
+  const equivalents = nonMonthly.reduce(
+    (sum, t) => sum + Math.round(Number(t.standardAmountPaisa) / (t.cadence === 'QUARTERLY' ? 3 : 12)), 0);
+
+  return monthly + equivalents;
 }
 
 // ── Latest Salary Month ────────────────────────────────────────────────────

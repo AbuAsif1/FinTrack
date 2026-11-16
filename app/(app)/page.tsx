@@ -9,6 +9,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { SummaryTile } from '@/components/ui/SummaryTile';
+import { SalaryProposalCard } from '@/components/ui/SalaryProposalCard';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -389,8 +390,10 @@ function BudgetHealthRing({ spentPaisa, limitPaisa, onEdit }: {
     );
   }
 
-  const pct = Math.min(limitPaisa > 0 ? (spentPaisa / limitPaisa) : 0, 1.5);
-  const displayPct = Math.round(Math.min(pct, 1) * 100);
+  const pct = limitPaisa > 0 ? spentPaisa / limitPaisa : 0;
+  // The ring arc fills up to 100%, but the label shows the real percentage so an overrun is visible
+  // (p2-04: "ends the month at 115%", F-24).
+  const displayPct = Math.round(pct * 100);
   const offset = CIRCUMFERENCE * (1 - Math.min(pct, 1));
   const color = pct >= 1 ? 'var(--danger)' : pct >= 0.75 ? 'var(--warn)' : 'var(--ok)';
 
@@ -462,7 +465,10 @@ export default function DashboardPage() {
   const hasData = data && (
     data.tiles.in_hand_income_paisa > 0 ||
     data.tiles.total_spending_paisa > 0 ||
-    data.recent_transactions.length > 0
+    data.recent_transactions.length > 0 ||
+    // A user with earlier salary history is not new: show the dashboard, with this month's cash
+    // figures estimated from the last salary, instead of the first-run checklist (F-37).
+    data.current_month.income_is_estimated
   );
 
   const alertInstances = data?.fixed_expense_panel.filter((i) => i.is_overdue || i.is_due_soon) ?? [];
@@ -478,6 +484,9 @@ export default function DashboardPage() {
   return (
     <div>
       <PageHeader description="A calm overview built only from your saved records." />
+
+      {/* New-month salary proposal (p2-11, F-31) */}
+      <SalaryProposalCard onConfirmed={() => fetchDashboard(period)} />
 
       {/* Content: flex column with consistent 16px gaps between all sections */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

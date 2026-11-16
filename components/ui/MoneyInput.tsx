@@ -1,7 +1,7 @@
 'use client';
 
 import { parseBDT } from '@fintrack/shared';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface MoneyInputProps {
   value: number | null;
@@ -10,13 +10,30 @@ interface MoneyInputProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /** Called with false while the typed text is not a valid amount, so a form can block saving (F-35). */
+  onValidityChange?: (valid: boolean) => void;
 }
 
-export function MoneyInput({ value, onChange, id, placeholder = '0.00', className = '', disabled }: MoneyInputProps) {
+export function MoneyInput({ value, onChange, id, placeholder = '0.00', className = '', disabled, onValidityChange }: MoneyInputProps) {
   const [rawText, setRawText] = useState(() =>
     value !== null ? String(value / 100) : ''
   );
   const [error, setError] = useState<string | null>(null);
+
+  // Follow a value set from outside after mount (e.g. a pre-filled salary), unless the user is
+  // in the middle of typing something invalid.
+  useEffect(() => {
+    if (error) return;
+    let shown: number | null = null;
+    try { shown = rawText ? parseBDT(rawText) : null; } catch { shown = null; }
+    if (shown !== value) setRawText(value !== null ? String(value / 100) : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  useEffect(() => { onValidityChange?.(!error); }, [error, onValidityChange]);
+  // A field that disappears (e.g. switching Salary ↔ Other Income) no longer blocks saving.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => () => onValidityChange?.(true), []);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const text = e.target.value;

@@ -58,6 +58,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       idempotency_key,
       loan_person_id: params.id,
       is_settlement: true,
+      // The Payment Account the settlement money enters (Received) or leaves (Given) (F-19).
+      ...(body.bank_account_id ? { bank_account_id: String(body.bank_account_id) } : {}),
     });
 
     const loanEntry = await prisma.loanEntry.findUnique({

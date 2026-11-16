@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import api from '@/lib/api';
+import { fiscalYear, todayInDhaka } from '@fintrack/shared';
 import { DatePicker, MonthPicker } from '@/components/ui/DatePicker';
 
 export interface Category {
@@ -10,6 +11,7 @@ export interface Category {
   name: string;
   colorHex: string;
   routing_type: string;
+  is_archived?: boolean;
 }
 
 export interface SavingsAccount {
@@ -20,6 +22,7 @@ export interface SavingsAccount {
   opening_balance_paisa?: number;
   monthly_installment_paisa?: number | null;
   closed_on?: string | null;
+  parent_account_id?: string | null;
 }
 
 export interface LoanPerson {
@@ -45,6 +48,9 @@ export interface EditingTransaction {
   description: string;
   category_id: string;
   payment_method: string;
+  /** Paying account of a Spending entry (stored in savings_account_id). */
+  savings_account_id?: string | null;
+  tax_fiscal_year?: string | null;
   routing?: {
     type: string;
     savings_account?: { id: string; name: string };
@@ -79,6 +85,7 @@ interface Form {
   idempotency_key: string;
   fixed_expense_id: string;
   investment_account_id: string;
+  tax_fiscal_year: string;
 }
 
 const INVESTMENT_KIND_LABEL: Record<string, string> = {
@@ -379,7 +386,8 @@ export function TransactionModal({
     category_id: editing?.category_id ?? '',
     payment_method: editing?.payment_method ?? 'CASH',
     savings_account_id: editing?.routing?.savings_account?.id ?? '',
-    bank_account_id: '',
+    // In edit, a Spending entry's paying account is pre-selected so it can be corrected (F-06).
+    bank_account_id: editing?.savings_account_id ?? '',
     loan_person_name: editing?.routing?.loan_person?.name ?? '',
     loan_direction: editing?.routing?.direction ?? 'GIVEN',
     loan_reason: '',
@@ -389,6 +397,7 @@ export function TransactionModal({
     idempotency_key: crypto.randomUUID(),
     fixed_expense_id: '',
     investment_account_id: '',
+    tax_fiscal_year: editing?.tax_fiscal_year ?? fiscalYear(todayInDhaka()),
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -403,7 +412,10 @@ export function TransactionModal({
     : form.category_id;
   const selectedCat = categories.find((c) => c.id === effectiveCategoryId);
   const routingType = selectedCat?.routing_type ?? 'NONE';
-  const isSavings = routingType === 'SAVINGS_DEPOSIT' || routingType === 'SAVINGS_WITHDRAWAL';
+  // Interest is credited to a named account too, so it needs the Savings Account picker (F-01).
+  const isSavings = routingType === 'SAVINGS_DEPOSIT' || routingType === 'SAVINGS_WITHDRAWAL' || routingType === 'SAVINGS_INTEREST';
+  const isWithdrawal = routingType === 'SAVINGS_WITHDRAWAL';
+  const isInterest = routingType === 'SAVINGS_INTEREST';
   const isLoan = routingType === 'LOAN_GIVEN' || routingType === 'LOAN_RECEIVED';
   const isTax = routingType === 'TAX_PAYMENT';
   const openAccounts = savingsAccounts.filter((a) => !a.closed_on);
@@ -419,10 +431,10 @@ export function TransactionModal({
     ? <>Paid from In-Hand Cash ({fmt(cashAccount.balance_paisa)} available).</>
     : <>Add an In-Hand Cash account on Bank &amp; Wallet to track your cash balance.</>;
 
-  // Hide categories already covered by a fixed expense template (only when adding new)
-  const fixedExpenseCategoryIds = isEdit
-    ? new Set<string>()
-    : new Set(fixedExpenses.flatMap((fe) => [fe.category_id, fe.category?.id]).filter((id): id is string => !!id));
+  // Every active category stays available: a category used by a Fixed Expense template can still take
+  // a one-off bill (F-11); paying the template itself is done via the "Fixed Expenses" option.
+  // Archived categories are not offered for new entries (F-27) — except the one an edited entry uses.
+  const isOffered = (c: Category) => !c.is_archived || (isEdit && c.id === editing?.category_id);
 
   // Hide "Investment (Sanchaypatra)" from the flat list — it now lives under __INVESTMENT__
   const isSanchCategory = (c: { name: string }) => c.name.toLowerCase().includes('sanchaypatra') || c.name.toLowerCase().includes('sanch');
@@ -432,7 +444,7 @@ export function TransactionModal({
   // Category options: regular categories + Investment + Fixed Expenses + Transfer
   const categoryOptions: SelectOption[] = [
     ...categories
-      .filter((c) => !fixedExpenseCategoryIds.has(c.id) && !isSanchCategory(c))
+      .filter((c) => isOffered(c) && !isSanchCategory(c))
       .map((c) => ({ value: c.id, label: c.name })),
     ...(!isEdit ? [{ value: '__INVESTMENT__', label: 'Investment', group: 'Special' }] : []),
     ...(!isEdit ? [{ value: '__FIXED_EXPENSE__', label: 'Fixed Expenses', group: 'Special' }] : []),
@@ -454,6 +466,7 @@ export function TransactionModal({
   };
 
   function setCategoryId(val: string) {
+    const routing = categories.find((c) => c.id === val)?.routing_type;
     setForm((f) => ({
       ...f,
       category_id: val,
@@ -463,8 +476,28 @@ export function TransactionModal({
       bank_account_id: '',
       fixed_expense_id: '',
       investment_account_id: '',
+      // Keep the loan Direction in step with the category (F-03).
+      loan_direction: routing === 'LOAN_RECEIVED' ? 'RECEIVED' : routing === 'LOAN_GIVEN' ? 'GIVEN' : f.loan_direction,
     }));
   }
+
+  /**
+   * The loan Direction picks the category: "I received" means Loan Received, "I gave" Loan Given.
+   * Before, the field was shown but ignored, so the money could move opposite to what the user chose (F-03).
+   */
+  function setLoanDirection(direction: string) {
+    const wanted = direction === 'RECEIVED' ? 'LOAN_RECEIVED' : 'LOAN_GIVEN';
+    const cat = categories.find((c) => c.routing_type === wanted && !c.is_archived);
+    setForm((f) => ({ ...f, loan_direction: direction, ...(cat ? { category_id: cat.id } : {}) }));
+  }
+
+  /** Account a withdrawal lands in when none is chosen: a DPS/FDR returns to its parent. */
+  const withdrawalAccount = openAccounts.find((a) => a.id === form.savings_account_id);
+  const withdrawalParent = withdrawalAccount?.parent_account_id
+    ? openAccounts.find((a) => a.id === withdrawalAccount.parent_account_id)
+    : undefined;
+  const currentFY = fiscalYear(todayInDhaka());
+  const previousFY = `${Number(currentFY.slice(0, 4)) - 1}-${currentFY.slice(2, 4)}`;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -517,6 +550,13 @@ export function TransactionModal({
       return;
     }
 
+    // A withdrawal must land somewhere: the chosen account, or the parent of a DPS/FDR (F-02).
+    if (!isEdit && isWithdrawal && form.savings_account_id && !form.bank_account_id && !withdrawalParent) {
+      setError('Choose the account that receives the money.');
+      setSaving(false);
+      return;
+    }
+
     const doSave = async () => {
       try {
         if (isInvestmentMode) {
@@ -542,9 +582,9 @@ export function TransactionModal({
         } else {
           const categoryIdToSend = isFixedExpenseMode && effectiveCategoryId ? effectiveCategoryId : form.category_id;
           // For fixed expenses: send today as date (so opening-date validation passes),
-          // and for_month separately (so autoLink targets the right instance).
-          // For edits: use stored date. For new regular expenses: omit date — backend defaults to today.
-          const dateToSend = isEdit ? form.date : undefined;
+          // and for_month separately (so the payment is linked to the right instance).
+          // Everything else sends the Date field, which defaults to today and can be changed (US-26, F-05).
+          const dateToSend = isFixedExpenseMode && !isEdit ? undefined : form.date;
           const forMonthToSend = isFixedExpenseMode && !isEdit ? form.paying_for_month : undefined;
           const body: Record<string, unknown> = {
             amount_paisa: amountPaisa,
@@ -561,6 +601,15 @@ export function TransactionModal({
             if (routingType === 'NONE') body.savings_account_id = form.bank_account_id;
             else body.bank_account_id = form.bank_account_id;
           }
+          // Editing a Spending entry to Cash moves it onto In-Hand Cash (F-06).
+          if (isEdit && routingType === 'NONE' && form.payment_method === 'CASH') body.savings_account_id = cashAccount?.id ?? null;
+          // A withdrawal names the account that receives the money (F-02).
+          if (isWithdrawal && form.bank_account_id) {
+            body.bank_account_id = form.bank_account_id;
+            body.payment_method = openAccounts.find((a) => a.id === form.bank_account_id)?.type === 'CASH' ? 'CASH' : 'BANK';
+          }
+          // Tax Payment may be for the current or the previous Fiscal Year (F-04).
+          if (isTax) body.tax_fiscal_year = form.tax_fiscal_year;
           if (isLoan) {
             body.loan_person_name = form.loan_person_name;
             if (form.loan_reason) body.reason = form.loan_reason;
@@ -575,7 +624,10 @@ export function TransactionModal({
         onSaved();
       } catch (err: unknown) {
         const status = (err as { response?: { status?: number } })?.response?.status;
-        if (status === 409) { onSaved(); return; }
+        const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
+        // Only a repeated idempotency key (409 DUPLICATE) means "already saved". Any other 409 — e.g.
+        // ALREADY_PAID for a Fixed Expense month — is a refusal the user must see (F-29).
+        if (status === 409 && code === 'DUPLICATE') { onSaved(); return; }
         const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to save.';
         setError(msg);
         setSaving(false);
@@ -590,7 +642,8 @@ export function TransactionModal({
     await doSave();
   }
 
-  const showFundingPicker = form.payment_method === 'BANK' && usesFundingAccount && !isEdit;
+  // In edit, a Spending entry's paying account can be corrected (F-06).
+  const showFundingPicker = form.payment_method === 'BANK' && usesFundingAccount && (!isEdit || routingType === 'NONE');
   const paymentFields = (
     <>
       <div style={{ marginBottom: showFundingPicker ? 0 : 12 }}>
@@ -803,7 +856,8 @@ export function TransactionModal({
           </div>
 
           {/* ── Section 2: How are you paying? ───────────────────────────── */}
-          {!isFixedExpenseMode && !isTransfer && !isInvestmentMode && (
+          {/* Interest and withdrawals name their accounts in the savings box below; no payment method. */}
+          {!isFixedExpenseMode && !isTransfer && !isInvestmentMode && !isWithdrawal && !isInterest && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ font: 'var(--t-label)', color: 'var(--fg-muted)', marginBottom: 8, letterSpacing: '0.04em' }}>
                 HOW
@@ -823,8 +877,9 @@ export function TransactionModal({
             </div>
           )}
 
-          {/* Edit mode: show date field for editing */}
-          {isEdit && (
+          {/* Date: defaults to today and can be changed (US-26, F-05). Fixed Expenses use "Paying for
+              Month" instead; Investment payments are dated today. */}
+          {(isEdit || (!isFixedExpenseMode && !isInvestmentMode)) && (
             <label style={{ display: 'block', marginBottom: 12 }}>
               <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Date</div>
               <DatePicker value={form.date} onChange={(v) => set('date')({ target: { value: v } } as React.ChangeEvent<HTMLInputElement>)} />
@@ -877,8 +932,16 @@ export function TransactionModal({
           {!isTransfer && isSavings && !isFixedExpenseMode && !isInvestmentMode && (
             <div style={{ background: 'rgba(58,95,205,0.08)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
               <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginBottom: 6 }}>
-                This will {routingType === 'SAVINGS_DEPOSIT' ? 'deposit into' : 'withdraw from'} your savings account.
+                {isInterest
+                  ? 'This will add interest to your savings account.'
+                  : `This will ${routingType === 'SAVINGS_DEPOSIT' ? 'deposit into' : 'withdraw from'} your savings account.`}
               </div>
+              {isInterest && (
+                <div style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)', marginBottom: 8 }}>
+                  Interest that counts toward your tax (with TDS deducted by the bank) belongs under
+                  Add Income → Bank Savings Interest instead — record it in one place only.
+                </div>
+              )}
               <label>
                 <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Savings Account</div>
                 <select required value={form.savings_account_id} onChange={set('savings_account_id')} style={inputStyle}>
@@ -886,6 +949,24 @@ export function TransactionModal({
                   {openAccounts.filter((a) => a.type !== 'CASH').map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </label>
+              {isWithdrawal && (
+                <label style={{ display: 'block', marginTop: 10 }}>
+                  <div style={{ font: 'var(--t-caption)', color: 'var(--ok)', marginBottom: 6, fontWeight: 600 }}>
+                    Which account receives the money?
+                  </div>
+                  <select value={form.bank_account_id} onChange={set('bank_account_id')} style={inputStyle}>
+                    <option value="">Choose an account…</option>
+                    {paymentAccounts.filter((a) => a.id !== form.savings_account_id).map((a) => (
+                      <option key={a.id} value={a.id}>{a.name} · {fmt(a.balance_paisa)}</option>
+                    ))}
+                  </select>
+                  {withdrawalParent && !form.bank_account_id && (
+                    <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginTop: 4 }}>
+                      Not chosen: it returns to {withdrawalParent.name}, the parent account.
+                    </div>
+                  )}
+                </label>
+              )}
             </div>
           )}
 
@@ -903,7 +984,7 @@ export function TransactionModal({
                 </label>
                 <label>
                   <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Direction</div>
-                  <select value={form.loan_direction} onChange={set('loan_direction')} style={inputStyle}>
+                  <select value={form.loan_direction} onChange={(e) => setLoanDirection(e.target.value)} style={inputStyle}>
                     <option value="GIVEN">I gave</option>
                     <option value="RECEIVED">I received</option>
                   </select>
@@ -923,8 +1004,18 @@ export function TransactionModal({
           {/* Tax routing */}
           {!isTransfer && isTax && (
             <div style={{ background: 'rgba(58,95,205,0.08)', borderLeft: '3px solid var(--accent)', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
-              <div style={{ font: 'var(--t-caption)', color: 'var(--accent)' }}>
-                This transaction will be recorded against the current Fiscal Year.
+              <label style={{ display: 'block' }}>
+                <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>Fiscal Year</div>
+                {/* The current or the previous Fiscal Year (architecture §Category routing, F-04). */}
+                <select value={form.tax_fiscal_year} onChange={set('tax_fiscal_year')} style={inputStyle}>
+                  <option value={currentFY}>{currentFY}</option>
+                  <option value={previousFY}>{previousFY}</option>
+                </select>
+              </label>
+              <div style={{ font: 'var(--t-caption)', color: 'var(--accent)', marginTop: 6 }}>
+                {form.tax_fiscal_year === currentFY
+                  ? 'Recorded against the current Fiscal Year.'
+                  : `Recorded as a payment of last year's (${previousFY}) tax.`}
               </div>
             </div>
           )}

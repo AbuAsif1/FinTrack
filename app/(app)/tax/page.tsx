@@ -124,7 +124,7 @@ const INVESTMENT_LABEL: Record<string, string> = {
   others: 'Other investments',
 };
 
-function OverviewTab({ result }: { result: TaxResult }) {
+function OverviewTab({ result, fy }: { result: TaxResult; fy: string }) {
   const remaining = result.remaining_tax_paisa;
   const tdsProgress = result.tax_paid_paisa > 0
     ? Math.round((result.tax_paid_paisa / Math.max(result.net_tax_payable_paisa, 1)) * 100)
@@ -216,6 +216,54 @@ function OverviewTab({ result }: { result: TaxResult }) {
           </div>
         )}
       </div>
+
+      {/* What-if tax planner (p2-09, F-36) */}
+      {!result.is_locked && <TaxPlanner fy={fy} />}
+    </div>
+  );
+}
+
+/**
+ * What-if planner: "If you invest ৳X more, you save ৳Y" — recalculated as the amount changes,
+ * from /tax/planner (the same tax engine as the rest of the page).
+ */
+function TaxPlanner({ fy }: { fy: string }) {
+  const [amount, setAmount] = useState('');
+  const [plan, setPlan] = useState<{ tax_saved_paisa: number; hypothetical_net_tax_paisa: number; current_net_tax_paisa: number; remaining_ceiling_paisa: number } | null>(null);
+
+  useEffect(() => {
+    const paisa = Math.round(Number(amount.replace(/,/g, '')) * 100);
+    if (!amount || !Number.isFinite(paisa) || paisa <= 0) { setPlan(null); return; }
+    const t = setTimeout(() => {
+      api.get(`/tax/planner?year=${fy}&additional_investment=${paisa}`).then(({ data }) => setPlan(data)).catch(() => setPlan(null));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [amount, fy]);
+
+  const bdt = Number(amount.replace(/,/g, '')) || 0;
+  return (
+    <div style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: 16, marginTop: 24 }}>
+      <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 4 }}>WHAT-IF TAX PLANNER</div>
+      <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', marginBottom: 10 }}>
+        How much tax would investing more this Fiscal Year save? Eligible: DPS, Sanchaypatra, Universal Pension, life insurance, stocks.
+      </div>
+      <label style={{ display: 'block', font: 'var(--t-body)', marginBottom: 8 }}>
+        Additional investment (৳)
+        <input type="text" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 50000"
+          style={{ display: 'block', width: '100%', marginTop: 4, padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-sunken)', font: 'var(--t-body)', boxSizing: 'border-box' }} />
+      </label>
+      {plan && (
+        plan.tax_saved_paisa > 0 ? (
+          <div style={{ font: 'var(--t-body)' }}>
+            If you invest {fmt(Math.round(bdt * 100))} more, you save <strong style={{ color: 'var(--ok)' }}>{fmt(plan.tax_saved_paisa)}</strong> in tax
+            {' '}(Net Tax {fmt(plan.current_net_tax_paisa)} → {fmt(plan.hypothetical_net_tax_paisa)}).
+          </div>
+        ) : (
+          <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>
+            You have already reached the maximum investment rebate. Investing more will not reduce your tax further.
+          </div>
+        )
+      )}
     </div>
   );
 }
@@ -972,7 +1020,7 @@ export default function TaxPage() {
       ) : (
         <>
           {tab === 'Overview' && (
-            <OverviewTab result={result} />
+            <OverviewTab result={result} fy={fy} />
           )}
           {tab === 'Investments' && <InvestmentsTab result={result} fy={fy} />}
           {tab === 'Forecast' && <ForecastTab fy={fy} />}

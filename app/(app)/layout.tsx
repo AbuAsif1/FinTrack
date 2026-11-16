@@ -4,7 +4,8 @@ import { Sidebar } from '@/components/nav/Sidebar';
 import { BottomTabBar } from '@/components/nav/BottomTabBar';
 import { NotificationBell } from '@/components/ui/NotificationDrawer';
 import { TransactionModal, type Category, type SavingsAccount, type LoanPerson, type FixedExpenseTemplate } from '@/components/ui/TransactionModal';
-import { IncomeModal } from '@/components/ui/IncomeModal';
+import { IncomeModal, type LatestSalary } from '@/components/ui/IncomeModal';
+import { fiscalYear, todayInDhaka } from '@fintrack/shared';
 import type { SavingsAccount as IncomeSavingsAccount } from '@/components/ui/IncomeModal';
 import { useEffect, useState, useCallback, useContext } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -142,6 +143,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Global add income modal
   const [showAddIncome, setShowAddIncome] = useState(false);
   const [incomeAccounts, setIncomeAccounts] = useState<IncomeSavingsAccount[]>([]);
+  const [latestSalary, setLatestSalary] = useState<LatestSalary | null>(null);
   const [incomeDataLoaded, setIncomeDataLoaded] = useState(false);
 
   const openAdd = useCallback(async () => {
@@ -161,6 +163,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [modalDataLoaded]);
 
   const openAddIncome = useCallback(async () => {
+    // Pre-fill last month's salary, as the Income page does (US-19, F-30): this FY's latest salary,
+    // or last FY's in July before any entry. Fetched before opening — the form applies it on open.
+    try {
+      const fy = fiscalYear(todayInDhaka());
+      const prevFy = `${Number(fy.slice(0, 4)) - 1}-${fy.slice(2, 4)}`;
+      const latest = (await api.get(`/income-entries/summary?fiscal_year=${fy}`)).data?.latest_salary
+        ?? (await api.get(`/income-entries/summary?fiscal_year=${prevFy}`)).data?.latest_salary
+        ?? null;
+      setLatestSalary(latest);
+    } catch {
+      setLatestSalary(null);
+    }
     setShowAddIncome(true);
     if (!incomeDataLoaded) {
       api.get('/savings-accounts').then(({ data }) => {
@@ -252,6 +266,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           onClose={() => setShowAddIncome(false)}
           onSaved={() => setShowAddIncome(false)}
           savingsAccounts={incomeAccounts}
+          prefillFromLatestSalary={latestSalary}
         />
       )}
 

@@ -257,19 +257,40 @@ function SettleUpModal({
   onSettled: () => void;
 }) {
   const [settling, setSettling] = useState(false);
+  const [error, setError] = useState('');
   const direction = person.running_balance_paisa > 0 ? 'RECEIVED' : 'GIVEN';
   const absAmount = Math.abs(person.running_balance_paisa);
+  // Settling is real money moving: name the Payment Account it enters or leaves (F-19).
+  const [accounts, setAccounts] = useState<{ id: string; name: string; type: string; balance_paisa: number; closed_on?: string | null }[]>([]);
+  const [accountId, setAccountId] = useState('');
+  useEffect(() => {
+    api.get('/savings-accounts').then(({ data }) => {
+      const list = (Array.isArray(data) ? data : data?.accounts ?? [])
+        .filter((a: { type: string; closed_on?: string | null }) => ['SAVINGS', 'MFS', 'CASH'].includes(a.type) && !a.closed_on);
+      setAccounts(list);
+      const cash = list.find((a: { type: string }) => a.type === 'CASH');
+      if (cash) setAccountId(cash.id);
+    }).catch(() => {});
+  }, []);
 
   async function settle() {
     setSettling(true);
-    await api.post(`/loan-persons/${person.id}/settle`, {
-      amount_paisa: absAmount,
-      direction,
-      date: todayIso(),
-      payment_method: 'CASH',
-      idempotency_key: crypto.randomUUID(),
-    }).catch(() => null);
-    onSettled();
+    setError('');
+    const acct = accounts.find((a) => a.id === accountId);
+    try {
+      await api.post(`/loan-persons/${person.id}/settle`, {
+        amount_paisa: absAmount,
+        direction,
+        date: todayIso(),
+        payment_method: acct?.type === 'CASH' || !acct ? 'CASH' : 'BANK',
+        ...(acct ? { bank_account_id: acct.id } : {}),
+        idempotency_key: crypto.randomUUID(),
+      });
+      onSettled();
+    } catch (err) {
+      setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Could not settle up.');
+      setSettling(false);
+    }
   }
 
   return (
@@ -284,6 +305,17 @@ function SettleUpModal({
           <div>Amount: <strong style={{ color: 'var(--ok)' }}>{fmt(absAmount)}</strong></div>
           <div>Date: <strong>{todayIso()}</strong></div>
         </div>
+        <label style={{ display: 'block', marginBottom: 16 }}>
+          <div style={{ font: 'var(--t-label)', marginBottom: 4 }}>
+            {direction === 'RECEIVED' ? 'Which account receives the money?' : 'Which account are you paying from?'}
+          </div>
+          <select value={accountId} onChange={(e) => setAccountId(e.target.value)}
+            style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-sunken)', font: 'var(--t-body)' }}>
+            {accounts.length === 0 && <option value="">No bank, MFS or cash account yet</option>}
+            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} · {fmt(a.balance_paisa)}</option>)}
+          </select>
+        </label>
+        {error && <div style={{ color: 'var(--danger)', font: 'var(--t-caption)', marginBottom: 10 }}>{error}</div>}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{ padding: '8px 16px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: 'pointer' }}>Cancel</button>
           <button onClick={settle} disabled={settling} style={{ padding: '8px 16px', background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 6, cursor: 'pointer' }}>

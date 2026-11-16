@@ -19,9 +19,10 @@ export async function POST(req: Request, { params }: { params: { fiscalYear: str
   const body = await req.json().catch(() => ({}));
   const filedOn = body.filed_on ?? new Date().toISOString().slice(0, 10);
 
-  // Snapshot the current result
+  // Snapshot the result AS FILED: the tax year row still has the old (null) filed date, so pass the
+  // new one in — otherwise the early-filing rebate (filed 1 Jul–30 Sep) is never applied (F-33).
   const input = await buildTaxInput(user.id, fy);
-  const snapshot = calculateTax(input);
+  const snapshot = calculateTax({ ...input, filedOn });
 
   const taxYear = await prisma.taxYear.update({
     where: { userId_fiscalYear: { userId: user.id, fiscalYear: fy } },

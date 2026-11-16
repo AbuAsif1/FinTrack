@@ -12,8 +12,9 @@ import {
   remainingToSpend,
   spendingByCategory,
   monthlyTrend,
+  latestSalaryInHandPaisa,
 } from '@/lib/queries/derived';
-import { forecastTax } from '@fintrack/tax-engine';
+import { calculateTax, forecastTax } from '@fintrack/tax-engine';
 import { todayInDhaka, fromDbDate } from '@fintrack/shared';
 
 function parseDateParam(s: string | null): Date | null {
@@ -97,7 +98,10 @@ export async function GET(req: Request) {
     remainingToSpend(user.id, cm),
   ]);
   const cmIncome = await inHandIncome(user.id, new Date(`${cm}-01`), new Date(new Date(`${cm}-01`).getFullYear(), new Date(`${cm}-01`).getMonth() + 1, 1));
-  const discretionaryCash = cmIncome - fc;
+  // Same estimated-income rule as Remaining to Spend (architecture §Derived values): a month with no
+  // salary entry uses the latest earlier salary's In-Hand amount (F-32).
+  const estimatedSalary = remaining.income_is_estimated ? (await latestSalaryInHandPaisa(user.id, cm)) ?? 0 : 0;
+  const discretionaryCash = cmIncome + estimatedSalary - fc;
 
   const currentMonthPanel = {
     month: cm,
@@ -179,12 +183,16 @@ export async function GET(req: Request) {
   const fy = currentFY();
   const taxInput = await buildTaxInput(user.id, fy);
   const taxResult = forecastTax(taxInput);
+  // "Tax paid so far" is money actually paid (TDS + Tax Payments), the same as Tax → Total Paid — not
+  // the forecast, which adds TDS for months that have not happened (FR-02, F-21). "Est. remaining" and
+  // the suggested TDS stay forecast-based.
+  const actualTax = calculateTax(taxInput);
   const taxYear = await prisma.taxYear.findUnique({
     where: { userId_fiscalYear: { userId: user.id, fiscalYear: fy } },
   });
   const taxSnapshot = {
     fiscal_year: fy,
-    tax_paid_paisa: taxResult.tax_paid_paisa,
+    tax_paid_paisa: actualTax.tax_paid_paisa,
     remaining_tax_paisa: taxResult.remaining_tax_paisa,
     suggested_monthly_tds_paisa: taxResult.suggested_monthly_tds_paisa,
     is_provisional: !taxYear?.configConfirmedAt,

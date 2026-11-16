@@ -24,6 +24,9 @@ interface FixedExpenseTemplate {
   due_day: number;
   start_month: string;
   end_month: string | null;
+  cadence?: 'MONTHLY' | 'QUARTERLY' | 'ANNUAL';
+  due_month?: number | null;
+  monthly_equivalent_paisa?: number;
   category: { id: string; name: string; routing_type: string };
   savings_account: { id: string; name: string } | null;
 }
@@ -95,13 +98,13 @@ function StatusBadge({ status }: { status: string }) {
 
 // ── PayDrawer ──────────────────────────────────────────────────────────────
 
-function PayDrawer({ instance, accounts, onClose, onDone }: { instance: FixedExpenseInstance | null; accounts: SavingsAccount[]; onClose: () => void; onDone: () => void }) {
+function PayDrawer({ instance, accounts, onClose, onDone, initialMode = 'pay' }: { instance: FixedExpenseInstance | null; accounts: SavingsAccount[]; onClose: () => void; onDone: () => void; initialMode?: 'pay' | 'skip' }) {
   const [amountPaisa, setAmountPaisa] = useState<number | null>(instance?.standard_amount_paisa ?? null);
   const [paidDate, setPaidDate] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('BANK');
   const [payFromId, setPayFromId] = useState('');
   const payers = accounts.filter((a) => (a.type === 'SAVINGS' || a.type === 'MFS') && !a.closed_on);
-  const [mode, setMode] = useState<'pay' | 'skip'>('pay');
+  const [mode, setMode] = useState<'pay' | 'skip'>(initialMode);
   const [skipNote, setSkipNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -110,8 +113,8 @@ function PayDrawer({ instance, accounts, onClose, onDone }: { instance: FixedExp
     if (!instance) return;
     setAmountPaisa(instance.standard_amount_paisa);
     setPaidDate(new Date().toISOString().slice(0, 10));
-    setSkipNote(''); setError(null); setMode('pay');
-  }, [instance]);
+    setSkipNote(''); setError(null); setMode(initialMode);
+  }, [instance, initialMode]);
 
   async function handlePay() {
     if (!instance) return;
@@ -425,6 +428,7 @@ export default function FixedExpensesPage() {
   const [loading, setLoading] = useState(true);
   const [yearLoading, setYearLoading] = useState(false);
   const [activeDrawer, setActiveDrawer] = useState<FixedExpenseInstance | null>(null);
+  const [drawerMode, setDrawerMode] = useState<'pay' | 'skip'>('pay');
   const [setupOpen, setSetupOpen] = useState(false);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [editTemplate, setEditTemplate] = useState<FixedExpenseTemplate | null>(null);
@@ -600,7 +604,7 @@ export default function FixedExpensesPage() {
                         cursor: clickable ? 'pointer' : 'default',
                         background: clickable ? 'transparent' : undefined,
                       }}
-                      onClick={() => { if (clickable) setActiveDrawer(inst); }}
+                      onClick={() => { if (clickable) { setDrawerMode('pay'); setActiveDrawer(inst); } }}
                     >
                       {/* Status badge */}
                       <StatusBadge status={inst.status} />
@@ -618,6 +622,29 @@ export default function FixedExpensesPage() {
                           : <Amount paisa={inst.standard_amount_paisa} />
                         }
                       </div>
+
+                      {/* Instance actions: visible Mark Paid / Skip (FR-05, US-40, F-22). The row itself is
+                          still clickable, but a row is not a control users can find or reach by keyboard. */}
+                      {['PENDING', 'DUE_SOON', 'OVERDUE'].includes(inst.status) && (
+                        <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
+                          <button type="button" onClick={() => { setDrawerMode('pay'); setActiveDrawer(inst); }}
+                            style={{ padding: '4px 10px', borderRadius: 5, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', font: 'var(--t-caption)', whiteSpace: 'nowrap' }}>
+                            Mark Paid
+                          </button>
+                          <button type="button" onClick={() => { setDrawerMode('skip'); setActiveDrawer(inst); }}
+                            style={{ padding: '4px 10px', borderRadius: 5, border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-secondary)', cursor: 'pointer', font: 'var(--t-caption)', whiteSpace: 'nowrap' }}>
+                            Skip
+                          </button>
+                        </div>
+                      )}
+                      {inst.status === 'SKIPPED' && (
+                        <div onClick={e => e.stopPropagation()}>
+                          <button type="button" onClick={() => { setDrawerMode('pay'); setActiveDrawer(inst); }}
+                            style={{ padding: '4px 10px', borderRadius: 5, border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-secondary)', cursor: 'pointer', font: 'var(--t-caption)', whiteSpace: 'nowrap' }}>
+                            Reopen
+                          </button>
+                        </div>
+                      )}
 
                       {/* Template actions */}
                       {tmpl && (
@@ -710,6 +737,12 @@ export default function FixedExpensesPage() {
                         <td style={{ padding: '10px 16px', position: 'sticky', left: 0, background: 'var(--bg-surface)', borderRight: '1px solid var(--border)' }}>
                           <div style={{ font: 'var(--t-body)', fontWeight: 500 }}>{tmpl.name}</div>
                           <div style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)' }}>{fmt(tmpl.standard_amount_paisa)} · Day {tmpl.due_day}</div>
+                          {/* Non-monthly bills: show the cadence and the monthly equivalent (p2-07, F-28). */}
+                          {tmpl.cadence && tmpl.cadence !== 'MONTHLY' && tmpl.monthly_equivalent_paisa != null && (
+                            <div style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>
+                              {tmpl.cadence === 'ANNUAL' ? 'Annual' : 'Quarterly'} · {fmt(tmpl.monthly_equivalent_paisa)} / month
+                            </div>
+                          )}
                           {tmpl.end_month && <div style={{ font: 'var(--t-caption)', color: 'var(--warn)' }}>Inactive from {tmpl.end_month}</div>}
                         </td>
 
@@ -795,7 +828,7 @@ export default function FixedExpensesPage() {
       )}
 
       {/* Modals & Drawers */}
-      {activeDrawer && <PayDrawer instance={activeDrawer} accounts={savingsAccounts} onClose={() => setActiveDrawer(null)} onDone={reloadAll} />}
+      {activeDrawer && <PayDrawer instance={activeDrawer} initialMode={drawerMode} accounts={savingsAccounts} onClose={() => setActiveDrawer(null)} onDone={reloadAll} />}
       <SetupModal open={setupOpen} onClose={() => setSetupOpen(false)} onDone={reloadAll} categories={categories} savingsAccounts={savingsAccounts} existingNames={templates.map(t => t.name.toLowerCase())} />
       <TemplateModal open={templateModalOpen} onClose={() => setTemplateModalOpen(false)} onSaved={reloadAll} edit={editTemplate} categories={categories} savingsAccounts={savingsAccounts} />
       <ConfirmDialog
