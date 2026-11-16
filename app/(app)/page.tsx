@@ -486,6 +486,7 @@ export default function DashboardPage() {
       {alertInstances.filter((inst) => !dismissedBanners.has(inst.id)).map((inst) => (
         <AlertBanner
           key={inst.id}
+          compact
           variant={inst.is_overdue ? 'danger' : 'warn'}
           title={`${inst.is_overdue ? 'Overdue' : 'Due soon'}: ${inst.name}`}
           body={`৳${(inst.standard_amount_paisa / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
@@ -550,16 +551,8 @@ export default function DashboardPage() {
 
       {/* KPI tiles row — Net Worth first, then period metrics */}
       {data && hasData && (
-        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
-          {data.net_worth_paisa != null && (
+        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
             <SummaryTile
-              label="Net Worth"
-              paisa={Math.abs(data.net_worth_paisa)}
-              variant="featured"
-              subtitle="all accounts combined"
-            />
-          )}
-          <SummaryTile
             label="Income"
             paisa={data.tiles.in_hand_income_paisa}
             variant="income"
@@ -746,8 +739,8 @@ export default function DashboardPage() {
       {data && hasData && (
         <div className="r-content">
           <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 14 }}>
-              <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 14, flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 180px', minWidth: 0 }}>
                 <SpendingByCategory categories={data.spending_by_category} totalPaisa={data.tiles.total_spending_paisa} />
               </div>
               <BudgetHealthRing
@@ -838,7 +831,7 @@ export default function DashboardPage() {
               </span>
             )}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 16 }}>
+          <div className="r-halves" style={{ marginBottom: 16 }}>
             <div>
               <span style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>Discretionary cash</span>
               <div style={{ font: 'var(--t-data)', marginTop: 4 }}>

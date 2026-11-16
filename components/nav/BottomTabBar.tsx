@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { useGlobalModals } from '@/components/ui/GlobalModalsContext';
 
 const mainTabs = [
-  { href: '/', label: 'Home', icon: '🏠' },
+  { href: '/', label: 'Dashboard', icon: '🏠' },
   { href: '/transactions', label: 'Transactions', icon: '💸' },
   { href: '/fixed-expenses', label: 'Fixed', icon: '📋' },
 ];
@@ -17,11 +18,13 @@ const moreItems = [
   { href: '/tax', label: 'Tax', icon: '📊' },
   { href: '/history', label: 'History', icon: '📈' },
   { href: '/settings', label: 'Settings', icon: '⚙' },
+  { href: '/profile', label: 'My Profile', icon: '👤' },
 ];
 
 export function BottomTabBar() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  const { openAdd } = useGlobalModals();
 
   function isActive(href: string) {
     if (href === '/') return pathname === '/';
@@ -71,6 +74,7 @@ export function BottomTabBar() {
         {/* FAB — Add */}
         <button
           aria-label="Add"
+          onClick={openAdd}
           style={{
             width: 48, height: 48,
             background: 'var(--accent)',

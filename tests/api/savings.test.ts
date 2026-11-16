@@ -1,5 +1,5 @@
 ﻿/**
- * TC-SAV-001 to TC-SAV-012 â€” Savings accounts
+ * TC-SAV-001 to TC-SAV-014 – Savings accounts
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -403,17 +403,192 @@ describe('TC-SAV-012: Sanchaypatra account balance', () => {
     const user = await ctx.createUser({ provision: true });
     const res = await createAccount(ctx, user, {
       name: 'Sanchaypatra', type: 'SANCHAYPATRA',
-      opening_balance_paisa: 2000000, // à§³20,000
+      opening_balance_paisa: 2000000, // ৳20,000
     });
     const acct = await res.json();
 
     // One purchase = a SAVINGS_DEPOSIT
-    await insertSavingsTx(ctx.db, user.id, acct.id, 'SAVINGS_DEPOSIT', 1000000); // à§³10,000
+    await insertSavingsTx(ctx.db, user.id, acct.id, 'SAVINGS_DEPOSIT', 1000000); // ৳10,000
 
     const headers = await ctx.authHeader(user);
     const detail = await ctx.makeRequest('GET', `/api/v1/savings-accounts/${acct.id}`, { headers });
     expect(detail.status).toBe(200);
     const body = await detail.json();
-    expect(body.balance_paisa).toBe(3000000); // à§³30,000
+    expect(body.balance_paisa).toBe(3000000); // ৳30,000
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TC-SAV-013: MFS mobile number in last_four (commit 978f52e)
+// last_four now accepts a 4-digit bank suffix OR an 11-digit MFS mobile number.
+// Old test TC-SAV-002 only checks 4 digits pass and 12 digits fail – that leaves
+// the new boundary completely untested.
+// ---------------------------------------------------------------------------
+
+describe('TC-SAV-013: last_four accepts 4-digit suffix or 11-digit MFS mobile number', () => {
+  it('POST accepts an 11-digit MFS mobile number and returns it unchanged', async () => {
+    const user = await ctx.createUser({ provision: true });
+    const res = await createAccount(ctx, user, {
+      name: 'bKash', type: 'MFS', bank_name: 'bKash', last_four: '01712345678',
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.last_four).toBe('01712345678');
+
+    const headers = await ctx.authHeader(user);
+    const detail = await ctx.makeRequest('GET', `/api/v1/savings-accounts/${body.id}`, { headers });
+    expect((await detail.json()).last_four).toBe('01712345678');
+  });
+
+  it.each([
+    ['5-digit', '12345'],
+    ['10-digit', '0171234567'],
+    ['12-digit', '017123456789'],
+    ['alpha chars', '0171234567a'],
+    ['hyphen', '01712-34567'],
+    ['3-digit', '123'],
+  ])('POST rejects last_four %s with 422', async (_label, lastFour) => {
+    const user = await ctx.createUser({ provision: true });
+    const res = await createAccount(ctx, user, { last_four: lastFour });
+    expect(res.status).toBe(422);
+    expect((await res.json()).code).toBe('VALIDATION_ERROR');
+  });
+
+  it('PATCH accepts an 11-digit number and rejects 10 digits; a rejected PATCH leaves stored value intact', async () => {
+    const user = await ctx.createUser({ provision: true });
+    const created = await (await createAccount(ctx, user, {
+      name: 'Nagad', type: 'MFS', bank_name: 'Nagad', last_four: '1234',
+    })).json();
+    const headers = await ctx.authHeader(user);
+
+    // 11 digits → accepted
+    const ok = await ctx.makeRequest('PATCH', `/api/v1/savings-accounts/${created.id}`, {
+      headers, body: { last_four: '01812345678' },
+    });
+    expect(ok.status).toBe(200);
+    expect((await ok.json()).last_four).toBe('01812345678');
+
+    // 10 digits → rejected
+    const bad = await ctx.makeRequest('PATCH', `/api/v1/savings-accounts/${created.id}`, {
+      headers, body: { last_four: '0181234567' },
+    });
+    expect(bad.status).toBe(422);
+
+    // stored value must be the successful PATCH value, not the rejected one
+    const detail = await ctx.makeRequest('GET', `/api/v1/savings-accounts/${created.id}`, { headers });
+    expect((await detail.json()).last_four).toBe('01812345678');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TC-SAV-014 (HIGH PRIORITY – bug): editing opening balance on existing account
+//
+// Commit 978f52e claims "opening balance editable to fix typos".
+// The edit modal PATCHes opening_balance_paisa, but the PATCH handler (route.ts)
+// never reads or writes that field → silent no-op (returns 200, balance unchanged).
+//
+// These tests are RED until the PATCH handler is fixed.
+// Verify every downstream figure: balance, net worth total, NOT just HTTP status.
+// ---------------------------------------------------------------------------
+
+describe('TC-SAV-014 (bug): PATCH opening_balance_paisa corrects the account balance', () => {
+  it('PATCH response and GET detail both reflect the new opening_balance_paisa', async () => {
+    const user = await ctx.createUser({ provision: true });
+    // ৳50,000 was a typo; intended ৳5,000
+    const acct = await (await createAccount(ctx, user, { opening_balance_paisa: 5000000 })).json();
+    const headers = await ctx.authHeader(user);
+
+    const patch = await ctx.makeRequest('PATCH', `/api/v1/savings-accounts/${acct.id}`, {
+      headers, body: { opening_balance_paisa: 500000 },
+    });
+    expect(patch.status).toBe(200);
+    const patched = await patch.json();
+    expect(patched.opening_balance_paisa).toBe(500000);
+    expect(patched.balance_paisa).toBe(500000);
+
+    const detail = await (await ctx.makeRequest('GET', `/api/v1/savings-accounts/${acct.id}`, { headers })).json();
+    expect(detail.opening_balance_paisa).toBe(500000);
+    expect(detail.balance_paisa).toBe(500000);
+  });
+
+  it('existing transactions are preserved: balance = new_opening + deposits − withdrawals', async () => {
+    const user = await ctx.createUser({ provision: true });
+    const acct = await (await createAccount(ctx, user, { opening_balance_paisa: 5000000 })).json();
+    await insertSavingsTx(ctx.db, user.id, acct.id, 'SAVINGS_DEPOSIT',    300000); // +৳3,000
+    await insertSavingsTx(ctx.db, user.id, acct.id, 'SAVINGS_WITHDRAWAL', 100000); // −৳1,000
+    const headers = await ctx.authHeader(user);
+
+    await ctx.makeRequest('PATCH', `/api/v1/savings-accounts/${acct.id}`, {
+      headers, body: { opening_balance_paisa: 1000000 }, // ৳10,000
+    });
+
+    const detail = await (await ctx.makeRequest('GET', `/api/v1/savings-accounts/${acct.id}`, { headers })).json();
+    // ৳10,000 + ৳3,000 − ৳1,000 = ৳12,000
+    expect(detail.balance_paisa).toBe(1000000 + 300000 - 100000);
+  });
+
+  it('Bank & Wallet net_worth_paisa and total_saved_paisa update after PATCH', async () => {
+    const user = await ctx.createUser({ provision: true });
+    const a = await (await createAccount(ctx, user, { name: 'A', opening_balance_paisa: 5000000 })).json();
+    await createAccount(ctx, user, { name: 'B', opening_balance_paisa: 200000 });
+    const headers = await ctx.authHeader(user);
+
+    const before = await (await ctx.makeRequest('GET', '/api/v1/savings-accounts', { headers })).json();
+    expect(before.totals.net_worth_paisa).toBe(5200000);
+
+    await ctx.makeRequest('PATCH', `/api/v1/savings-accounts/${a.id}`, {
+      headers, body: { opening_balance_paisa: 1000000 },
+    });
+
+    const after = await (await ctx.makeRequest('GET', '/api/v1/savings-accounts', { headers })).json();
+    expect(after.totals.net_worth_paisa).toBe(1200000);
+    expect(after.totals.total_saved_paisa).toBe(1200000);
+    expect(after.accounts.find((x: { id: string }) => x.id === a.id).balance_paisa).toBe(1000000);
+  });
+
+  it('PATCH without opening_balance_paisa leaves the stored value unchanged', async () => {
+    const user = await ctx.createUser({ provision: true });
+    const acct = await (await createAccount(ctx, user, { opening_balance_paisa: 5000000 })).json();
+    const headers = await ctx.authHeader(user);
+
+    const patch = await ctx.makeRequest('PATCH', `/api/v1/savings-accounts/${acct.id}`, {
+      headers, body: { name: 'Renamed' },
+    });
+    expect((await patch.json()).opening_balance_paisa).toBe(5000000);
+  });
+
+  it.each([
+    ['negative', -1],
+    ['fractional', 1.5],
+    ['string', 'abc'],
+    ['null', null],
+  ])('rejects invalid opening_balance_paisa (%s) with 422 and leaves balance intact', async (_label, value) => {
+    const user = await ctx.createUser({ provision: true });
+    const acct = await (await createAccount(ctx, user, { opening_balance_paisa: 5000000 })).json();
+    const headers = await ctx.authHeader(user);
+
+    const patch = await ctx.makeRequest('PATCH', `/api/v1/savings-accounts/${acct.id}`, {
+      headers, body: { opening_balance_paisa: value },
+    });
+    expect(patch.status).toBe(422);
+
+    const detail = await (await ctx.makeRequest('GET', `/api/v1/savings-accounts/${acct.id}`, { headers })).json();
+    expect(detail.balance_paisa).toBe(5000000);
+  });
+
+  it("cannot change another user's opening balance (returns 404, owner balance unchanged)", async () => {
+    const owner = await ctx.createUser({ provision: true });
+    const other = await ctx.createUser({ provision: true });
+    const acct = await (await createAccount(ctx, owner, { opening_balance_paisa: 5000000 })).json();
+
+    const patch = await ctx.makeRequest('PATCH', `/api/v1/savings-accounts/${acct.id}`, {
+      headers: await ctx.authHeader(other), body: { opening_balance_paisa: 0 },
+    });
+    expect(patch.status).toBe(404);
+
+    const detail = await (await ctx.makeRequest('GET', `/api/v1/savings-accounts/${acct.id}`, {
+      headers: await ctx.authHeader(owner),
+    })).json();
+    expect(detail.balance_paisa).toBe(5000000);
   });
 });

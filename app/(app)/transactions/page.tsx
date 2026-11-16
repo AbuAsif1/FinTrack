@@ -563,8 +563,8 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Budget sidebar — hidden on mobile */}
-      <div style={{ width: 320, flexShrink: 0 }} className="hidden-mobile">
+      {/* Budget sidebar — hidden on tablet and mobile */}
+      <div style={{ width: 320, flexShrink: 0 }} className="hidden-below-desktop">
         <BudgetSidebar onManage={() => router.push('/budgets')} />
       </div>
 

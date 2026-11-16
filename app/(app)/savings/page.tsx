@@ -841,7 +841,7 @@ export default function BankAndWalletPage() {
           {/* Hero banner skeleton */}
           <SkeletonCard height={110} />
           {/* Account cards skeleton */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 16 }}>
             {[0, 1, 2, 3].map((i) => <SkeletonCard key={i} height={130} />)}
           </div>
         </div>
@@ -855,7 +855,7 @@ export default function BankAndWalletPage() {
       ) : (
         <>
           {totals && (
-            <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', marginBottom: 8 }}>
+            <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: 8 }}>
               <SummaryTile label="Net Worth" paisa={totals.net_worth_paisa} variant="featured" subtitle="All accounts combined" />
               <SummaryTile label="Bank Balance" paisa={totals.bank_paisa} variant="income" subtitle="Savings, DPS & FDR" />
               <SummaryTile label="MFS Balance" paisa={totals.mfs_paisa} variant="savings" subtitle="Mobile banking" />
@@ -867,7 +867,7 @@ export default function BankAndWalletPage() {
           {unlinked.length > 0 && (
             <>
               <GroupHeading>Needs a parent account</GroupHeading>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 16 }}>
                 {unlinked.map((a) => (
                   <SimpleCard
                     key={a.id} account={a} actions={actions}
@@ -883,7 +883,7 @@ export default function BankAndWalletPage() {
             </>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20, alignItems: 'start' }}>
+          <div className="r-halves" style={{ alignItems: 'start' }}>
             {/* Left column: Bank Accounts */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {banks.length > 0 && (

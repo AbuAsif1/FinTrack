@@ -558,18 +558,18 @@ function DetailPanel({
             {person.running_balance_paisa >= 0 ? '+' : '−'}{fmt(person.running_balance_paisa)} · {balanceLabel(person)}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
           {person.running_balance_paisa !== 0 && (
             <button
               onClick={() => setSettling(true)}
-              style={{ padding: '7px 14px', background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 8, cursor: 'pointer', font: 'var(--t-body)' }}
+              style={{ padding: '7px 14px', background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 8, cursor: 'pointer', font: 'var(--t-body)', whiteSpace: 'nowrap' }}
             >
               Settle Up
             </button>
           )}
           <button
             onClick={onAddEntry}
-            style={{ padding: '7px 14px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', font: 'var(--t-body)' }}
+            style={{ padding: '7px 14px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', font: 'var(--t-body)', whiteSpace: 'nowrap' }}
           >
             + Add Entry
           </button>
@@ -585,7 +585,7 @@ function DetailPanel({
         ) : (
           <>
             {/* Header */}
-            <div style={{ display: 'grid', gridTemplateColumns: '90px 100px 120px 1fr 140px 44px', padding: '10px 16px', background: 'var(--bg-raised)', borderBottom: '2px solid var(--border)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '90px 100px 150px 1fr 160px 44px', padding: '10px 16px', background: 'var(--bg-raised)', borderBottom: '2px solid var(--border)' }}>
               {['DATE', 'DIRECTION', 'AMOUNT', 'REASON', 'BALANCE', ''].map((h) => (
                 <div key={h} style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)' }}>{h}</div>
               ))}
@@ -594,7 +594,7 @@ function DetailPanel({
             {entries.map((entry) => {
               const dueStatus = dueSoonStatus(entry.return_due_date);
               return (
-                <div key={entry.id} style={{ display: 'grid', gridTemplateColumns: '90px 100px 120px 1fr 140px 44px', padding: '12px 16px', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
+                <div key={entry.id} style={{ display: 'grid', gridTemplateColumns: '90px 100px 150px 1fr 160px 44px', padding: '12px 16px', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
                   <div style={{ font: 'var(--t-body)', color: 'var(--fg-secondary)' }}>
                     {fmtDate(entry.date)}
                     {dueStatus && (
@@ -699,7 +699,7 @@ export default function LoansPage() {
 
       {/* KPI summary tiles */}
       {summary && (
-        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 20 }}>
+        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', marginBottom: 20 }}>
           <SummaryTile
             label="I Owe (Total)"
             paisa={summary.i_owe_paisa}
@@ -722,21 +722,21 @@ export default function LoansPage() {
       )}
 
       {loading ? (
-        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+        <div className="r-panel">
           {/* Person list sidebar skeleton */}
-          <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="r-panel__sidebar" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[0, 1, 2, 3].map((i) => <SkeletonCard key={i} height={52} />)}
           </div>
           {/* Detail panel skeleton */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="r-panel__main" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <SkeletonCard height={44} />
             <SkeletonCard height={180} />
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+        <div className="r-panel">
           {/* Person List */}
-          <div style={{ width: 300, flexShrink: 0 }}>
+          <div className="r-panel__sidebar">
             <div className="table-scroll" style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
               {persons.length === 0 ? (
                 <div style={{ padding: 24, textAlign: 'center', color: 'var(--fg-muted)', font: 'var(--t-body)' }}>
@@ -781,18 +781,20 @@ export default function LoansPage() {
           </div>
 
           {/* Detail Panel */}
-          {selectedPerson ? (
-            <DetailPanel
-              key={selectedPerson.id}
-              person={selectedPerson}
-              onAddEntry={() => { setAddForPersonId(selectedPerson.id); setShowAddModal(true); }}
-              onRefresh={load}
-            />
-          ) : (
-            <div style={{ flex: 1, padding: 60, textAlign: 'center', color: 'var(--fg-muted)', font: 'var(--t-body)' }}>
-              Select a person to see their entries.
-            </div>
-          )}
+          <div className="r-panel__main">
+            {selectedPerson ? (
+              <DetailPanel
+                key={selectedPerson.id}
+                person={selectedPerson}
+                onAddEntry={() => { setAddForPersonId(selectedPerson.id); setShowAddModal(true); }}
+                onRefresh={load}
+              />
+            ) : (
+              <div style={{ padding: 60, textAlign: 'center', color: 'var(--fg-muted)', font: 'var(--t-body)' }}>
+                Select a person to see their entries.
+              </div>
+            )}
+          </div>
         </div>
       )}
 

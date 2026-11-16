@@ -135,7 +135,7 @@ export default function ImportPage() {
 
       {/* Dataset cards */}
       {!preview && !committed && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
           {(['INCOME', 'TRANSACTIONS', 'LOAN_ENTRIES'] as Dataset[]).map((dataset) => (
             <div key={dataset} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ font: 'var(--t-label)', fontWeight: 600 }}>{DATASET_LABELS[dataset]}</div>

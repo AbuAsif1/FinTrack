@@ -101,7 +101,7 @@ function ConfigCard({ config }: { config: TaxConfig }) {
       </div>
 
       {/* Key numbers */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
         <div style={{ background: 'var(--bg-raised)', borderRadius: 8, padding: '12px 16px' }}>
           <div style={{ font: 'var(--t-caption)', color: 'var(--fg-secondary)' }}>Minimum tax</div>
           <div style={{ font: 'var(--t-body)', fontWeight: 600, marginTop: 2 }}>{taka(minimum_tax_paisa)}</div>
@@ -133,7 +133,7 @@ function ConfigCard({ config }: { config: TaxConfig }) {
         <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
           Investment Caps (rebate-eligible)
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
           {([
             ['DPS',                     ic.dps],
             ['Sanchaypatra',            ic.sanchaypatra],

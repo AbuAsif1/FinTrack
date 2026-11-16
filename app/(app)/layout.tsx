@@ -6,12 +6,14 @@ import { NotificationBell } from '@/components/ui/NotificationDrawer';
 import { TransactionModal, type Category, type SavingsAccount, type LoanPerson, type FixedExpenseTemplate } from '@/components/ui/TransactionModal';
 import { IncomeModal } from '@/components/ui/IncomeModal';
 import type { SavingsAccount as IncomeSavingsAccount } from '@/components/ui/IncomeModal';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useContext } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { tryRestoreSession } from '@/lib/api';
 import api from '@/lib/api';
 import Link from 'next/link';
 import { useTheme } from '@/components/theme-provider';
+import { PageDescriptionProvider, PageDescriptionContext } from '@/components/ui/PageDescriptionContext';
+import { GlobalModalsContext } from '@/components/ui/GlobalModalsContext';
 
 const PAGE_TITLE: Record<string, string> = {
   '/':               'Dashboard',
@@ -84,6 +86,45 @@ function ThemeToggle() {
   );
 }
 
+function TopBar({ pathname, openAddIncome, openAdd, unreadCount, onCountChange }: {
+  pathname: string;
+  openAddIncome: () => void;
+  openAdd: () => void;
+  unreadCount: number;
+  onCountChange: (n: number) => void;
+}) {
+  const { description } = useContext(PageDescriptionContext);
+  return (
+    <div className="app-topbar">
+      {/* Page title + inline description */}
+      <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'baseline', gap: 10, minWidth: 0, overflow: 'hidden' }}>
+        <span style={{ font: '600 18px var(--font-space-grotesk, system-ui)', color: 'var(--fg-primary)', flexShrink: 0 }}>
+          {getPageTitle(pathname)}
+        </span>
+        {description && (
+          <span style={{ font: 'var(--t-caption)', color: 'var(--fg-muted)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {description}
+          </span>
+        )}
+      </div>
+      {/* Search bar */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        background: 'var(--bg-raised)', border: '1px solid var(--border)',
+        borderRadius: 8, padding: '6px 14px', minWidth: 180,
+      }}>
+        <span style={{ color: 'var(--fg-muted)', fontSize: 13 }}>🔍</span>
+        <span style={{ font: 'var(--t-body)', color: 'var(--fg-muted)', fontSize: 13 }}>Search…</span>
+      </div>
+      {/* Action buttons */}
+      <button onClick={openAddIncome} className="btn-secondary" style={{ fontSize: 12, padding: '6px 12px' }}>+ Add Income</button>
+      <button onClick={openAdd} className="btn-primary" style={{ fontSize: 12, padding: '6px 12px' }}>+ Add Expenses</button>
+      <ThemeToggle />
+      <NotificationBell unreadCount={unreadCount} onCountChange={onCountChange} />
+    </div>
+  );
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -152,9 +193,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
+    <PageDescriptionProvider>
+    <GlobalModalsContext.Provider value={{ openAdd, openAddIncome }}>
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      {/* Desktop sidebar — hidden on mobile via CSS */}
-      <div className="sidebar-desktop" style={{ display: 'contents' }}>
+      {/* Desktop sidebar — hidden on mobile via CSS (.sidebar-desktop sets display:contents, media query overrides to none) */}
+      <div className="sidebar-desktop">
         <Sidebar />
       </div>
 
@@ -175,7 +218,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             height: 52,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
             <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
               <rect width="32" height="32" rx="8" fill="#299D91"/>
               <polyline points="3,24 8,17 13,20 20,11 29,7" stroke="rgba(255,255,255,0.28)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -185,31 +228,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <span style={{ font: '600 15px var(--font-space-grotesk, system-ui)', color: 'var(--fg-primary)' }}>
               FinTrack
             </span>
-          </div>
+          </Link>
           <NotificationBell unreadCount={unreadCount} onCountChange={setUnreadCount} />
         </header>
 
         {/* Desktop sticky top action bar */}
-        <div className="app-topbar">
-          {/* Page title — left side */}
-          <span style={{ font: '600 18px var(--font-space-grotesk, system-ui)', color: 'var(--fg-primary)', marginRight: 'auto' }}>
-            {getPageTitle(pathname)}
-          </span>
-          {/* Search bar */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            background: 'var(--bg-raised)', border: '1px solid var(--border)',
-            borderRadius: 8, padding: '6px 14px', minWidth: 180,
-          }}>
-            <span style={{ color: 'var(--fg-muted)', fontSize: 13 }}>🔍</span>
-            <span style={{ font: 'var(--t-body)', color: 'var(--fg-muted)', fontSize: 13 }}>Search…</span>
-          </div>
-          {/* Action buttons */}
-          <button onClick={openAddIncome} className="btn-secondary" style={{ fontSize: 12, padding: '6px 12px' }}>+ Add Income</button>
-          <button onClick={openAdd} className="btn-primary" style={{ fontSize: 12, padding: '6px 12px' }}>+ Add Expenses</button>
-          <ThemeToggle />
-          <NotificationBell unreadCount={unreadCount} onCountChange={setUnreadCount} />
-        </div>
+        <TopBar pathname={pathname} openAddIncome={openAddIncome} openAdd={openAdd} unreadCount={unreadCount} onCountChange={setUnreadCount} />
 
         <main className="main-content">
           {children}
@@ -251,5 +275,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         />
       )}
     </div>
+    </GlobalModalsContext.Provider>
+    </PageDescriptionProvider>
   );
 }

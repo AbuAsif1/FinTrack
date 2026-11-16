@@ -429,7 +429,7 @@ export default function FixedExpensesPage() {
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [editTemplate, setEditTemplate] = useState<FixedExpenseTemplate | null>(null);
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
-  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<FixedExpenseTemplate | null>(null);
 
   const currentMonth = currentYM();
@@ -439,7 +439,7 @@ export default function FixedExpensesPage() {
     (t, i) => templates.findIndex(t2 => t2.name.toLowerCase() === t.name.toLowerCase()) === i
   );
 
-  function dismissBanner() { setBannerDismissed(true); }
+  function dismissBanner(id: string) { setDismissedBanners((prev) => new Set([...prev, id])); }
 
   // ── Load current month data ──
   const load = useCallback(async () => {
@@ -494,7 +494,7 @@ export default function FixedExpensesPage() {
 
   // Banner: DUE_SOON + OVERDUE items this month
   const alertInstances = currentInstances.filter(i => i.status === 'DUE_SOON' || i.status === 'OVERDUE');
-  const showBanner = alertInstances.length > 0 && !bannerDismissed;
+  const visibleAlerts = alertInstances.filter(i => !dismissedBanners.has(i.id));
 
   // Month totals
   const currentTotal = currentInstances.reduce((s, i) => s + (i.actual_amount_paisa ?? i.standard_amount_paisa), 0);
@@ -541,20 +541,17 @@ export default function FixedExpensesPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-          {/* ── Warning banner ── */}
-          {showBanner && (
+          {/* ── Warning banners (one per alert item) ── */}
+          {visibleAlerts.map((inst) => (
             <AlertBanner
-              variant={alertInstances.some(i => i.status === 'OVERDUE') ? 'danger' : 'warn'}
-              title={[
-                alertInstances.filter(i => i.status === 'OVERDUE').length > 0
-                  ? `${alertInstances.filter(i => i.status === 'OVERDUE').length} overdue` : '',
-                alertInstances.filter(i => i.status === 'DUE_SOON').length > 0
-                  ? `${alertInstances.filter(i => i.status === 'DUE_SOON').length} due within 7 days` : '',
-              ].filter(Boolean).join(' · ')}
-              body={alertInstances.map(i => i.template_name).join(', ')}
-              onDismiss={dismissBanner}
+              key={inst.id}
+              compact
+              variant={inst.status === 'OVERDUE' ? 'danger' : 'warn'}
+              title={`${inst.status === 'OVERDUE' ? 'Overdue' : 'Due soon'}: ${inst.template_name}`}
+              body={`৳${(inst.standard_amount_paisa / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+              onDismiss={() => dismissBanner(inst.id)}
             />
-          )}
+          ))}
 
           {/* ── Top action bar ── */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -567,7 +564,7 @@ export default function FixedExpensesPage() {
           </div>
 
           {/* ── KPI tiles ── */}
-          <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
+          <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
             <SummaryTile label="Monthly Total" paisa={currentTotal} variant="spending" subtitle={new Date(currentMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} />
             <SummaryTile label="Paid" paisa={currentPaid} variant="savings" subtitle={`${currentInstances.filter(i => i.status === 'PAID').length} items`} />
             <SummaryTile label="Pending" paisa={currentPending} variant={currentPending > 0 ? 'warn' : 'neutral'} subtitle={`${currentInstances.filter(i => ['PENDING','DUE_SOON','OVERDUE'].includes(i.status)).length} items`} />

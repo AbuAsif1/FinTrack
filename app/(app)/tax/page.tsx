@@ -132,16 +132,8 @@ function OverviewTab({ result }: { result: TaxResult }) {
 
   return (
     <div>
-      {/* KPI tiles */}
-      <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', marginBottom: 24 }}>
-        <SummaryTile label="Net Tax Payable" paisa={result.net_tax_payable_paisa} variant="tax" subtitle={`FY ${result.fiscal_year}${result.is_projection ? ' · Projection' : ''}`} />
-        <SummaryTile label="Gross Tax" paisa={result.gross_tax_paisa} variant="spending" subtitle="Before rebate" />
-        <SummaryTile label="Rebate" paisa={result.tax_rebate_paisa} variant="savings" subtitle="Investment rebate" />
-        <SummaryTile label={remaining < 0 ? 'Overpaid' : 'Remaining'} paisa={Math.abs(remaining)} variant={remaining < 0 ? 'savings' : 'warn'} subtitle={remaining < 0 ? 'Refund due' : 'Still to pay'} />
-      </div>
-
       {/* Taxable Income Breakdown + Slab Breakdown */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+      <div className="r-halves" style={{ marginBottom: 24 }}>
         <div style={{ background: 'var(--bg-surface)', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', padding: 16 }}>
           <div style={{ font: 'var(--t-label)', color: 'var(--fg-secondary)', marginBottom: 12 }}>TAXABLE INCOME BREAKDOWN</div>
           <Row label="Gross Annual Income" value={fmt(result.gross_income_paisa)} />
@@ -388,7 +380,7 @@ function ForecastTab({ fy }: { fy: string }) {
           : `Based on avg of ${forecast.months_entered} salary months × 12 (projected full year)`}
         {' '}· Rebate uses your actual investments.
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+      <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
         <Tile label="PROJECTED GROSS TAX" value={fmt(forecast.gross_tax_paisa)} />
         <Tile label="PROJECTED REBATE" value={fmt(forecast.tax_rebate_paisa)} color="var(--ok)" />
         <Tile label="PROJECTED NET TAX" value={fmt(forecast.net_tax_payable_paisa)} color={forecast.net_tax_payable_paisa > 0 ? 'var(--warn)' : 'var(--ok)'} />
@@ -694,7 +686,7 @@ function SettingsTab({
 
         {/* ── Salary Exemption ──────────────────────────────────────────── */}
         <SectionLabel>Salary Exemption</SectionLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
           <SettingsInput label="Numerator" value={editParams.exemption_num} onChange={v => setParam('exemption_num', v)} />
           <SettingsInput label="Denominator" value={editParams.exemption_den} onChange={v => setParam('exemption_den', v)} />
           <SettingsInput label="Cap" value={editParams.exemption_cap} onChange={v => setParam('exemption_cap', v)} suffix="৳" />
@@ -702,7 +694,7 @@ function SettingsTab({
 
         {/* ── Tax Rebate ────────────────────────────────────────────────── */}
         <SectionLabel>Tax Rebate on Investment</SectionLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
           <SettingsInput label="Income rate" value={editParams.rebate_income_pct} onChange={v => setParam('rebate_income_pct', v)} suffix="% of gross income" />
           <SettingsInput label="Investment rate" value={editParams.rebate_inv_pct} onChange={v => setParam('rebate_inv_pct', v)} suffix="% of investment" />
           <SettingsInput label="Maximum rebate" value={editParams.rebate_max} onChange={v => setParam('rebate_max', v)} suffix="৳" />
@@ -710,7 +702,7 @@ function SettingsTab({
 
         {/* ── Investment Caps ───────────────────────────────────────────── */}
         <SectionLabel>Investment Caps for Rebate (৳, blank = no cap)</SectionLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
           <SettingsInput label="DPS" value={editParams.cap_dps} onChange={v => setParam('cap_dps', v)} placeholder="No cap" />
           <SettingsInput label="Sanchaypatra" value={editParams.cap_sanch} onChange={v => setParam('cap_sanch', v)} placeholder="No cap" />
           <SettingsInput label="Stocks" value={editParams.cap_stocks} onChange={v => setParam('cap_stocks', v)} placeholder="No cap" />
@@ -721,7 +713,7 @@ function SettingsTab({
 
         {/* ── Minimum Tax & Early Filing ────────────────────────────────── */}
         <SectionLabel>Other Parameters</SectionLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+        <div className="r-halves" style={{ gap: 12 }}>
           <SettingsInput label="Minimum tax" value={editParams.min_tax} onChange={v => setParam('min_tax', v)} suffix="৳" />
         </div>
         <div style={{ marginTop: 14 }}>
@@ -730,7 +722,7 @@ function SettingsTab({
             <span style={{ font: 'var(--t-body)' }}>Early filing rebate</span>
           </label>
           {editParams.has_ef && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 10 }}>
+            <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginTop: 10 }}>
               <SettingsInput label="Rebate rate" value={editParams.ef_rate_pct} onChange={v => setParam('ef_rate_pct', v)} suffix="% of net tax" />
               <SettingsInput label="Maximum" value={editParams.ef_max} onChange={v => setParam('ef_max', v)} suffix="৳" />
               <label style={{ display: 'block' }}>
@@ -777,7 +769,7 @@ function SettingsTab({
       </div>
 
       <SectionLabel>Key Parameters</SectionLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
         {[
           ['Salary exemption', `${cfg.salary_exemption.numerator}/${cfg.salary_exemption.denominator} of salary, max ৳${(cfg.salary_exemption.cap_paisa / 100).toLocaleString('en-IN')}`],
           ['Rebate on investment', `${(cfg.rebate.investment_rate_bps / 100).toFixed(0)}%, max ৳${(cfg.rebate.max_paisa / 100).toLocaleString('en-IN')}`],
@@ -794,7 +786,7 @@ function SettingsTab({
       </div>
 
       <SectionLabel>Investment Caps for Rebate</SectionLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
         {([
           ['DPS', cfg.investment_caps_paisa.dps],
           ['Sanchaypatra', cfg.investment_caps_paisa.sanchaypatra],
@@ -921,23 +913,25 @@ export default function TaxPage() {
         </div>
       )}
 
-      {/* KPI summary tiles */}
+      {/* KPI summary tiles — all key figures in one row */}
       {result && (
-        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', marginBottom: 20 }}>
+        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', marginBottom: 20 }}>
           <SummaryTile label="Gross Income" paisa={result.gross_income_paisa} variant="income" subtitle={`FY${fy}`} />
-          <SummaryTile label="Net Tax Payable" paisa={result.net_tax_payable_paisa} variant="tax" subtitle="after rebate" />
-          <SummaryTile label="Tax Paid (TDS)" paisa={result.tax_paid_paisa} variant="savings" subtitle="deducted so far" />
+          <SummaryTile label="Gross Tax" paisa={result.gross_tax_paisa} variant="spending" subtitle="Before rebate" />
+          <SummaryTile label="Rebate" paisa={result.tax_rebate_paisa} variant="savings" subtitle="Investment benefit" />
+          <SummaryTile label="Net Tax Payable" paisa={result.net_tax_payable_paisa} variant="tax" subtitle="After rebate" />
+          <SummaryTile label="Tax Paid (TDS)" paisa={result.tax_paid_paisa} variant="savings" subtitle="Deducted so far" />
           <SummaryTile
-            label="Remaining"
-            paisa={result.remaining_tax_paisa}
+            label={result.remaining_tax_paisa <= 0 ? 'Overpaid' : 'Remaining'}
+            paisa={Math.abs(result.remaining_tax_paisa)}
             variant={result.remaining_tax_paisa <= 0 ? 'savings' : 'danger'}
-            subtitle={result.remaining_tax_paisa <= 0 ? 'fully paid' : 'still to pay'}
+            subtitle={result.remaining_tax_paisa <= 0 ? 'Refund due' : 'Still to pay'}
           />
         </div>
       )}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--border)', marginBottom: 24 }}>
+      <div className="tab-bar" style={{ marginBottom: 24 }}>
         {TABS.map((t) => (
           <button
             key={t}
@@ -964,7 +958,7 @@ export default function TaxPage() {
           {/* Hero banner skeleton */}
           <SkeletonCard height={110} />
           {/* Taxable income breakdown + slab breakdown side by side */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="r-halves">
             <SkeletonCard height={150} />
             <SkeletonCard height={150} />
           </div>

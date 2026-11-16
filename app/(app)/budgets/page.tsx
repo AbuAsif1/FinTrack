@@ -146,7 +146,7 @@ export default function BudgetsPage() {
       </div>
 
       {setBudgetsCount > 0 && (
-        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', marginBottom: 20 }}>
+        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: 20 }}>
           <SummaryTile label="Total Budget" paisa={totalLimit} variant="neutral" subtitle={`${setBudgetsCount} categories`} />
           <SummaryTile label="Spent" paisa={totalSpent} variant="spending" subtitle={formatMonthLabel(selectedMonth)} />
           <SummaryTile label="Remaining" paisa={Math.abs(totalRemaining)} variant={totalRemaining >= 0 ? 'savings' : 'danger'} subtitle={totalRemaining >= 0 ? 'left to spend' : 'over budget'} />

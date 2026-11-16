@@ -1,6 +1,7 @@
 /**
- * TC-UI-006 (mobile) — BottomTabBar: Home, Transactions, Fixed tabs; Add FAB; More sheet.
- * design.md §8: bottom tab bar with Home, Transactions, Add (FAB), Fixed, More.
+ * TC-UI-006 (mobile) — BottomTabBar: Dashboard, Transactions, Fixed tabs; Add FAB; More sheet.
+ * design.md §8: bottom tab bar with Dashboard (was Home), Transactions, Add (FAB), Fixed, More.
+ * Label updated in commit 978f52e (Bank & Wallet grouped layout).
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -23,9 +24,9 @@ describe('TC-UI-006 BottomTabBar main tabs', () => {
     expect(screen.getByRole('navigation', { name: 'Mobile navigation' })).toBeInTheDocument();
   });
 
-  it('renders Home tab link', () => {
+  it('renders Dashboard tab link (label changed from "Home" in commit 978f52e)', () => {
     render(<BottomTabBar />);
-    expect(screen.getByRole('link', { name: /home/i })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/');
   });
 
   it('renders Transactions tab link', () => {

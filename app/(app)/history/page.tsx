@@ -404,7 +404,7 @@ export default function HistoryPage() {
 
       {/* KPI tiles */}
       {monthlyData.length > 0 && (
-        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 20 }}>
+        <div className="r-tiles" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', marginBottom: 20 }}>
           <SummaryTile
             label="Total Income"
             paisa={monthlyData.reduce((s, m) => s + m.in_hand_income_paisa, 0)}
@@ -427,7 +427,7 @@ export default function HistoryPage() {
       )}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--border)' }}>
+      <div className="tab-bar">
         {tabs.map(({ id, label }) => (
           <button
             key={id}
