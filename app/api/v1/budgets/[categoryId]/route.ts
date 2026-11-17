@@ -1,10 +1,10 @@
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { toDbDate, todayInDhaka } from '@fintrack/shared';
 
 export async function PUT(req: Request, { params }: { params: { categoryId: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const category = await prisma.category.findFirst({
     where: { id: params.categoryId, userId: user.id },
@@ -49,8 +49,8 @@ export async function PUT(req: Request, { params }: { params: { categoryId: stri
 }
 
 export async function DELETE(req: Request, { params }: { params: { categoryId: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const currentMonth = todayInDhaka().slice(0, 7);
 

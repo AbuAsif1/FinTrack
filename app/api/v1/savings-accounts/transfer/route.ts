@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { toDbDate, fromDbDate } from '@fintrack/shared';
 import { accountBalance, assertPaymentAccount, AccountRuleError } from '@/lib/services/accounts';
 
@@ -8,7 +8,8 @@ function computeBalance(accountId: string, userId: string): Promise<number> {
 }
 
 export async function POST(req: Request) {
-  const user = await getAuthUser(req);
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
   const body = await req.json().catch(() => null);
   if (!body) return Response.json({ error: 'Invalid body', code: 'VALIDATION_ERROR' }, { status: 422 });
 

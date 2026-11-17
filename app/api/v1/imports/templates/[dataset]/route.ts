@@ -1,12 +1,12 @@
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { getTemplate } from '@/lib/services/import-service';
 import type { ImportDataset } from '@prisma/client';
 
 const VALID_DATASETS: ImportDataset[] = ['INCOME', 'TRANSACTIONS', 'LOAN_ENTRIES'];
 
 export async function GET(req: Request, { params }: { params: { dataset: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const { dataset } = params;
   if (!VALID_DATASETS.includes(dataset as ImportDataset)) {

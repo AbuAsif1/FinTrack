@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { toDbDate, fromDbDate, fiscalYear } from '@fintrack/shared';
 import type { IncomeType } from '@prisma/client';
 import { validateReceivingAccount, AccountRuleError } from '@/lib/services/accounts';
@@ -51,8 +51,8 @@ async function checkFYLocked(userId: string, fy: string) {
 }
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const entry = await prisma.incomeEntry.findFirst({
     where: { id: params.id, userId: user.id, isDeleted: false },
@@ -113,8 +113,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 }
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const entry = await prisma.incomeEntry.findFirst({
     where: { id: params.id, userId: user.id, isDeleted: false },

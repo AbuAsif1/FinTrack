@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { toDbDate, fromDbDate } from '@fintrack/shared';
 
 function entryToJson(entry: {
@@ -27,8 +27,8 @@ function entryToJson(entry: {
 }
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const entry = await prisma.holidaySupportEntry.findFirst({
     where: { id: params.id, userId: user.id },
@@ -57,8 +57,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 }
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const entry = await prisma.holidaySupportEntry.findFirst({
     where: { id: params.id, userId: user.id },

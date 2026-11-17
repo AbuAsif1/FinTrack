@@ -1,11 +1,11 @@
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { toDbDate, fromDbDate } from '@fintrack/shared';
 import { CategoryRoutingService, RoutingError } from '@/lib/services/category-routing';
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const instance = await prisma.fixedExpenseInstance.findFirst({
     where: { id: params.id, userId: user.id },

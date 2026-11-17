@@ -1,10 +1,11 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { getAdminUser } from '@/lib/auth';
+import { authenticateAdmin } from '@/lib/auth';
 import { adminGuards, AdminGuardError, logAdminAction } from '@/lib/admin-helpers';
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-  const admin = await getAdminUser(req);
+  const admin = await authenticateAdmin(req);
+  if (admin instanceof Response) return admin;
   const target = await prisma.user.findUnique({ where: { id: params.id } });
   if (!target) return Response.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 });
 

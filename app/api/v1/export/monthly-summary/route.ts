@@ -1,11 +1,11 @@
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { toCsv, csvResponse } from '@/lib/csv';
 import { monthlyTrend } from '@/lib/queries/derived';
 import { toDecimalString } from '@fintrack/shared';
 
 export async function GET(req: Request) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const url = new URL(req.url);
   const from = url.searchParams.get('from') ?? '';

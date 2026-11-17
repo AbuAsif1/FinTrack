@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { fiscalYear, fiscalYearRange, toDbDate, fromDbDate, todayInDhaka, INVESTMENT_ACCOUNT_TYPES } from '@fintrack/shared';
 import { CategoryRoutingService, RoutingError } from '@/lib/services/category-routing';
 
@@ -19,8 +19,8 @@ const schema = z.object({
 // and the amount counts toward the investment kind's Tax Rebate bucket.
 
 export async function POST(req: Request) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const body = await req.json().catch(() => null);
   const r = schema.safeParse(body);
@@ -63,8 +63,8 @@ export async function POST(req: Request) {
 // Payments into Investment Accounts in the Fiscal Year, newest first.
 
 export async function GET(req: Request) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const url = new URL(req.url);
   const fy = url.searchParams.get('fiscal_year') ?? fiscalYear(todayInDhaka());

@@ -431,3 +431,66 @@ describe('cross-user isolation for /me', () => {
     expect(meBody.email).not.toBe(userA.email);
   });
 });
+
+// ---------------------------------------------------------------------------
+// TC-AUTH-022…024: a valid token must belong to a user who still exists and is not deactivated.
+// The edge middleware only checks the JWT signature, so before this fix a deleted user's token got
+// 500s (lazy tax-year / fixed-expense creation hit a foreign key) or 200s with empty data, and a
+// deactivated user kept access until the 15-minute token expired.
+// ---------------------------------------------------------------------------
+
+/** One route of each auth-handling style (AuthError catch, `if (!user)` check, and neither). */
+const GUARDED_ROUTES: [method: string, path: string][] = [
+  ['GET', '/api/v1/dashboard/summary'],
+  ['GET', '/api/v1/tax/summary'],
+  ['GET', '/api/v1/transactions'],
+  ['GET', '/api/v1/savings-accounts'],
+  ['GET', '/api/v1/loan-persons'],
+  ['GET', '/api/v1/income-entries'],
+  ['GET', '/api/v1/fixed-expense-instances?from=2026-11&to=2026-11'],
+  ['PATCH', '/api/v1/categories/no-such-category'],
+  ['POST', '/api/v1/savings-accounts/transfer'],
+  ['PATCH', '/api/v1/transactions/no-such-transaction'],
+  ['POST', '/api/v1/transactions/bulk-delete'],
+];
+
+describe('TC-AUTH-022 token of a deleted user', () => {
+  it('returns 401 on every route — never 500, never 200 with empty data', async () => {
+    const user = await ctx.createUser({ emailVerified: true, provision: true });
+    const headers = await ctx.authHeader(user);
+    await ctx.db.user.delete({ where: { id: user.id } });
+    for (const [method, path] of GUARDED_ROUTES) {
+      const res = await ctx.makeRequest(method, path, { headers, body: method === 'GET' ? undefined : {} });
+      expect(res.status, `${method} ${path}`).toBe(401);
+    }
+  });
+});
+
+describe('TC-AUTH-023 token of a deactivated user', () => {
+  it('returns 401 ACCOUNT_DEACTIVATED at once, not after the token expires', async () => {
+    const user = await ctx.createUser({ emailVerified: true, provision: true });
+    const headers = await ctx.authHeader(user);
+    const before = await ctx.makeRequest('GET', '/api/v1/transactions', { headers });
+    expect(before.status, 'active user is allowed').toBe(200);
+    await ctx.db.user.update({ where: { id: user.id }, data: { deactivatedAt: new Date(), deactivatedUntil: null } });
+    for (const [method, path] of GUARDED_ROUTES) {
+      const res = await ctx.makeRequest(method, path, { headers, body: method === 'GET' ? undefined : {} });
+      expect(res.status, `${method} ${path}`).toBe(401);
+    }
+    const body = await (await ctx.makeRequest('GET', '/api/v1/transactions', { headers })).json();
+    expect(body.code).toBe('ACCOUNT_DEACTIVATED');
+  });
+});
+
+describe('TC-AUTH-024 deactivation that has ended', () => {
+  it('lets the user in when deactivated_until is in the past', async () => {
+    const user = await ctx.createUser({ emailVerified: true, provision: true });
+    const headers = await ctx.authHeader(user);
+    await ctx.db.user.update({
+      where: { id: user.id },
+      data: { deactivatedAt: new Date(Date.now() - 7 * 86_400_000), deactivatedUntil: new Date(Date.now() - 86_400_000) },
+    });
+    const res = await ctx.makeRequest('GET', '/api/v1/transactions', { headers });
+    expect(res.status).toBe(200);
+  });
+});

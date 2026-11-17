@@ -37,3 +37,6 @@ Ticket 02. Read `README.md` in this folder first.
 | TC-AUTH-019 | `GET /me`, then `PATCH /me` with a new name | Name, email and role are returned; the new name is saved | API | P1 | FR-01 |
 | TC-AUTH-020 | A successful login | `last_login_at` shown to an admin is updated | API | P2 | FR-14 |
 | TC-AUTH-021 | `pnpm user:create`, then `pnpm user:reset-password` | The user can sign in; after the reset only the new password works | API | P2 | architecture §Authentication |
+| TC-AUTH-022 | A still-valid access token whose user has been deleted, on dashboard, tax, transactions, accounts, loans, income, categories, transfer and transaction-edit routes | `401` on every route — never `500`, never `200` with empty data | API | P1 | FR-01, p3-07 |
+| TC-AUTH-023 | A still-valid access token whose user an admin has deactivated (no end date) | `401` `ACCOUNT_DEACTIVATED` on every route, immediately (not after the 15-minute token expiry) | API | P1 | ADR-0011, FR-14 |
+| TC-AUTH-024 | A token whose user's deactivation ended (`deactivated_until` in the past) | Requests succeed (`200`) | API | P2 | ADR-0011 |

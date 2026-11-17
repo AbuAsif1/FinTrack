@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { CategoryRoutingService, RoutingError } from '@/lib/services/category-routing';
 
 const patchSchema = z.object({
@@ -18,7 +18,8 @@ const patchSchema = z.object({
 });
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
-  const user = await getAuthUser(req);
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
   const tx = await prisma.transaction.findFirst({
     where: { id: params.id, userId: user.id, isDeleted: false },
     include: { category: true },
@@ -44,7 +45,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 }
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const user = await getAuthUser(req);
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
   const body = await req.json().catch(() => null);
   const r = patchSchema.safeParse(body);
   if (!r.success) {
@@ -67,7 +69,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 }
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-  const user = await getAuthUser(req);
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
   try {
     const svc = new CategoryRoutingService(user.id);
     await svc.softDelete(params.id);

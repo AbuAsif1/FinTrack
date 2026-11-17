@@ -1,11 +1,11 @@
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { toDbDate, fromDbDate } from '@fintrack/shared';
 import type { PaymentMethod } from '@prisma/client';
 
 export async function PATCH(req: Request, { params }: { params: { id: string; entryId: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const entry = await prisma.loanEntry.findFirst({
     where: { id: params.entryId, loanPersonId: params.id, userId: user.id },
@@ -59,8 +59,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string; en
 }
 
 export async function DELETE(req: Request, { params }: { params: { id: string; entryId: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const entry = await prisma.loanEntry.findFirst({
     where: { id: params.entryId, loanPersonId: params.id, userId: user.id },

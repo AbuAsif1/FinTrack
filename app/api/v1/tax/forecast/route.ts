@@ -1,10 +1,10 @@
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { buildTaxInput, currentFY } from '@/lib/services/tax';
 import { forecastTax } from '@fintrack/tax-engine';
 
 export async function GET(req: Request) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const url = new URL(req.url);
   const fy = url.searchParams.get('fiscal_year') ?? currentFY();

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { getAuthUser, AuthError } from '@/lib/auth';
+import { getAuthUser, AuthError, authenticate } from '@/lib/auth';
 
 const RoutingTypeEnum = z.enum([
   'NONE',
@@ -45,7 +45,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const user = await getAuthUser(req);
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
   const body = await req.json().catch(() => null);
   const r = z
     .object({

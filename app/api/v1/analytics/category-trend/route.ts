@@ -1,4 +1,4 @@
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { todayInDhaka } from '@fintrack/shared';
 
@@ -9,8 +9,8 @@ function monthRange(month: string): { gte: Date; lt: Date } {
 }
 
 export async function GET(req: Request) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const url = new URL(req.url);
   const months = Math.min(Math.max(parseInt(url.searchParams.get('months') ?? '12', 10), 1), 36);

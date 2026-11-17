@@ -1,9 +1,10 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 
 export async function POST(req: Request) {
-  const user = await getAuthUser(req);
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
   const body = await req.json().catch(() => null);
   const r = z.object({ ids: z.array(z.string()).min(1).max(100) }).safeParse(body);
   if (!r.success) {

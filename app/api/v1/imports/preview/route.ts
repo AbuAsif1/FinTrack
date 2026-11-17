@@ -1,4 +1,4 @@
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { previewImport } from '@/lib/services/import-service';
 import type { ImportDataset } from '@prisma/client';
 
@@ -7,8 +7,8 @@ const MAX_ROWS = 5000;
 const VALID_DATASETS: ImportDataset[] = ['INCOME', 'TRANSACTIONS', 'LOAN_ENTRIES'];
 
 export async function POST(req: Request) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const contentType = req.headers.get('content-type') ?? '';
   if (!contentType.includes('multipart/form-data')) {

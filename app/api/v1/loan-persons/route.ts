@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 
 async function computeRunningBalance(loanPersonId: string, userId: string): Promise<number> {
   const givenSum = await prisma.transaction.aggregate({
@@ -14,8 +14,8 @@ async function computeRunningBalance(loanPersonId: string, userId: string): Prom
 }
 
 export async function GET(req: Request) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const persons = await prisma.loanPerson.findMany({
     where: { userId: user.id },
@@ -40,8 +40,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const body = await req.json();
   const { name, notes } = body;

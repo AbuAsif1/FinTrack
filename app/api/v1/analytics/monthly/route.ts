@@ -1,4 +1,4 @@
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { inHandIncome, totalSpending, taxPayments as taxPaymentsFn } from '@/lib/queries/derived';
 import { todayInDhaka } from '@fintrack/shared';
@@ -21,8 +21,8 @@ function monthsInRange(from: string, to: string): string[] {
 }
 
 export async function GET(req: Request) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const url = new URL(req.url);
   const cm = todayInDhaka().slice(0, 7);

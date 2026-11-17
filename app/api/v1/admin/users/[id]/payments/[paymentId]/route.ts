@@ -1,11 +1,12 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { getAdminUser } from '@/lib/auth';
+import { authenticateAdmin } from '@/lib/auth';
 import { adminGuards, AdminGuardError, logAdminAction } from '@/lib/admin-helpers';
 import { toDbDate } from '@fintrack/shared';
 
 export async function PATCH(req: Request, { params }: { params: { id: string; paymentId: string } }) {
-  const admin = await getAdminUser(req);
+  const admin = await authenticateAdmin(req);
+  if (admin instanceof Response) return admin;
   const target = await prisma.user.findUnique({ where: { id: params.id } });
   if (!target) return Response.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 });
 
@@ -56,7 +57,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string; pa
 }
 
 export async function DELETE(req: Request, { params }: { params: { id: string; paymentId: string } }) {
-  const admin = await getAdminUser(req);
+  const admin = await authenticateAdmin(req);
+  if (admin instanceof Response) return admin;
   const target = await prisma.user.findUnique({ where: { id: params.id } });
   if (!target) return Response.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 });
 

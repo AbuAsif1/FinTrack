@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { getAuthUser, AuthError } from '@/lib/auth';
+import { getAuthUser, AuthError, authenticate } from '@/lib/auth';
 import { CategoryRoutingService, RoutingError } from '@/lib/services/category-routing';
 import { toDbDate } from '@fintrack/shared';
 
@@ -121,7 +121,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const user = await getAuthUser(req);
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
   const body = await req.json().catch(() => null);
   const r = createSchema.safeParse(body);
   if (!r.success) {

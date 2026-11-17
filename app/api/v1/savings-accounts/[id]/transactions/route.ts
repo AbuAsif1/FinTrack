@@ -1,10 +1,10 @@
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { fromDbDate } from '@fintrack/shared';
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const acct = await prisma.savingsAccount.findFirst({
     where: { id: params.id, userId: user.id },

@@ -1,11 +1,11 @@
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { toDbDate, fromDbDate, todayInDhaka } from '@fintrack/shared';
 import { updatePendingInstanceAmount } from '@/lib/services/fixed-expenses';
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const template = await prisma.fixedExpense.findFirst({ where: { id: params.id, userId: user.id } });
   if (!template) return Response.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 });
@@ -18,8 +18,8 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
 }
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const template = await prisma.fixedExpense.findFirst({
     where: { id: params.id, userId: user.id },

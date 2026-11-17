@@ -1,11 +1,11 @@
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { buildTaxInput, serializeTaxYear } from '@/lib/services/tax';
 import { calculateTax } from '@fintrack/tax-engine';
 
 export async function POST(req: Request, { params }: { params: { fiscalYear: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const fy = params.fiscalYear;
 

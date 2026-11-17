@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 
 const RoutingTypeEnum = z.enum([
   'NONE',
@@ -13,7 +13,8 @@ const RoutingTypeEnum = z.enum([
 ]);
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const user = await getAuthUser(req);
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
   const cat = await prisma.category.findFirst({
     where: { id: params.id, userId: user.id },
   });

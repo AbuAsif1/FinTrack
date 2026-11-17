@@ -48,10 +48,64 @@ export async function verifyAccessToken(token: string): Promise<AuthUser> {
   }
 }
 
+/**
+ * A valid signature is not enough: the user must still exist and not be deactivated. The edge
+ * middleware can only check the signature (no database there), so without this a deleted user's
+ * token reached the routes (500s on lazy creates, 200s with empty data) and a deactivated user kept
+ * access until the 15-minute token expired. The role is read from the database too, so a demotion
+ * takes effect at once. A deactivation whose `deactivated_until` has passed no longer blocks.
+ */
+async function assertActiveUser(tokenUser: AuthUser): Promise<AuthUser> {
+  const row = await prisma.user.findUnique({
+    where: { id: tokenUser.id },
+    select: { id: true, role: true, deactivatedAt: true, deactivatedUntil: true },
+  });
+  if (!row) throw new AuthError(401, 'USER_NOT_FOUND');
+  if (row.deactivatedAt && (!row.deactivatedUntil || row.deactivatedUntil > new Date())) {
+    throw new AuthError(401, 'ACCOUNT_DEACTIVATED');
+  }
+  return { id: row.id, role: row.role };
+}
+
+/** The signed-in user, or throws AuthError (401) — for routes that catch AuthError. */
 export async function getAuthUser(req: Request): Promise<AuthUser> {
   const auth = req.headers.get('authorization') ?? '';
   if (!auth.startsWith('Bearer ')) throw new AuthError(401, 'MISSING_TOKEN');
-  return verifyAccessToken(auth.slice(7));
+  return assertActiveUser(await verifyAccessToken(auth.slice(7)));
+}
+
+const AUTH_MESSAGES: Record<string, string> = {
+  ACCOUNT_DEACTIVATED: 'Account deactivated',
+  ADMIN_ONLY: 'Admin only',
+};
+
+function authErrorResponse(err: AuthError): Response {
+  return Response.json({ error: AUTH_MESSAGES[err.code] ?? 'Unauthorized', code: err.code }, { status: err.status });
+}
+
+/**
+ * For route handlers: the signed-in user, or the 401 Response to return. Use as
+ *   const user = await authenticate(req);
+ *   if (user instanceof Response) return user;
+ * so an auth failure is always an HTTP answer, never an unhandled error (which Next turns into 500).
+ */
+export async function authenticate(req: Request): Promise<AuthUser | Response> {
+  try {
+    return await getAuthUser(req);
+  } catch (err) {
+    if (err instanceof AuthError) return authErrorResponse(err);
+    throw err;
+  }
+}
+
+/** Same as authenticate, for admin routes: 401 when not signed in, 403 ADMIN_ONLY for non-admins. */
+export async function authenticateAdmin(req: Request): Promise<AuthUser | Response> {
+  try {
+    return await getAdminUser(req);
+  } catch (err) {
+    if (err instanceof AuthError) return authErrorResponse(err);
+    throw err;
+  }
 }
 
 export async function getAdminUser(req: Request): Promise<AuthUser> {

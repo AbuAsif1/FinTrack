@@ -1,11 +1,11 @@
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { serializeTaxYear } from '@/lib/services/tax';
 
 export async function POST(req: Request, { params }: { params: { fiscalYear: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const fy = params.fiscalYear;
 

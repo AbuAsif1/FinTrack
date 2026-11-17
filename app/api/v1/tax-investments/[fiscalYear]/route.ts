@@ -1,9 +1,9 @@
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 
 export async function GET(req: Request, { params }: { params: { fiscalYear: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const fy = params.fiscalYear;
   const inv = await prisma.taxInvestment.findUnique({
@@ -21,8 +21,8 @@ export async function GET(req: Request, { params }: { params: { fiscalYear: stri
 }
 
 export async function PUT(req: Request, { params }: { params: { fiscalYear: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const fy = params.fiscalYear;
 

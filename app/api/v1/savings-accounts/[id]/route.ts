@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { getAuthUser } from '@/lib/auth';
+import { authenticate } from '@/lib/auth';
 import { toDbDate, todayInDhaka } from '@fintrack/shared';
 import type { SavingsAccount } from '@prisma/client';
 import { accountBalance, accountToJson, validateParentAccount, AccountRuleError } from '@/lib/services/accounts';
@@ -45,8 +45,8 @@ function acctToJson(acct: SavingsAccount, balancePaisa: number, includeProjectio
 }
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const acct = await prisma.savingsAccount.findFirst({
     where: { id: params.id, userId: user.id },
@@ -58,8 +58,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 }
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const user = await getAuthUser(req);
-  if (!user) return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  const user = await authenticate(req);
+  if (user instanceof Response) return user;
 
   const acct = await prisma.savingsAccount.findFirst({
     where: { id: params.id, userId: user.id },
